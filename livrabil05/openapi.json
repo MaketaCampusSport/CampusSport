@@ -1,0 +1,5114 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "CampusSport API",
+    "version": "1.0.0",
+    "description": "API REST JSON pentru **CampusSport**, sistemul de programare a bazei sportive universitare.\nImplementează interfața descrisă în SDD cap. 6 și cerințele din SRS cap. 8.\n\n## Convenții\n- **Versionare:** toate rutele sunt sub `/api/v1` (SDD 6).\n- **Transport:** HTTPS cu TLS 1.2+ (NFR-08, SRS 8.3.4).\n- **Timp:** intervalele se transmit ca `start` / `end` în ISO 8601 cu fus orar; în baza de date sunt un singur `tstzrange` (`period`). Parametrii de tip `date` se interpretează în fusul orar al bazei sportive.\n- **Denumiri:** câmpurile JSON folosesc `snake_case`, ca în tabelele din SDD 5.1.\n- **Erori:** orice eroare are un `code` stabil și mesaje pentru utilizator în română și engleză (SDD 6.1).\n- **Limitare de cereri:** de exemplu 10 rezervări/minut per utilizator; la depășire se răspunde cu `429` (SDD 8.1).\n\n## Coduri de eroare\n| HTTP | Coduri |\n|---|---|\n| 400 | `BAD_REQUEST` |\n| 401 | `UNAUTHENTICATED`, `OTP_INVALID` |\n| 403 | `FORBIDDEN`, `ACCOUNT_SUSPENDED` |\n| 404 | `NOT_FOUND` |\n| 409 | `SLOT_TAKEN`, `SLOT_BLOCKED`, `EMAIL_ALREADY_USED`, `BOOKING_NOT_CANCELLABLE`, `BOOKING_NOT_ACTIVE`, `ALREADY_CHECKED_IN`, `ALREADY_ON_WAITLIST`, `OFFER_TAKEN`, `BLOCK_CONFLICT`, `CONFLICTS_NEED_CONFIRMATION` |\n| 410 | `OFFER_EXPIRED` |\n| 422 | `VALIDATION_FAILED`, `QUOTA_EXHAUSTED`, `ACTIVE_LIMIT_REACHED`, `WINDOW_EXCEEDED`, `EXTERNAL_ACCESS_DENIED`, `OUTSIDE_OPENING_HOURS`, `INVALID_SLOT`, `RESOURCE_INACTIVE`, `QR_INVALID`, `CHECKIN_WINDOW_CLOSED`, `SCHEDULE_FILE_INVALID` |\n| 429 | `RATE_LIMITED` |\n\n## Autentificare\n- **Membri (student, profesor, admin):** SSO prin OpenID Connect, Authorization Code + PKCE (SDD 6.3).\n- **Externi:** cont verificat prin cod OTP pe email și telefon, fără parolă.\n- **Administratori:** în plus, autentificare în doi pași (NFR-08).\n- **Sesiune:** JWT de acces valabil 15 minute, trimis ca `Authorization: Bearer`. Tokenul de reîmprospătare stă în cookie `HttpOnly`, `Secure`, `SameSite=Strict` și este valabil 30 de zile pe telefon, respectiv 8 ore pentru administratori (SDD 8.1).\n\n## Roluri\n| Valoare | Semnificație | Prioritate (SRS 3.3) |\n|---|---|---|\n| `teacher` | Cadru didactic | 1 |\n| `student` | Student | 2 |\n| `external` | Persoană externă | 3 |\n| `admin` | Administrator al bazei sportive | – |\n\nFiecare operație indică rolul minim în `x-min-role` și cerințele SRS acoperite în `x-srs`.\n`x-sdd-route: false` marchează rutele care nu sunt în lista „rute principale” din SDD 6.1, dar sunt necesare pentru cerințele SRS.\n",
+    "x-documents": [
+      "MA-Software Requirements Specifications - Sistem de programare a bazei sportive universitare",
+      "MA-Software Design Descriptions - Sistem de programare a bazei sportive universitare"
+    ]
+  },
+  "servers": [
+    {
+      "url": "https://campussport.example/api/v1",
+      "description": "Producție (domeniu orientativ, se stabilește la implementare)"
+    },
+    {
+      "url": "https://test.campussport.example/api/v1",
+      "description": "Testare (domeniu orientativ)"
+    },
+    {
+      "url": "http://localhost:3000/api/v1",
+      "description": "Dezvoltare locală"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Login SSO, înregistrare externi cu OTP, sesiuni, cont, suspendare (FR-01, FR-02, FR-05, NFR-11)."
+    },
+    {
+      "name": "Catalog",
+      "description": "Sporturi, resurse, dotări, program de funcționare, filtrare după sport (FR-04, FR-06 – FR-08, FR-39)."
+    },
+    {
+      "name": "Disponibilitate",
+      "description": "Grila de sloturi și actualizări în timp real (FR-09, FR-10, SRS 8.3.4)."
+    },
+    {
+      "name": "Rezervări",
+      "description": "Creare, anulare, check-in, QR semnat, istoric, calendar (FR-03, FR-11 – FR-18, FR-23, FR-24)."
+    },
+    {
+      "name": "Cote",
+      "description": "Contorul lunar per student (FR-25 – FR-29)."
+    },
+    {
+      "name": "Listă de așteptare",
+      "description": "Înscrieri, abonări la zi + sport, oferte pentru locuri eliberate (FR-30 – FR-33)."
+    },
+    {
+      "name": "Notificări",
+      "description": "Dispozitive push și canale preferate (FR-34 – FR-38)."
+    },
+    {
+      "name": "Blocări",
+      "description": "Blocări de urgență și mentenanță, orar EF, evenimente; anularea rezervărilor afectate (FR-19 – FR-22, FR-40 – FR-42)."
+    },
+    {
+      "name": "Administrare și rapoarte",
+      "description": "Setări, panou zilnic, rapoarte, jurnal de audit (FR-43 – FR-46)."
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/auth/sso/login": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "ssoLogin",
+        "summary": "Redirecționare către SSO-ul universității",
+        "description": "Pornește fluxul OpenID Connect Authorization Code + PKCE. Starea și `code_verifier` sunt păstrate de server.",
+        "x-min-role": "public",
+        "x-srs": [
+          "FR-01"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "return_to",
+            "in": "query",
+            "description": "Ruta din PWA la care se revine după autentificare.",
+            "schema": {
+              "type": "string",
+              "example": "/start"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirecționare către furnizorul de identitate.",
+            "headers": {
+              "Location": {
+                "description": "URL-ul de autorizare al furnizorului SSO.",
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/sso/callback": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "ssoCallback",
+        "summary": "Revenire de la furnizorul SSO",
+        "description": "Schimbă codul de autorizare pe token-uri, citește rolul dintr-un claim (ex. `eduPersonAffiliation`) și creează sau actualizează utilizatorul.\nMembrii primesc cookie-ul de reîmprospătare și sunt trimiși în PWA, unde clientul apelează `POST /auth/refresh`.\nAdministratorii sunt trimiși mai întâi la pasul 2FA, cu un `challenge_id` în URL.\n",
+        "x-min-role": "public",
+        "x-srs": [
+          "FR-01",
+          "NFR-08"
+        ],
+        "x-sdd-route": false,
+        "security": [],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirecționare către PWA.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "Set-Cookie": {
+                "description": "Cookie-ul `refresh_token`; lipsește pentru administratori până la finalizarea 2FA.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        }
+      }
+    },
+    "/auth/2fa/verify": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "verifyTwoFactor",
+        "summary": "Al doilea pas de autentificare pentru administratori",
+        "x-min-role": "public",
+        "x-srs": [
+          "NFR-08"
+        ],
+        "x-sdd-route": false,
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "challenge_id",
+                  "code"
+                ],
+                "properties": {
+                  "challenge_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "code": {
+                    "type": "string",
+                    "example": "482913"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sesiune de administrator creată (valabilă 8 ore).",
+            "headers": {
+              "Set-Cookie": {
+                "description": "Cookie-ul `refresh_token`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/auth/external/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "registerExternal",
+        "summary": "Înregistrare extern",
+        "description": "Creează un cont neverificat și trimite coduri OTP pe email și telefon.",
+        "x-min-role": "public",
+        "x-srs": [
+          "FR-02",
+          "NFR-11"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalRegistration"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Coduri OTP trimise.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtpSent"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Există deja un cont cu acest email (`EMAIL_ALREADY_USED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/auth/external/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "loginExternal",
+        "summary": "Solicitare cod OTP pentru un extern deja înregistrat",
+        "description": "Răspunde la fel și dacă emailul nu există, ca să nu dezvăluie ce conturi sunt înregistrate.",
+        "x-min-role": "public",
+        "x-srs": [
+          "FR-02"
+        ],
+        "x-sdd-route": false,
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "ana.rusu@example.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Dacă există contul, s-a trimis un cod OTP pe email.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtpSent"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/auth/external/verify": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "verifyExternal",
+        "summary": "Verifică OTP și emite JWT",
+        "description": "La înregistrare sunt obligatorii ambele coduri; la o autentificare ulterioară este suficient `email_code`.",
+        "x-min-role": "public",
+        "x-srs": [
+          "FR-02"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "email_code"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "ana.rusu@example.com"
+                  },
+                  "email_code": {
+                    "type": "string",
+                    "example": "583021"
+                  },
+                  "phone_code": {
+                    "type": "string",
+                    "description": "Obligatoriu doar la prima verificare a contului.",
+                    "example": "190274"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cont verificat, sesiune creată.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "Cookie-ul `refresh_token`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Cod OTP greșit sau expirat (`OTP_INVALID`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "refreshSession",
+        "summary": "Emite un nou JWT de acces",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "NFR-08"
+        ],
+        "x-sdd-route": false,
+        "security": [
+          {
+            "refreshCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JWT nou; cookie-ul este rotit.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "Noul cookie `refresh_token`.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "logout",
+        "summary": "Închide sesiunea",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "NFR-08"
+        ],
+        "x-sdd-route": false,
+        "security": [
+          {
+            "refreshCookie": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Sesiune închisă, cookie șters."
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "getCurrentUser",
+        "summary": "Profilul utilizatorului curent",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "FR-01"
+        ],
+        "x-sdd-route": false,
+        "responses": {
+          "200": {
+            "description": "Profilul.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "deleteCurrentUser",
+        "summary": "Șterge contul și datele personale",
+        "description": "Rezervările viitoare se anulează, iar istoricul rămâne doar anonimizat (SDD 5.3).",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "NFR-11"
+        ],
+        "x-sdd-route": false,
+        "responses": {
+          "204": {
+            "description": "Cont șters."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/me/export": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "exportCurrentUserData",
+        "summary": "Descarcă datele personale (JSON)",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "NFR-11"
+        ],
+        "x-sdd-route": false,
+        "responses": {
+          "200": {
+            "description": "Profilul, rezervările, înscrierile și preferințele utilizatorului.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "listUsers",
+        "summary": "Caută utilizatori",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-05"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Text căutat în nume sau email.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Role"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/AccountStatus"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pagină de utilizatori.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PageMeta"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "items"
+                      ],
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/User"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/admin/users/{id}/suspend": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "suspendUser",
+        "summary": "Suspendă temporar un cont",
+        "description": "Suspendarea automată (3 no-show-uri într-o lună, 14 zile) o face worker-ul; această rută este pentru decizia manuală.",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-05",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "until",
+                  "reason"
+                ],
+                "properties": {
+                  "until": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-11-26T00:00:00+02:00"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "example": "No-show-uri repetate"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cont suspendat.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/users/{id}/reactivate": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "reactivateUser",
+        "summary": "Ridică suspendarea unui cont",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-05",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cont reactivat.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/sports": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "operationId": "listSports",
+        "summary": "Lista sporturilor cu pictograme",
+        "x-min-role": "public",
+        "x-srs": [
+          "FR-06"
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Sporturile disponibile.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Sport"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resources": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "operationId": "listResources",
+        "summary": "Resursele cu dotările necesare sportului",
+        "description": "Cu `sport`, întoarce doar resursele care au toate dotările din `required_equipment`; la „Tenis” nu apare niciun teren fără fileu (SRS 9.5).",
+        "x-min-role": "public",
+        "x-srs": [
+          "FR-07",
+          "FR-04"
+        ],
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "sport",
+            "in": "query",
+            "description": "Identificatorul sportului.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "include_inactive",
+            "in": "query",
+            "description": "Include resursele dezactivate. Ignorat dacă apelantul nu este admin.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resursele găsite.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Resource"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resources/{id}": {
+      "get": {
+        "tags": [
+          "Catalog"
+        ],
+        "operationId": "getResource",
+        "summary": "Fișa unei resurse",
+        "description": "Fotografie, locație pe hartă, capacitate și echipament disponibil.",
+        "x-min-role": "public",
+        "x-srs": [
+          "FR-08"
+        ],
+        "x-sdd-route": false,
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Fișa resursei.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resource"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/sports": {
+      "post": {
+        "tags": [
+          "Catalog"
+        ],
+        "operationId": "createSport",
+        "summary": "Adaugă un sport",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-39",
+          "NFR-14",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SportInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Sport creat.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sport"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      }
+    },
+    "/admin/sports/{id}": {
+      "put": {
+        "tags": [
+          "Catalog"
+        ],
+        "operationId": "updateSport",
+        "summary": "Modifică un sport",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-39",
+          "NFR-14",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SportInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sport actualizat.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sport"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      }
+    },
+    "/admin/resources": {
+      "post": {
+        "tags": [
+          "Catalog"
+        ],
+        "operationId": "createResource",
+        "summary": "Adaugă o resursă",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-39",
+          "FR-04",
+          "NFR-14",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ResourceInput"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "type",
+                      "location",
+                      "capacity",
+                      "sport_ids",
+                      "opening_hours"
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Resursă creată.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resource"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      }
+    },
+    "/admin/resources/{id}": {
+      "patch": {
+        "tags": [
+          "Catalog"
+        ],
+        "operationId": "updateResource",
+        "summary": "Modifică sau dezactivează o resursă",
+        "description": "Se trimit doar câmpurile schimbate. Dezactivarea se face cu `active = false`; rezervările viitoare trebuie tratate separat printr-o blocare.",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-39",
+          "FR-04",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resursă actualizată.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resource"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      }
+    },
+    "/availability": {
+      "get": {
+        "tags": [
+          "Disponibilitate"
+        ],
+        "operationId": "getAvailability",
+        "summary": "Grila de sloturi",
+        "description": "Se trimite `resource` (ruta din SDD) sau `sport`, care întoarce grila tuturor resurselor compatibile, ca fluxul „sport → slot → confirmare” să rămână la 3 pași (FR-11). Lipsa ambilor parametri produce `400`.\n\nVizibilitate:\n- **Public:** doar starea sloturilor, fără nume (FR-10).\n- **Utilizator:** în plus `mine` și `booking_id` pentru rezervările proprii, iar `bookable` este calculat pentru rolul său.\n- **Extern:** nu vede sloturi care încep peste mai mult de 24 h (SRS 9.5).\n- **Admin:** în plus `holder_name`.\n",
+        "x-min-role": "public",
+        "x-srs": [
+          "FR-09",
+          "FR-10",
+          "FR-11",
+          "FR-20",
+          "FR-23",
+          "FR-24",
+          "NFR-01"
+        ],
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "description": "Identificatorul resursei.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "sport",
+            "in": "query",
+            "description": "Alternativă la `resource`. Extindere față de SDD 6.1.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-11-12"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Grila pentru ziua cerută.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Availability"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/stream/availability": {
+      "get": {
+        "tags": [
+          "Disponibilitate"
+        ],
+        "operationId": "streamAvailability",
+        "summary": "Actualizări în timp real (SSE)",
+        "description": "Trimite evenimentul `slot-changed` la fiecare creare, anulare sau blocare, astfel încât grila se actualizează în sub 3 secunde. Câmpul `data` conține `resource_id`, `start`, `end` și `status` (`free`, `occupied`, `blocked`), fără date personale.",
+        "x-min-role": "public",
+        "x-srs": [
+          "FR-09",
+          "FR-10"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-11-12"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Flux Server-Sent Events.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "event: slot-changed\ndata: {\"resource_id\":\"7d2f4c1e-3a5b-4e8f-9c10-2b6a1d3e5f70\",\"start\":\"2026-11-12T18:00:00+02:00\",\"end\":\"2026-11-12T19:00:00+02:00\",\"status\":\"occupied\"}\n"
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/bookings": {
+      "post": {
+        "tags": [
+          "Rezervări"
+        ],
+        "operationId": "createBooking",
+        "summary": "Creează o rezervare",
+        "description": "Algoritmul SDD 7.1, într-o singură tranzacție: cont activ → fereastră după rol → acces extern → cotă → limita de rezervări active → inserare în `occupancy`.\nConstrângerea `no_overlap` lasă să treacă exact o cerere dintre cele simultane; celelalte primesc `409` cu oferta de listă de așteptare.\n\nSfârșitul slotului se calculează din `slot_minutes` al resursei.\n",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "FR-03",
+          "FR-11",
+          "FR-12",
+          "FR-13",
+          "FR-18",
+          "FR-20",
+          "FR-23",
+          "FR-24",
+          "FR-25",
+          "FR-28",
+          "FR-29",
+          "NFR-01",
+          "NFR-04"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookingCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Rezervare creată; confirmarea și reminderele sunt puse în coadă.",
+            "headers": {
+              "Location": {
+                "description": "URL-ul rezervării.",
+                "schema": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Booking"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "Cont suspendat (`ACCOUNT_SUSPENDED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Slot ocupat (`SLOT_TAKEN`) sau blocat (`SLOT_BLOCKED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlotConflictError"
+                },
+                "example": {
+                  "code": "SLOT_TAKEN",
+                  "message_ro": "Slot ocupat. Vrei să intri pe lista de așteptare?",
+                  "message_en": "Slot taken. Would you like to join the waiting list?",
+                  "waitlist_offer": {
+                    "resource_id": "7d2f4c1e-3a5b-4e8f-9c10-2b6a1d3e5f70",
+                    "start": "2026-11-12T18:00:00+02:00",
+                    "end": "2026-11-12T19:00:00+02:00"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "O regulă de rezervare este încălcată: `QUOTA_EXHAUSTED`, `ACTIVE_LIMIT_REACHED`, `WINDOW_EXCEEDED`, `EXTERNAL_ACCESS_DENIED`, `OUTSIDE_OPENING_HOURS`, `INVALID_SLOT` sau `RESOURCE_INACTIVE`.\n",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "code": "QUOTA_EXHAUSTED",
+                  "message_ro": "Ți-ai folosit cele 4 intrări din noiembrie.",
+                  "message_en": "You have used all 4 entries for November."
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/bookings/{id}": {
+      "get": {
+        "tags": [
+          "Rezervări"
+        ],
+        "operationId": "getBooking",
+        "summary": "Detaliile unei rezervări",
+        "description": "Conține `qr_token` pentru titular, cât timp rezervarea este activă. Un utilizator vede doar rezervările proprii (SDD 8.1).",
+        "x-min-role": "titular",
+        "x-srs": [
+          "FR-03",
+          "FR-16",
+          "FR-17",
+          "NFR-09"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rezervarea.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Booking"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Rezervări"
+        ],
+        "operationId": "cancelBooking",
+        "summary": "Anulează și eliberează slotul",
+        "description": "Anularea este permisă până la începerea slotului și eliberează imediat locul, pornind oferta către lista de așteptare în sub 1 minut.\nPână la 2 h înainte de început cota se restituie; mai târziu intrarea rămâne consumată (`quota_refunded: false`), ca în UC-02.\n",
+        "x-min-role": "titular",
+        "x-srs": [
+          "FR-14",
+          "FR-27",
+          "FR-31",
+          "NFR-09"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rezervare anulată.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancellationResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Rezervarea nu mai este activă sau slotul a început (`BOOKING_NOT_CANCELLABLE`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings/{id}/check-in": {
+      "post": {
+        "tags": [
+          "Rezervări"
+        ],
+        "operationId": "checkInBooking",
+        "summary": "Check-in prin QR sau buton",
+        "description": "Titularul confirmă cu butonul, la fața locului; personalul scanează QR-ul, care conține `occupancy_id` + `qr_nonce` semnate HMAC-SHA256.\nServerul verifică semnătura, ziua și fereastra -10 / +15 minute. Răspunsul arată categoria titularului (membru/extern), ca personalul să confirme accesul.\n\nÎn SDD rolul este „titular / personal”; până la definirea unui rol separat, „personal” înseamnă un cont `admin`.\n",
+        "x-min-role": "titular / personal",
+        "x-srs": [
+          "FR-03",
+          "FR-15",
+          "FR-16",
+          "NFR-09"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckInRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Check-in reușit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckInResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Check-in deja făcut (`ALREADY_CHECKED_IN`) sau rezervare inactivă (`BOOKING_NOT_ACTIVE`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "QR nevalid (`QR_INVALID`) sau în afara ferestrei de check-in (`CHECKIN_WINDOW_CLOSED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings/{id}/calendar.ics": {
+      "get": {
+        "tags": [
+          "Rezervări"
+        ],
+        "operationId": "downloadBookingCalendar",
+        "summary": "Fișier iCal pentru o rezervare",
+        "x-min-role": "titular",
+        "x-srs": [
+          "FR-17"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Eveniment iCal.",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/bookings/{id}/invitations": {
+      "post": {
+        "tags": [
+          "Rezervări"
+        ],
+        "operationId": "createBookingInvitation",
+        "summary": "Creează un link de invitație pentru echipă",
+        "x-min-role": "titular",
+        "x-srs": [
+          "FR-18"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Link creat, valabil până la începerea slotului.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "invite_url",
+                    "expires_at"
+                  ],
+                  "properties": {
+                    "invite_url": {
+                      "type": "string",
+                      "format": "uri",
+                      "example": "https://campussport.example/i/9fK2xQ"
+                    },
+                    "expires_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2026-11-12T18:00:00+02:00"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/invitations/{token}": {
+      "get": {
+        "tags": [
+          "Rezervări"
+        ],
+        "operationId": "getInvitation",
+        "summary": "Detaliile unei invitații",
+        "description": "Arată doar resursa și intervalul, fără datele titularului.",
+        "x-min-role": "public",
+        "x-srs": [
+          "FR-18"
+        ],
+        "x-sdd-route": false,
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invitația.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlotReference"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/me/bookings": {
+      "get": {
+        "tags": [
+          "Rezervări"
+        ],
+        "operationId": "listMyBookings",
+        "summary": "Rezervări viitoare și istoric",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "FR-17"
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "upcoming",
+                "history"
+              ],
+              "default": "upcoming"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pagină de rezervări.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PageMeta"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "items"
+                      ],
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Booking"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/me/calendar-feed": {
+      "get": {
+        "tags": [
+          "Rezervări"
+        ],
+        "operationId": "getCalendarFeed",
+        "summary": "Linkul abonamentului iCal personal",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "FR-17"
+        ],
+        "x-sdd-route": false,
+        "responses": {
+          "200": {
+            "description": "Linkul personal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "url"
+                  ],
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "format": "uri",
+                      "example": "https://campussport.example/api/v1/calendar/b81f0c7e.ics"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/calendar/{token}.ics": {
+      "get": {
+        "tags": [
+          "Rezervări"
+        ],
+        "operationId": "getCalendarFeedFile",
+        "summary": "Abonament iCal personal",
+        "description": "Aplicațiile de calendar nu pot trimite JWT, așa că accesul se face printr-un token opac din URL.",
+        "x-min-role": "public",
+        "x-srs": [
+          "FR-17"
+        ],
+        "x-sdd-route": false,
+        "security": [],
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Calendarul rezervărilor active.",
+            "content": {
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/bookings": {
+      "get": {
+        "tags": [
+          "Rezervări"
+        ],
+        "operationId": "listBookings",
+        "summary": "Toate rezervările, cu filtre",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-43"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/BookingStatus"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pagină de rezervări.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PageMeta"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "items"
+                      ],
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Booking"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/admin/bookings/{id}": {
+      "patch": {
+        "tags": [
+          "Rezervări"
+        ],
+        "operationId": "rescheduleBooking",
+        "summary": "Schimbă ora unei rezervări",
+        "description": "Titularul primește notificare push + email cu motivul. Noul interval trece prin aceeași constrângere `no_overlap`.",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-35",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "start",
+                  "reason"
+                ],
+                "properties": {
+                  "start": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2026-11-12T19:00:00+02:00"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "example": "Schimbare de program"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rezervare mutată.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Booking"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Noul interval este ocupat (`SLOT_TAKEN`) sau blocat (`SLOT_BLOCKED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/bookings/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Rezervări"
+        ],
+        "operationId": "adminCancelBooking",
+        "summary": "Anulare de către administrator",
+        "description": "Cota se restituie indiferent de oră, iar titularul primește notificare cu motivul.",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-27",
+          "FR-35",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reason"
+                ],
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "example": "Teren indisponibil"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rezervare anulată.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancellationResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Rezervarea nu mai este activă (`BOOKING_NOT_ACTIVE`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/quota": {
+      "get": {
+        "tags": [
+          "Cote"
+        ],
+        "operationId": "getMyQuota",
+        "summary": "Intrări folosite și rămase în luna curentă",
+        "x-min-role": "student",
+        "x-srs": [
+          "FR-25",
+          "FR-26",
+          "FR-27",
+          "FR-28",
+          "FR-29"
+        ],
+        "responses": {
+          "200": {
+            "description": "Contorul curent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Quota"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/waitlist": {
+      "post": {
+        "tags": [
+          "Listă de așteptare"
+        ],
+        "operationId": "joinWaitlist",
+        "summary": "Înscriere pe slot sau abonare la zi + sport",
+        "description": "- **Pe slot:** se trimit `resource_id`, `day`, `start`, `end`.\n- **Abonare:** se trimit `sport_id` și `day`, fără `resource_id`; orice resursă compatibilă se potrivește (ex. „fotbal, joi”).\n\nPrioritatea se stabilește de server după rol: profesor, student, extern, apoi ora înscrierii.\n",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "FR-13",
+          "FR-28",
+          "FR-30",
+          "FR-31"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaitlistJoin"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Înscriere creată.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaitlistEntry"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "Utilizatorul este deja înscris (`ALREADY_ON_WAITLIST`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      }
+    },
+    "/me/waitlist": {
+      "get": {
+        "tags": [
+          "Listă de așteptare"
+        ],
+        "operationId": "listMyWaitlist",
+        "summary": "Înscrierile mele",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "FR-30"
+        ],
+        "x-sdd-route": false,
+        "responses": {
+          "200": {
+            "description": "Înscrierile utilizatorului.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WaitlistEntry"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/waitlist/{id}": {
+      "delete": {
+        "tags": [
+          "Listă de așteptare"
+        ],
+        "operationId": "leaveWaitlist",
+        "summary": "Renunță la înscriere",
+        "description": "Dacă înscrierea are o ofertă în curs, oferta trece imediat la următorul din listă.",
+        "x-min-role": "titular",
+        "x-srs": [
+          "FR-30",
+          "FR-33"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Înscriere ștearsă."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/waitlist/{id}/accept": {
+      "post": {
+        "tags": [
+          "Listă de așteptare"
+        ],
+        "operationId": "acceptWaitlistOffer",
+        "summary": "Acceptă oferta pentru locul eliberat",
+        "description": "Creează rezervarea prin același algoritm ca `POST /bookings`, deci constrângerea de excludere rezolvă și aici cererile simultane.\nPrimul care confirmă obține slotul; ceilalți primesc „Locul a fost luat”.\n",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "FR-31",
+          "FR-32",
+          "FR-33"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Loc obținut; rezervarea a fost creată.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Booking"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Locul a fost luat de altcineva (`OFFER_TAKEN`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "code": "OFFER_TAKEN",
+                  "message_ro": "Locul a fost luat.",
+                  "message_en": "The spot has been taken."
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Oferta a expirat după cele 10 minute (`OFFER_EXPIRED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Utilizatorul încalcă o regulă de rezervare, de exemplu limita de rezervări active.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/push-subscriptions": {
+      "post": {
+        "tags": [
+          "Notificări"
+        ],
+        "operationId": "registerPushSubscription",
+        "summary": "Înregistrează dispozitivul pentru notificări push",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "FR-31",
+          "FR-34",
+          "FR-35",
+          "FR-36"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushSubscriptionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Dispozitiv înregistrat.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushSubscription"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      }
+    },
+    "/me/push-subscriptions/{id}": {
+      "delete": {
+        "tags": [
+          "Notificări"
+        ],
+        "operationId": "deletePushSubscription",
+        "summary": "Șterge un dispozitiv",
+        "x-min-role": "titular",
+        "x-srs": [
+          "FR-37"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Dispozitiv șters."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/me/notification-preferences": {
+      "get": {
+        "tags": [
+          "Notificări"
+        ],
+        "operationId": "getNotificationPreferences",
+        "summary": "Canalele preferate",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "FR-37"
+        ],
+        "x-sdd-route": false,
+        "responses": {
+          "200": {
+            "description": "Preferințele curente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationPreferences"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Notificări"
+        ],
+        "operationId": "updateNotificationPreferences",
+        "summary": "Alege canalele preferate",
+        "description": "Notificările critice (anulare, blocare) se trimit indiferent de aceste preferințe. SMS rămâne canal de rezervă pentru urgențe și pentru utilizatorii fără push (FR-36).",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "FR-36",
+          "FR-37"
+        ],
+        "x-sdd-route": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationPreferences"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Preferințe salvate.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationPreferences"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      }
+    },
+    "/admin/blocks": {
+      "get": {
+        "tags": [
+          "Blocări"
+        ],
+        "operationId": "listBlocks",
+        "summary": "Lista blocărilor",
+        "description": "Include toate rândurile din `occupancy` care nu sunt rezervări, deci și orele EF și evenimentele.",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-20",
+          "FR-42"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/BlockKind"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pagină de blocări.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PageMeta"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "items"
+                      ],
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Block"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Blocări"
+        ],
+        "operationId": "createBlock",
+        "summary": "Blocare de urgență sau planificată",
+        "description": "Algoritmul SDD 7.3, într-o singură tranzacție: anulează rezervările active care se suprapun, restituie cota și inserează blocarea. După commit, worker-ul trimite notificările cu 2–3 alternative.\n\nOrdinea din SRS 9.1 se aplică și între blocări: o urgență sau o mentenanță înlătură orele EF și evenimentele suprapuse (`superseded_blocks_count`). O blocare suprapusă peste una de același nivel produce `409`.\n\nBlocarea de urgență are nevoie doar de `resource_id`, `kind` și `reason`: începe imediat, iar `end: null` înseamnă „până la noi ordine”.\n",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-22",
+          "FR-40",
+          "FR-41",
+          "FR-42",
+          "FR-35",
+          "FR-36",
+          "FR-45",
+          "NFR-03"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlockCreate"
+              },
+              "example": {
+                "resource_id": "2c9e7a10-84b1-4f6d-a3c2-91de0f4b7a33",
+                "kind": "emergency",
+                "reason": "Avarie",
+                "end": null
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Blocare creată. Livrarea notificărilor se urmărește cu `/admin/blocks/{id}/delivery`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlockResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "Există deja o blocare de același nivel pe interval (`BLOCK_CONFLICT`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      }
+    },
+    "/admin/blocks/{id}": {
+      "delete": {
+        "tags": [
+          "Blocări"
+        ],
+        "operationId": "deleteBlock",
+        "summary": "Deblocare",
+        "description": "Încheie blocarea sau evenimentul și pornește oferta către lista de așteptare. Rezervările deja anulate nu se refac.",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-31",
+          "FR-40",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Resursă deblocată."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/blocks/{id}/delivery": {
+      "get": {
+        "tags": [
+          "Blocări"
+        ],
+        "operationId": "getBlockDelivery",
+        "summary": "Contorul „anunțați / livrați”",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-41",
+          "NFR-03"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Starea livrării.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/schedule/import": {
+      "post": {
+        "tags": [
+          "Blocări"
+        ],
+        "operationId": "importSchedule",
+        "summary": "Import orar EF (CSV/iCal)",
+        "description": "Primul pas din UC-04: validează sursa și arată conflictele, fără să modifice datele. Se trimite `file` sau `source_url`.\nAplicarea se face cu `POST /admin/schedule/import/{id}/confirm`.\n\nColoane CSV propuse: `resource_id`, `weekday`, `start_time`, `end_time`, `group`.\n",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-19",
+          "FR-22"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleImportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Previzualizarea importului.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleImportPreview"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "description": "Fișier nevalid (`SCHEDULE_FILE_INVALID`); `details` conține rândurile greșite.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/schedule/import/{id}/confirm": {
+      "post": {
+        "tags": [
+          "Blocări"
+        ],
+        "operationId": "confirmScheduleImport",
+        "summary": "Confirmă importul și anulează conflictele",
+        "description": "Creează blocările recurente și aplică pașii 2–3 din SDD 7.3, cu `cancel_source = pe_class`.",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-19",
+          "FR-20",
+          "FR-22",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Import aplicat.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleImportResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Orarul se suprapune peste o blocare de nivel superior sau egal (`BLOCK_CONFLICT`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/schedule/classes": {
+      "post": {
+        "tags": [
+          "Blocări"
+        ],
+        "operationId": "createScheduleClass",
+        "summary": "Introducere manuală a unei ore EF recurente",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-19",
+          "FR-20",
+          "FR-22",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduleClassCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Oră EF creată.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleImportResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/ConflictsNeedConfirmation"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      }
+    },
+    "/admin/schedule/recurrences/{id}": {
+      "delete": {
+        "tags": [
+          "Blocări"
+        ],
+        "operationId": "deleteScheduleRecurrence",
+        "summary": "Șterge o oră EF recurentă",
+        "description": "Anulează aparițiile viitoare și pornește oferta către lista de așteptare pentru sloturile eliberate.",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-19",
+          "FR-31",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Recurență ștearsă."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/events": {
+      "post": {
+        "tags": [
+          "Blocări"
+        ],
+        "operationId": "createEvent",
+        "summary": "Rezervare pentru un eveniment al universității",
+        "description": "Poate fi programat oricât de departe în viitor, fără fereastra de 7/14 zile.\nDacă există rezervări suprapuse și `confirm_conflicts` este `false`, se răspunde cu `409` și lista lor. Retrimiterea cu `true` le anulează cu `cancel_source = event`, restituie cotele și notifică titularii.\n",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-21",
+          "FR-22",
+          "FR-35",
+          "FR-45"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Eveniment creat.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlockResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/ConflictsNeedConfirmation"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      }
+    },
+    "/admin/announcements": {
+      "post": {
+        "tags": [
+          "Notificări"
+        ],
+        "operationId": "createAnnouncement",
+        "summary": "Anunț către utilizatorii unei resurse sau ai unui interval",
+        "description": "Se trimite cel puțin una dintre `resource_id` și `start` + `end`. Destinatarii sunt titularii rezervărilor active care se potrivesc.",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-38",
+          "FR-45"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnnouncementCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Anunț pus în coadă.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "recipients_count"
+                  ],
+                  "properties": {
+                    "recipients_count": {
+                      "type": "integer",
+                      "example": 23
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      }
+    },
+    "/admin/settings": {
+      "get": {
+        "tags": [
+          "Administrare și rapoarte"
+        ],
+        "operationId": "getSettings",
+        "summary": "Citire reguli",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-46"
+        ],
+        "responses": {
+          "200": {
+            "description": "Regulile curente.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Administrare și rapoarte"
+        ],
+        "operationId": "updateSettings",
+        "summary": "Modificare reguli",
+        "description": "Regulile se citesc la fiecare cerere, deci se aplică fără redeploy. Vechile și noile valori se scriu în jurnalul de audit.",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-24",
+          "FR-25",
+          "FR-46",
+          "FR-45"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Settings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reguli salvate.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Settings"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      }
+    },
+    "/admin/dashboard": {
+      "get": {
+        "tags": [
+          "Administrare și rapoarte"
+        ],
+        "operationId": "getDashboard",
+        "summary": "Panoul zilei",
+        "description": "Ziua aleasă pe toate resursele, cu check-in-uri și no-show-uri.",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-43"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "description": "Implicit ziua curentă.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Panoul.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/admin/reports": {
+      "get": {
+        "tags": [
+          "Administrare și rapoarte"
+        ],
+        "operationId": "getMonthlyReport",
+        "summary": "Rapoarte lunare, export CSV/PDF",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-44"
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "description": "Luna raportului, `AAAA-LL`.",
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "example": "2026-10"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "json",
+                "csv",
+                "pdf"
+              ],
+              "default": "json"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Raportul, în formatul cerut.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthlyReport"
+                }
+              },
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/admin/audit-log": {
+      "get": {
+        "tags": [
+          "Administrare și rapoarte"
+        ],
+        "operationId": "listAuditLog",
+        "summary": "Jurnal de audit",
+        "description": "Doar citire; jurnalul nu se modifică prin API.",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "name": "actor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "entity",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "example": "resource"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pagină din jurnal.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/PageMeta"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "items"
+                      ],
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/AuditEntry"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT de acces, valabil 15 minute."
+      },
+      "refreshCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "refresh_token",
+        "description": "Token de reîmprospătare, în cookie `HttpOnly`, `Secure`, `SameSite=Strict`."
+      }
+    },
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        }
+      },
+      "PageSize": {
+        "name": "page_size",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Cerere incorectă (`BAD_REQUEST`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Lipsește autentificarea sau a expirat (`UNAUTHENTICATED`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "code": "UNAUTHENTICATED",
+              "message_ro": "Te rugăm să te autentifici din nou.",
+              "message_en": "Please sign in again."
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Rolul sau starea contului nu permite operația (`FORBIDDEN`, `ACCOUNT_SUSPENDED`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "code": "FORBIDDEN",
+              "message_ro": "Nu ai acces la această acțiune.",
+              "message_en": "You do not have access to this action."
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Nu există sau nu este vizibil pentru apelant (`NOT_FOUND`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "code": "NOT_FOUND",
+              "message_ro": "Nu am găsit ce ai căutat.",
+              "message_en": "We could not find what you were looking for."
+            }
+          }
+        }
+      },
+      "UnprocessableEntity": {
+        "description": "Datele nu sunt valide sau încalcă o regulă (`VALIDATION_FAILED`); `details` indică câmpurile.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "ConflictsNeedConfirmation": {
+        "description": "Există rezervări suprapuse care trebuie confirmate pentru anulare (`CONFLICTS_NEED_CONFIRMATION`) sau o blocare de nivel superior sau egal (`BLOCK_CONFLICT`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ConflictsError"
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "Prea multe cereri (`RATE_LIMITED`).",
+        "headers": {
+          "Retry-After": {
+            "description": "Numărul de secunde după care se poate reîncerca.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "example": {
+              "code": "RATE_LIMITED",
+              "message_ro": "Prea multe încercări. Mai încearcă peste un minut.",
+              "message_en": "Too many attempts. Please try again in a minute."
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "code",
+          "message_ro",
+          "message_en"
+        ],
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "message_ro": {
+            "type": "string",
+            "example": "Ți-ai folosit cele 4 intrări din noiembrie."
+          },
+          "message_en": {
+            "type": "string",
+            "example": "You have used all 4 entries for November."
+          },
+          "details": {
+            "type": "object",
+            "description": "Informații suplimentare, de exemplu câmpurile nevalide.",
+            "additionalProperties": true
+          }
+        }
+      },
+      "ErrorCode": {
+        "type": "string",
+        "enum": [
+          "BAD_REQUEST",
+          "UNAUTHENTICATED",
+          "FORBIDDEN",
+          "NOT_FOUND",
+          "VALIDATION_FAILED",
+          "RATE_LIMITED",
+          "OTP_INVALID",
+          "EMAIL_ALREADY_USED",
+          "ACCOUNT_SUSPENDED",
+          "EXTERNAL_ACCESS_DENIED",
+          "SLOT_TAKEN",
+          "SLOT_BLOCKED",
+          "QUOTA_EXHAUSTED",
+          "ACTIVE_LIMIT_REACHED",
+          "WINDOW_EXCEEDED",
+          "OUTSIDE_OPENING_HOURS",
+          "INVALID_SLOT",
+          "RESOURCE_INACTIVE",
+          "BOOKING_NOT_CANCELLABLE",
+          "BOOKING_NOT_ACTIVE",
+          "ALREADY_CHECKED_IN",
+          "QR_INVALID",
+          "CHECKIN_WINDOW_CLOSED",
+          "ALREADY_ON_WAITLIST",
+          "OFFER_TAKEN",
+          "OFFER_EXPIRED",
+          "BLOCK_CONFLICT",
+          "CONFLICTS_NEED_CONFIRMATION",
+          "SCHEDULE_FILE_INVALID"
+        ]
+      },
+      "SlotConflictError": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Error"
+          },
+          {
+            "type": "object",
+            "required": [
+              "waitlist_offer"
+            ],
+            "properties": {
+              "waitlist_offer": {
+                "$ref": "#/components/schemas/SlotReference"
+              }
+            }
+          }
+        ]
+      },
+      "ConflictsError": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Error"
+          },
+          {
+            "type": "object",
+            "required": [
+              "conflicts"
+            ],
+            "properties": {
+              "conflicts": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/BookingConflict"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "BookingConflict": {
+        "type": "object",
+        "required": [
+          "booking_id",
+          "resource_id",
+          "start",
+          "end"
+        ],
+        "properties": {
+          "booking_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resource_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "holder_name": {
+            "type": "string",
+            "example": "Ion Popescu"
+          }
+        }
+      },
+      "PageMeta": {
+        "type": "object",
+        "required": [
+          "page",
+          "page_size",
+          "total"
+        ],
+        "properties": {
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "example": 20
+          },
+          "total": {
+            "type": "integer",
+            "example": 57
+          }
+        }
+      },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "student",
+          "teacher",
+          "external",
+          "admin"
+        ]
+      },
+      "AccountStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "suspended"
+        ]
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "id",
+          "full_name",
+          "email",
+          "role",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true
+          },
+          "full_name": {
+            "type": "string",
+            "example": "Ion Popescu"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ion.popescu@student.example.edu"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "description": "Obligatoriu doar pentru externi.",
+            "example": "+37360000000"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AccountStatus"
+          },
+          "suspended_until": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          }
+        }
+      },
+      "Session": {
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_in",
+          "user"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "example": "eyJhbGciOiJSUzI1NiJ9.e30.c2lnbmF0dXJl"
+          },
+          "token_type": {
+            "type": "string",
+            "enum": [
+              "Bearer"
+            ]
+          },
+          "expires_in": {
+            "type": "integer",
+            "description": "Durata de viață în secunde.",
+            "example": 900
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "ExternalRegistration": {
+        "type": "object",
+        "required": [
+          "full_name",
+          "email",
+          "phone"
+        ],
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Ana Rusu"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ana.rusu@example.com"
+          },
+          "phone": {
+            "type": "string",
+            "pattern": "^\\+[1-9]\\d{7,14}$",
+            "description": "Format E.164.",
+            "example": "+37360000001"
+          }
+        }
+      },
+      "OtpSent": {
+        "type": "object",
+        "required": [
+          "expires_in"
+        ],
+        "properties": {
+          "expires_in": {
+            "type": "integer",
+            "description": "Valabilitatea codului, în secunde.",
+            "example": 600
+          }
+        }
+      },
+      "Sport": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "readOnly": true,
+                "example": "5b1a8e02-6c7d-4f31-b2a9-0e4d7c9f1a26"
+              }
+            }
+          },
+          {
+            "$ref": "#/components/schemas/SportInput"
+          }
+        ]
+      },
+      "SportInput": {
+        "type": "object",
+        "required": [
+          "name_ro",
+          "name_en",
+          "icon",
+          "required_equipment"
+        ],
+        "properties": {
+          "name_ro": {
+            "type": "string",
+            "example": "Baschet"
+          },
+          "name_en": {
+            "type": "string",
+            "example": "Basketball"
+          },
+          "icon": {
+            "type": "string",
+            "example": "basketball"
+          },
+          "required_equipment": {
+            "type": "array",
+            "description": "Dotările pe care trebuie să le aibă o resursă pentru acest sport.",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "panou"
+            ]
+          }
+        }
+      },
+      "ExternalAccess": {
+        "type": "string",
+        "description": "Acces pentru externi: `never` niciodată, `window` doar în `external_access_windows`, `leftover` doar sloturile rămase libere cu max. 24 h înainte.\n",
+        "enum": [
+          "never",
+          "window",
+          "leftover"
+        ]
+      },
+      "TimeRange": {
+        "type": "object",
+        "required": [
+          "open",
+          "close"
+        ],
+        "properties": {
+          "open": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "07:00"
+          },
+          "close": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "example": "22:00"
+          }
+        }
+      },
+      "WeeklyHours": {
+        "type": "object",
+        "description": "Program săptămânal; o zi lipsă înseamnă închis.",
+        "example": {
+          "mon": [
+            {
+              "open": "07:00",
+              "close": "22:00"
+            }
+          ],
+          "sat": [
+            {
+              "open": "09:00",
+              "close": "18:00"
+            }
+          ]
+        },
+        "properties": {
+          "mon": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeRange"
+            }
+          },
+          "tue": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeRange"
+            }
+          },
+          "wed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeRange"
+            }
+          },
+          "thu": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeRange"
+            }
+          },
+          "fri": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeRange"
+            }
+          },
+          "sat": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeRange"
+            }
+          },
+          "sun": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TimeRange"
+            }
+          }
+        }
+      },
+      "ResourceInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Teren baschet 2"
+          },
+          "type": {
+            "type": "string",
+            "example": "teren"
+          },
+          "location": {
+            "type": "string",
+            "description": "Adresă sau coordonate pentru hartă.",
+            "example": "47.0245,28.8322"
+          },
+          "photo_url": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true,
+            "example": "https://campussport.example/media/teren-baschet-2.jpg"
+          },
+          "capacity": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 10
+          },
+          "equipment": {
+            "type": "array",
+            "description": "Dotări și echipament disponibil (ex. mingi, rachete, vestiar).",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "panou",
+              "minge baschet",
+              "vestiar"
+            ]
+          },
+          "sport_ids": {
+            "type": "array",
+            "description": "Sporturile permise pe resursă.",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "opening_hours": {
+            "$ref": "#/components/schemas/WeeklyHours"
+          },
+          "slot_minutes": {
+            "type": "integer",
+            "minimum": 15,
+            "description": "Dacă lipsește, se folosește `default_slot_minutes` din setări.",
+            "example": 60
+          },
+          "external_access": {
+            "$ref": "#/components/schemas/ExternalAccess"
+          },
+          "external_access_windows": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WeeklyHours"
+              }
+            ],
+            "description": "Folosit doar când `external_access` este `window`."
+          },
+          "active": {
+            "type": "boolean",
+            "example": true
+          }
+        }
+      },
+      "Resource": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid",
+                "readOnly": true,
+                "example": "7d2f4c1e-3a5b-4e8f-9c10-2b6a1d3e5f70"
+              }
+            }
+          },
+          {
+            "$ref": "#/components/schemas/ResourceInput"
+          }
+        ]
+      },
+      "SlotState": {
+        "type": "string",
+        "description": "Culorile grilei din FR-09.",
+        "enum": [
+          "free",
+          "occupied",
+          "mine",
+          "blocked"
+        ]
+      },
+      "Slot": {
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "status",
+          "bookable"
+        ],
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-12T18:00:00+02:00"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-12T19:00:00+02:00"
+          },
+          "status": {
+            "$ref": "#/components/schemas/SlotState"
+          },
+          "bookable": {
+            "type": "boolean",
+            "description": "Dacă apelantul îl poate rezerva acum; pentru public arată doar că slotul este liber."
+          },
+          "waitlist_available": {
+            "type": "boolean",
+            "description": "Slot ocupat, pe care apelantul se poate înscrie."
+          },
+          "replaceable": {
+            "type": "boolean",
+            "description": "Slot al unui extern, pe care un membru îl poate prelua (FR-24)."
+          },
+          "block_kind": {
+            "$ref": "#/components/schemas/BlockKind"
+          },
+          "booking_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Doar pentru rezervările proprii și pentru admin."
+          },
+          "holder_name": {
+            "type": "string",
+            "description": "Doar pentru admin."
+          }
+        }
+      },
+      "ResourceAvailability": {
+        "type": "object",
+        "required": [
+          "resource_id",
+          "resource_name",
+          "slots"
+        ],
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resource_name": {
+            "type": "string",
+            "example": "Teren baschet 2"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Slot"
+            }
+          }
+        }
+      },
+      "Availability": {
+        "type": "object",
+        "required": [
+          "date",
+          "resources"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-11-12"
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceAvailability"
+            }
+          }
+        }
+      },
+      "SlotReference": {
+        "type": "object",
+        "required": [
+          "resource_id",
+          "start",
+          "end"
+        ],
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "7d2f4c1e-3a5b-4e8f-9c10-2b6a1d3e5f70"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-12T18:00:00+02:00"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-12T19:00:00+02:00"
+          }
+        }
+      },
+      "BookingCreate": {
+        "type": "object",
+        "required": [
+          "resource_id",
+          "start"
+        ],
+        "example": {
+          "resource_id": "7d2f4c1e-3a5b-4e8f-9c10-2b6a1d3e5f70",
+          "start": "2026-11-12T18:00:00+02:00",
+          "participants_count": 8
+        },
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "7d2f4c1e-3a5b-4e8f-9c10-2b6a1d3e5f70"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Trebuie să coincidă cu începutul unui slot al resursei.",
+            "example": "2026-11-12T18:00:00+02:00"
+          },
+          "sport_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Obligatoriu doar dacă este activă o cotă separată per sport (FR-25)."
+          },
+          "participants_count": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Rezervare pentru echipă; nu poate depăși `capacity`.",
+            "example": 8
+          },
+          "replace_external": {
+            "type": "boolean",
+            "default": false,
+            "description": "Preia slotul unui extern; permis doar membrilor, când regula FR-24 este activă."
+          }
+        }
+      },
+      "BookingStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "cancelled",
+          "completed",
+          "no_show"
+        ]
+      },
+      "CancelSource": {
+        "type": "string",
+        "enum": [
+          "user",
+          "admin",
+          "emergency",
+          "maintenance",
+          "pe_class",
+          "event",
+          "member_priority"
+        ]
+      },
+      "Booking": {
+        "type": "object",
+        "required": [
+          "id",
+          "resource_id",
+          "resource_name",
+          "start",
+          "end",
+          "status"
+        ],
+        "example": {
+          "id": "e3a94f60-1b2c-4d7e-8f05-6c2b9a0d4e11",
+          "resource_id": "7d2f4c1e-3a5b-4e8f-9c10-2b6a1d3e5f70",
+          "resource_name": "Teren baschet 2",
+          "user_id": "3c7d1e94-52af-4b08-9e61-a8f02d6b7c15",
+          "start": "2026-11-12T18:00:00+02:00",
+          "end": "2026-11-12T19:00:00+02:00",
+          "status": "active",
+          "checked_in_at": null,
+          "participants_count": 8,
+          "qr_token": "e3a94f60.a91c07d2.5f2b8c",
+          "message_ro": "Gata! Te așteptăm joi la 18:00 pe Teren baschet 2.",
+          "message_en": "All set! See you Thursday at 18:00 on Basketball Court 2."
+        },
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "e3a94f60-1b2c-4d7e-8f05-6c2b9a0d4e11"
+          },
+          "resource_id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "7d2f4c1e-3a5b-4e8f-9c10-2b6a1d3e5f70"
+          },
+          "resource_name": {
+            "type": "string",
+            "example": "Teren baschet 2"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true,
+            "description": "Devine `null` după anonimizarea de la 12 luni."
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-12T18:00:00+02:00"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-11-12T19:00:00+02:00"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BookingStatus"
+          },
+          "cancel_source": {
+            "$ref": "#/components/schemas/CancelSource"
+          },
+          "cancel_reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "checked_in_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "participants_count": {
+            "type": "integer",
+            "nullable": true,
+            "example": 8
+          },
+          "qr_token": {
+            "type": "string",
+            "description": "Conținutul codului QR, semnat HMAC-SHA256; valabil doar în ziua rezervării. Apare doar pentru titular.",
+            "example": "e3a94f60.a91c07d2.5f2b8c"
+          },
+          "message_ro": {
+            "type": "string",
+            "description": "Mesajul de confirmare pentru ecranul de succes.",
+            "example": "Gata! Te așteptăm joi la 18:00 pe Teren baschet 2."
+          },
+          "message_en": {
+            "type": "string",
+            "example": "All set! See you Thursday at 18:00 on Basketball Court 2."
+          }
+        }
+      },
+      "CancellationResult": {
+        "type": "object",
+        "required": [
+          "booking",
+          "quota_refunded"
+        ],
+        "properties": {
+          "booking": {
+            "$ref": "#/components/schemas/Booking"
+          },
+          "quota_refunded": {
+            "type": "boolean",
+            "description": "`true` dacă intrarea a fost restituită."
+          }
+        }
+      },
+      "CheckInRequest": {
+        "type": "object",
+        "required": [
+          "method"
+        ],
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": [
+              "qr",
+              "button"
+            ]
+          },
+          "qr_token": {
+            "type": "string",
+            "description": "Obligatoriu pentru `method = qr`.",
+            "example": "e3a94f60.a91c07d2.5f2b8c"
+          }
+        }
+      },
+      "CheckInResult": {
+        "type": "object",
+        "required": [
+          "booking_id",
+          "checked_in_at",
+          "holder_name",
+          "category"
+        ],
+        "properties": {
+          "booking_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "checked_in_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "holder_name": {
+            "type": "string",
+            "example": "Ion Popescu"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "member",
+              "external"
+            ]
+          }
+        }
+      },
+      "Quota": {
+        "type": "object",
+        "required": [
+          "month",
+          "limit",
+          "used",
+          "refunded",
+          "remaining"
+        ],
+        "properties": {
+          "month": {
+            "type": "string",
+            "format": "date",
+            "description": "Prima zi a lunii.",
+            "example": "2026-11-01"
+          },
+          "limit": {
+            "type": "integer",
+            "example": 4
+          },
+          "used": {
+            "type": "integer",
+            "description": "Intrări folosite, inclusiv cele restituite ulterior.",
+            "example": 3
+          },
+          "refunded": {
+            "type": "integer",
+            "example": 1
+          },
+          "remaining": {
+            "type": "integer",
+            "description": "`limit - (used - refunded)`, minimum 0.",
+            "example": 2
+          },
+          "over_quota_last_24h_only": {
+            "type": "boolean",
+            "description": "Cota este epuizată; se pot rezerva doar sloturile rămase libere în ultimele 24 h.",
+            "example": false
+          }
+        }
+      },
+      "WaitlistJoin": {
+        "type": "object",
+        "required": [
+          "day"
+        ],
+        "example": {
+          "day": "2026-11-12",
+          "resource_id": "7d2f4c1e-3a5b-4e8f-9c10-2b6a1d3e5f70",
+          "start": "2026-11-12T18:00:00+02:00",
+          "end": "2026-11-12T19:00:00+02:00"
+        },
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-11-12"
+          },
+          "resource_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Lipsește la abonare (orice resursă compatibilă)."
+          },
+          "sport_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Obligatoriu la abonare."
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Obligatoriu la înscrierea pe slot."
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Obligatoriu la înscrierea pe slot."
+          }
+        }
+      },
+      "WaitlistStatus": {
+        "type": "string",
+        "enum": [
+          "waiting",
+          "offered",
+          "accepted",
+          "expired"
+        ]
+      },
+      "WaitlistEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "day",
+          "priority",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "day": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-11-12"
+          },
+          "resource_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "sport_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "priority": {
+            "type": "integer",
+            "description": "1 profesor, 2 student, 3 extern.",
+            "example": 2
+          },
+          "status": {
+            "$ref": "#/components/schemas/WaitlistStatus"
+          },
+          "offered_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "offer_expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "`null` când oferta merge la toți simultan (slot în sub 2 h)."
+          },
+          "offered_slot": {
+            "$ref": "#/components/schemas/SlotReference"
+          }
+        }
+      },
+      "PushSubscriptionInput": {
+        "type": "object",
+        "required": [
+          "endpoint",
+          "keys"
+        ],
+        "properties": {
+          "endpoint": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://push.example.com/send/abc123"
+          },
+          "keys": {
+            "type": "object",
+            "required": [
+              "p256dh",
+              "auth"
+            ],
+            "properties": {
+              "p256dh": {
+                "type": "string"
+              },
+              "auth": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "PushSubscription": {
+        "allOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "created_at"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          },
+          {
+            "$ref": "#/components/schemas/PushSubscriptionInput"
+          }
+        ]
+      },
+      "NotificationPreferences": {
+        "type": "object",
+        "required": [
+          "push",
+          "email",
+          "sms"
+        ],
+        "properties": {
+          "push": {
+            "type": "boolean",
+            "example": true
+          },
+          "email": {
+            "type": "boolean",
+            "example": true
+          },
+          "sms": {
+            "type": "boolean",
+            "example": false
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "ro",
+              "en"
+            ],
+            "default": "ro"
+          }
+        }
+      },
+      "BlockKind": {
+        "type": "string",
+        "enum": [
+          "pe_class",
+          "event",
+          "maintenance",
+          "emergency"
+        ]
+      },
+      "Recurrence": {
+        "type": "object",
+        "required": [
+          "rule",
+          "valid_from",
+          "valid_to"
+        ],
+        "properties": {
+          "rule": {
+            "type": "string",
+            "description": "Regulă RRULE iCal.",
+            "example": "FREQ=WEEKLY;BYDAY=TU"
+          },
+          "valid_from": {
+            "type": "string",
+            "format": "date",
+            "example": "2027-02-01"
+          },
+          "valid_to": {
+            "type": "string",
+            "format": "date",
+            "example": "2027-06-13"
+          }
+        }
+      },
+      "BlockCreate": {
+        "type": "object",
+        "required": [
+          "resource_id",
+          "kind",
+          "reason"
+        ],
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "emergency",
+              "maintenance"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "example": "Avarie"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Implicit acum."
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "`null` înseamnă „până la noi ordine”."
+          },
+          "recurrence": {
+            "$ref": "#/components/schemas/Recurrence"
+          }
+        }
+      },
+      "Block": {
+        "type": "object",
+        "required": [
+          "id",
+          "resource_id",
+          "kind",
+          "start",
+          "reason",
+          "created_by"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resource_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/BlockKind"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "reason": {
+            "type": "string",
+            "example": "Avarie"
+          },
+          "recurrence_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "created_by": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "BlockResult": {
+        "type": "object",
+        "required": [
+          "block",
+          "cancelled_bookings_count",
+          "notified_users_count"
+        ],
+        "properties": {
+          "block": {
+            "$ref": "#/components/schemas/Block"
+          },
+          "cancelled_bookings_count": {
+            "type": "integer",
+            "example": 23
+          },
+          "superseded_blocks_count": {
+            "type": "integer",
+            "description": "Blocări de nivel inferior înlăturate (SRS 9.1).",
+            "example": 0
+          },
+          "notified_users_count": {
+            "type": "integer",
+            "description": "Utilizatori pentru care s-a pus în coadă o notificare.",
+            "example": 23
+          }
+        }
+      },
+      "DeliveryStatus": {
+        "type": "object",
+        "required": [
+          "notified",
+          "delivered",
+          "failed",
+          "by_channel"
+        ],
+        "properties": {
+          "notified": {
+            "type": "integer",
+            "example": 23
+          },
+          "delivered": {
+            "type": "integer",
+            "example": 21
+          },
+          "failed": {
+            "type": "integer",
+            "example": 0
+          },
+          "by_channel": {
+            "type": "object",
+            "properties": {
+              "push": {
+                "type": "integer",
+                "example": 19
+              },
+              "email": {
+                "type": "integer",
+                "example": 23
+              },
+              "sms": {
+                "type": "integer",
+                "example": 4
+              }
+            }
+          }
+        }
+      },
+      "ScheduleImportRequest": {
+        "type": "object",
+        "required": [
+          "valid_from",
+          "valid_to"
+        ],
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "description": "Fișier `.csv` sau `.ics`."
+          },
+          "source_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL iCal, alternativă la `file`."
+          },
+          "valid_from": {
+            "type": "string",
+            "format": "date",
+            "example": "2027-02-01"
+          },
+          "valid_to": {
+            "type": "string",
+            "format": "date",
+            "example": "2027-06-13"
+          }
+        }
+      },
+      "ScheduleImportPreview": {
+        "type": "object",
+        "required": [
+          "import_id",
+          "classes_count",
+          "occurrences_count",
+          "conflicts"
+        ],
+        "properties": {
+          "import_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "classes_count": {
+            "type": "integer",
+            "example": 12
+          },
+          "occurrences_count": {
+            "type": "integer",
+            "example": 168
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookingConflict"
+            }
+          }
+        }
+      },
+      "ScheduleImportResult": {
+        "type": "object",
+        "required": [
+          "recurrences_created",
+          "occurrences_created",
+          "cancelled_bookings_count",
+          "notified_users_count"
+        ],
+        "properties": {
+          "recurrences_created": {
+            "type": "integer",
+            "example": 12
+          },
+          "occurrences_created": {
+            "type": "integer",
+            "example": 168
+          },
+          "cancelled_bookings_count": {
+            "type": "integer",
+            "example": 5
+          },
+          "superseded_blocks_count": {
+            "type": "integer",
+            "description": "Evenimente înlăturate de orele EF (SRS 9.1).",
+            "example": 0
+          },
+          "notified_users_count": {
+            "type": "integer",
+            "example": 5
+          }
+        }
+      },
+      "ScheduleClassCreate": {
+        "type": "object",
+        "required": [
+          "resource_id",
+          "reason",
+          "first_start",
+          "first_end",
+          "recurrence"
+        ],
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "example": "Educație fizică, grupa TI-231"
+          },
+          "first_start": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2027-02-02T10:00:00+02:00"
+          },
+          "first_end": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2027-02-02T11:30:00+02:00"
+          },
+          "recurrence": {
+            "$ref": "#/components/schemas/Recurrence"
+          },
+          "confirm_conflicts": {
+            "type": "boolean",
+            "default": false,
+            "description": "`true` anulează rezervările suprapuse."
+          }
+        }
+      },
+      "EventCreate": {
+        "type": "object",
+        "required": [
+          "resource_id",
+          "reason",
+          "start",
+          "end"
+        ],
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Numele sau motivul evenimentului.",
+            "example": "Campionatul universitar de baschet"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2027-03-20T09:00:00+02:00"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2027-03-20T18:00:00+02:00"
+          },
+          "confirm_conflicts": {
+            "type": "boolean",
+            "default": false,
+            "description": "`true` anulează rezervările suprapuse."
+          }
+        }
+      },
+      "AnnouncementCreate": {
+        "type": "object",
+        "required": [
+          "message_ro"
+        ],
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "message_ro": {
+            "type": "string",
+            "example": "Vestiarele sunt închise astăzi până la ora 12:00."
+          },
+          "message_en": {
+            "type": "string",
+            "example": "The changing rooms are closed today until 12:00."
+          }
+        }
+      },
+      "Settings": {
+        "type": "object",
+        "description": "Regulile configurabile (SRS 9.2). Valorile exemplu sunt cele implicite.",
+        "required": [
+          "monthly_quota",
+          "max_active_bookings",
+          "booking_window_days_student",
+          "booking_window_days_teacher",
+          "booking_window_hours_external",
+          "cancel_free_hours",
+          "checkin_minutes_before",
+          "checkin_minutes_after",
+          "no_show_threshold",
+          "no_show_suspension_days",
+          "waitlist_offer_minutes",
+          "waitlist_simultaneous_under_hours",
+          "default_slot_minutes",
+          "member_replaces_external"
+        ],
+        "properties": {
+          "monthly_quota": {
+            "type": "integer",
+            "description": "BR-01.",
+            "example": 4
+          },
+          "monthly_quota_per_sport": {
+            "type": "object",
+            "description": "Cotă separată per sport (FR-25), cu `sport_id` drept cheie. Goală înseamnă cotă globală.",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "max_active_bookings": {
+            "type": "integer",
+            "description": "BR-02.",
+            "example": 2
+          },
+          "booking_window_days_student": {
+            "type": "integer",
+            "description": "BR-03.",
+            "example": 7
+          },
+          "booking_window_days_teacher": {
+            "type": "integer",
+            "description": "BR-03.",
+            "example": 14
+          },
+          "booking_window_hours_external": {
+            "type": "integer",
+            "description": "BR-03.",
+            "example": 24
+          },
+          "cancel_free_hours": {
+            "type": "integer",
+            "description": "BR-04.",
+            "example": 2
+          },
+          "checkin_minutes_before": {
+            "type": "integer",
+            "description": "BR-05.",
+            "example": 10
+          },
+          "checkin_minutes_after": {
+            "type": "integer",
+            "description": "BR-05.",
+            "example": 15
+          },
+          "no_show_threshold": {
+            "type": "integer",
+            "description": "BR-06, no-show-uri într-o lună.",
+            "example": 3
+          },
+          "no_show_suspension_days": {
+            "type": "integer",
+            "description": "BR-06.",
+            "example": 14
+          },
+          "waitlist_offer_minutes": {
+            "type": "integer",
+            "description": "BR-07.",
+            "example": 10
+          },
+          "waitlist_simultaneous_under_hours": {
+            "type": "integer",
+            "description": "BR-07.",
+            "example": 2
+          },
+          "default_slot_minutes": {
+            "type": "integer",
+            "description": "BR-08.",
+            "example": 60
+          },
+          "member_replaces_external": {
+            "type": "boolean",
+            "description": "FR-24.",
+            "example": false
+          },
+          "updated_by": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          }
+        }
+      },
+      "Dashboard": {
+        "type": "object",
+        "required": [
+          "date",
+          "resources",
+          "check_ins_count",
+          "no_shows_count"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-11-05"
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceAvailability"
+            }
+          },
+          "check_ins_count": {
+            "type": "integer",
+            "example": 41
+          },
+          "no_shows_count": {
+            "type": "integer",
+            "example": 3
+          }
+        }
+      },
+      "MonthlyReport": {
+        "type": "object",
+        "required": [
+          "month",
+          "occupancy",
+          "no_shows_count",
+          "bookings_by_category",
+          "users_reaching_limit_count"
+        ],
+        "properties": {
+          "month": {
+            "type": "string",
+            "example": "2026-10"
+          },
+          "occupancy": {
+            "type": "array",
+            "description": "Gradul de ocupare per resursă și oră.",
+            "items": {
+              "type": "object",
+              "required": [
+                "resource_id",
+                "resource_name",
+                "rate",
+                "by_hour"
+              ],
+              "properties": {
+                "resource_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "resource_name": {
+                  "type": "string",
+                  "example": "Teren baschet 2"
+                },
+                "rate": {
+                  "type": "number",
+                  "format": "float",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "example": 0.72
+                },
+                "by_hour": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "hour",
+                      "rate"
+                    ],
+                    "properties": {
+                      "hour": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 23,
+                        "example": 18
+                      },
+                      "rate": {
+                        "type": "number",
+                        "format": "float",
+                        "example": 0.95
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "no_shows_count": {
+            "type": "integer",
+            "example": 37
+          },
+          "bookings_by_category": {
+            "type": "object",
+            "required": [
+              "members",
+              "externals"
+            ],
+            "properties": {
+              "members": {
+                "type": "integer",
+                "example": 812
+              },
+              "externals": {
+                "type": "integer",
+                "example": 64
+              }
+            }
+          },
+          "users_reaching_limit_count": {
+            "type": "integer",
+            "example": 58
+          }
+        }
+      },
+      "AuditEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "actor_id",
+          "action",
+          "entity",
+          "at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actor_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "action": {
+            "type": "string",
+            "example": "block.create"
+          },
+          "entity": {
+            "type": "string",
+            "example": "occupancy"
+          },
+          "entity_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "before": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "after": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": true
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  }
+}
