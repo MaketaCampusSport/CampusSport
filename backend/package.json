@@ -25,7 +25,9 @@
     "seed": "nest build && node dist/database/cli/seed.js",
     "db:setup": "nest build && node dist/database/cli/migrate.js up && node dist/database/cli/seed.js",
     "admin:enroll-totp": "nest build && node dist/database/cli/enroll-totp.js",
-    "spec:check": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js src/spec-conformance.spec.ts"
+    "spec:check": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js src/spec-conformance.spec.ts",
+    "k6:prepare": "nest build && node dist/database/cli/k6-users.js",
+    "k6:cleanup": "nest build && node dist/database/cli/k6-users.js cleanup"
   },
   "dependencies": {
     "@nestjs/bullmq": "^12.0.1",

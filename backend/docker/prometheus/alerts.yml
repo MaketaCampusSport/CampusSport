@@ -1,0 +1,23 @@
+groups:
+  - name: campussport
+    rules:
+      # SYS-09 / NFR-03: notifications must leave within 2 minutes.
+      - alert: NotificationsDelayed
+        expr: histogram_quantile(0.95, sum(rate(campussport_notification_lag_seconds_bucket[5m])) by (le)) > 120
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: Notifications leave later than 2 minutes (p95)
+      # NFR-01: grid and booking under 2 s.
+      - alert: SlowRequests
+        expr: histogram_quantile(0.95, sum(rate(campussport_http_request_duration_seconds_bucket{route=~"/api/v1/(availability|bookings)"}[5m])) by (le)) > 2
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: p95 of availability/booking requests above 2 s
+      - alert: TargetDown
+        expr: up{job=~"campussport-.*"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: '{{ $labels.job }} is down'
