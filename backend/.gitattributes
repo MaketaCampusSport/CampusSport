@@ -1,0 +1,3 @@
+# Keep LF in the working tree on Windows too (Prettier, shell scripts, Docker).
+* text=auto eol=lf
+*.png binary
