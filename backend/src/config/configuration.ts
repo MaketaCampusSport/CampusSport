@@ -55,6 +55,19 @@ function bool(env: NodeJS.ProcessEnv, key: string, def: boolean): boolean {
   return raw === 'true' || raw === '1';
 }
 
+/** DATABASE_URL wins; otherwise the URL is built from DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME. */
+function databaseUrl(env: NodeJS.ProcessEnv): string {
+  if (env.DATABASE_URL) return env.DATABASE_URL;
+  if (env.DB_USER || env.DB_NAME) {
+    const user = encodeURIComponent(required(env, 'DB_USER'));
+    const password = encodeURIComponent(env.DB_PASSWORD ?? '');
+    const host = env.DB_HOST ?? 'localhost';
+    const port = int(env, 'DB_PORT', 5432);
+    return `postgres://${user}:${password}@${host}:${port}/${required(env, 'DB_NAME')}`;
+  }
+  return required(env, 'DATABASE_URL', 'postgres://postgres:postgres@localhost:5432/campussport');
+}
+
 const DEFAULT_ROLE_MAP = {
   student: 'student',
   teacher: 'teacher',
@@ -72,7 +85,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     publicApiUrl: env.PUBLIC_API_URL ?? 'http://localhost:3000',
     pwaUrl: env.PWA_URL ?? 'http://localhost:5173',
     facilityTimezone: env.FACILITY_TIMEZONE ?? 'Europe/Chisinau',
-    databaseUrl: required(env, 'DATABASE_URL', 'postgres://campussport:campussport@localhost:5432/campussport'),
+    databaseUrl: databaseUrl(env),
     redisUrl: required(env, 'REDIS_URL', 'redis://localhost:6379'),
     cookieSecure: bool(env, 'COOKIE_SECURE', isProd),
     jwt: {
