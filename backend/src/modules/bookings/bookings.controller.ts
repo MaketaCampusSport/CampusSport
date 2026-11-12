@@ -39,8 +39,13 @@ export class BookingsController {
   @Post()
   @Throttle(BOOKING_RATE_LIMIT)
   @ApiOperation({ operationId: 'createBooking', summary: 'Creează o rezervare' })
-  @ApiCreatedResponse({ type: BookingResponse, description: 'Rezervare creată; confirmarea și reminderele sunt puse în coadă.' })
-  @ApiConflictResponse({ description: 'Slot ocupat (`SLOT_TAKEN`) sau blocat (`SLOT_BLOCKED`), cu `waitlist_offer`.' })
+  @ApiCreatedResponse({
+    type: BookingResponse,
+    description: 'Rezervare creată; confirmarea și reminderele sunt puse în coadă.',
+  })
+  @ApiConflictResponse({
+    description: 'Slot ocupat (`SLOT_TAKEN`) sau blocat (`SLOT_BLOCKED`), cu `waitlist_offer`.',
+  })
   @ApiUnprocessableEntityResponse({ description: 'O regulă de rezervare este încălcată.' })
   async create(
     @CurrentUser() user: AuthUser,
@@ -63,8 +68,13 @@ export class BookingsController {
   @HttpCode(200)
   @ApiOperation({ operationId: 'cancelBooking', summary: 'Anulează și eliberează slotul' })
   @ApiOkResponse({ type: CancellationResultResponse })
-  @ApiConflictResponse({ description: 'Rezervarea nu mai este activă sau slotul a început (`BOOKING_NOT_CANCELLABLE`).' })
-  cancel(@CurrentUser() user: AuthUser, @Param('id', UuidParamPipe) id: string): Promise<CancellationResultResponse> {
+  @ApiConflictResponse({
+    description: 'Rezervarea nu mai este activă sau slotul a început (`BOOKING_NOT_CANCELLABLE`).',
+  })
+  cancel(
+    @CurrentUser() user: AuthUser,
+    @Param('id', UuidParamPipe) id: string,
+  ): Promise<CancellationResultResponse> {
     return this.bookings.cancel(user, id);
   }
 
@@ -81,13 +91,19 @@ export class BookingsController {
   }
 
   @Get(':id/calendar.ics')
-  @ApiOperation({ operationId: 'downloadBookingCalendar', summary: 'Fișier iCal pentru o rezervare — neimplementat (501)' })
+  @ApiOperation({
+    operationId: 'downloadBookingCalendar',
+    summary: 'Fișier iCal pentru o rezervare — neimplementat (501)',
+  })
   calendar(@Param('id', UuidParamPipe) _id: string): never {
     notImplemented();
   }
 
   @Post(':id/invitations')
-  @ApiOperation({ operationId: 'createBookingInvitation', summary: 'Link de invitație pentru echipă — neimplementat (501)' })
+  @ApiOperation({
+    operationId: 'createBookingInvitation',
+    summary: 'Link de invitație pentru echipă — neimplementat (501)',
+  })
   invite(@Param('id', UuidParamPipe) _id: string): never {
     notImplemented();
   }
@@ -105,7 +121,10 @@ export class PublicBookingLinksController {
 
   @Public()
   @Get('calendar/:token.ics')
-  @ApiOperation({ operationId: 'getCalendarFeedFile', summary: 'Abonament iCal personal — neimplementat (501)' })
+  @ApiOperation({
+    operationId: 'getCalendarFeedFile',
+    summary: 'Abonament iCal personal — neimplementat (501)',
+  })
   calendarFeedFile(@Param('token') _token: string): never {
     notImplemented();
   }
@@ -125,7 +144,10 @@ export class MyBookingsController {
   }
 
   @Get('calendar-feed')
-  @ApiOperation({ operationId: 'getCalendarFeed', summary: 'Linkul abonamentului iCal personal — neimplementat (501)' })
+  @ApiOperation({
+    operationId: 'getCalendarFeed',
+    summary: 'Linkul abonamentului iCal personal — neimplementat (501)',
+  })
   calendarFeed(): never {
     notImplemented();
   }
@@ -146,19 +168,28 @@ export class MyBookingsController {
 @Controller('admin/bookings')
 export class AdminBookingsController {
   @Get()
-  @ApiOperation({ operationId: 'listBookings', summary: 'Toate rezervările, cu filtre — neimplementat (501)' })
+  @ApiOperation({
+    operationId: 'listBookings',
+    summary: 'Toate rezervările, cu filtre — neimplementat (501)',
+  })
   list(): never {
     notImplemented();
   }
 
   @Patch(':id')
-  @ApiOperation({ operationId: 'rescheduleBooking', summary: 'Schimbă ora unei rezervări — neimplementat (501)' })
+  @ApiOperation({
+    operationId: 'rescheduleBooking',
+    summary: 'Schimbă ora unei rezervări — neimplementat (501)',
+  })
   reschedule(@Param('id', UuidParamPipe) _id: string): never {
     notImplemented();
   }
 
   @Post(':id/cancel')
-  @ApiOperation({ operationId: 'adminCancelBooking', summary: 'Anulare de către administrator — neimplementat (501)' })
+  @ApiOperation({
+    operationId: 'adminCancelBooking',
+    summary: 'Anulare de către administrator — neimplementat (501)',
+  })
   cancel(@Param('id', UuidParamPipe) _id: string): never {
     notImplemented();
   }

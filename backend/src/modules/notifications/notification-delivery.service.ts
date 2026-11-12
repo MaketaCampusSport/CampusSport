@@ -9,6 +9,7 @@ import type { NotificationChannel } from '../../database/enums';
 import { BOOKING_SELECT, BookingRow } from '../bookings/booking.presenter';
 import type { NotifyJob } from '../jobs/queues';
 import { MailService, SmsService } from '../messaging/messaging.service';
+import { notificationsSent } from '../metrics/metrics';
 import { AlternativeResource, pickAlternatives } from './alternatives';
 import { renderMessage, RenderedMessage } from './messages';
 import { PushService } from './push.service';
@@ -52,11 +53,13 @@ export class NotificationDeliveryService {
     const booking = job.occupancyId ? await this.booking(job.occupancyId) : null;
     if (job.occupancyId && !booking) return [];
     // Confirmations and reminders are pointless once the booking is no longer active.
-    if ((job.type === 'booking-confirmed' || job.type === 'booking-reminder') && booking?.status !== 'active') return [];
+    if ((job.type === 'booking-confirmed' || job.type === 'booking-reminder') && booking?.status !== 'active')
+      return [];
 
     const prefs = user.notification_preferences;
     const lang = prefs.language === 'en' ? 'en' : 'ro';
-    const alternatives = job.type === 'booking-cancelled' && booking ? await this.alternatives(booking, now) : [];
+    const alternatives =
+      job.type === 'booking-cancelled' && booking ? await this.alternatives(booking, now) : [];
     const message = renderMessage(
       job,
       booking ? { resourceName: booking.resource_name, start: booking.start, end: booking.end } : null,
@@ -69,9 +72,11 @@ export class NotificationDeliveryService {
     if (prefs.push || job.critical) results.push(await this.viaPush(user, message));
     if (prefs.email || job.critical) results.push(await this.viaEmail(user, message));
     const pushOk = results.some((r) => r.channel === 'push' && r.delivered);
-    if (user.phone && (prefs.sms || (job.critical && !pushOk))) results.push(await this.viaSms(user, message));
+    if (user.phone && (prefs.sms || (job.critical && !pushOk)))
+      results.push(await this.viaSms(user, message));
 
     for (const r of results) {
+      notificationsSent.inc({ channel: r.channel, outcome: r.delivered ? 'delivered' : 'failed' });
       await this.dataSource.query(
         `INSERT INTO notifications (user_id, occupancy_id, block_id, type, channel, payload, sent_at, delivered_at, error)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
@@ -97,17 +102,18 @@ export class NotificationDeliveryService {
   }
 
   private async viaPush(user: Recipient, message: RenderedMessage): Promise<ChannelResult> {
-    const subs: { id: string; endpoint: string; keys: { p256dh: string; auth: string } }[] = await this.dataSource.query(
-      `SELECT id, endpoint, keys FROM push_subscriptions WHERE user_id = $1`,
-      [user.id],
-    );
+    const subs: { id: string; endpoint: string; keys: { p256dh: string; auth: string } }[] =
+      await this.dataSource.query(`SELECT id, endpoint, keys FROM push_subscriptions WHERE user_id = $1`, [
+        user.id,
+      ]);
     if (!subs.length) return { channel: 'push', delivered: false, error: 'no push subscription' };
     const errors: string[] = [];
     let delivered = false;
     for (const sub of subs) {
       const result = await this.push.send(sub, message);
       if (result.outcome === 'delivered') delivered = true;
-      if (result.outcome === 'gone') await this.dataSource.query(`DELETE FROM push_subscriptions WHERE id = $1`, [sub.id]);
+      if (result.outcome === 'gone')
+        await this.dataSource.query(`DELETE FROM push_subscriptions WHERE id = $1`, [sub.id]);
       if (result.error) errors.push(result.error);
     }
     return { channel: 'push', delivered, ...(delivered ? {} : { error: errors.join('; ') }) };
@@ -115,7 +121,11 @@ export class NotificationDeliveryService {
 
   private async viaEmail(user: Recipient, message: RenderedMessage): Promise<ChannelResult> {
     try {
-      await this.mail.send({ to: user.email, subject: `CampusSport: ${message.title}`, text: `${message.body}\n\n${this.config.pwaUrl}${message.url}` });
+      await this.mail.send({
+        to: user.email,
+        subject: `CampusSport: ${message.title}`,
+        text: `${message.body}\n\n${this.config.pwaUrl}${message.url}`,
+      });
       return { channel: 'email', delivered: true };
     } catch (err) {
       this.logger.warn(`Email for user ${user.id} failed: ${(err as Error).message}`);

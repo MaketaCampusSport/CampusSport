@@ -13,7 +13,11 @@ const queues = BullModule.registerQueue(...Object.values(QUEUES).map((name) => (
     BullModule.forRootAsync({
       inject: [APP_CONFIG],
       useFactory: (config: AppConfig) => ({
-        connection: { ...redisConnection(config.redisUrl), maxRetriesPerRequest: null, enableOfflineQueue: true },
+        connection: {
+          ...redisConnection(config.redisUrl),
+          maxRetriesPerRequest: null,
+          enableOfflineQueue: true,
+        },
         prefix: 'cs:bull',
       }),
     }),

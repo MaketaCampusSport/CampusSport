@@ -22,10 +22,23 @@ const courtEntity: Resource = {
   externalAccess: COURT.external_access,
   externalAccessWindows: null,
   active: true,
-  sports: [{ id: BASKETBALL.id, nameRo: 'Baschet', nameEn: 'Basketball', icon: 'basketball', requiredEquipment: ['panou'] }],
+  sports: [
+    {
+      id: BASKETBALL.id,
+      nameRo: 'Baschet',
+      nameEn: 'Basketball',
+      icon: 'basketball',
+      requiredEquipment: ['panou'],
+    },
+  ],
 };
 /** `SportInput` example from the spec. */
-const SPORT_INPUT = { name_ro: 'Baschet', name_en: 'Basketball', icon: 'basketball', required_equipment: ['panou'] };
+const SPORT_INPUT = {
+  name_ro: 'Baschet',
+  name_en: 'Basketball',
+  icon: 'basketball',
+  required_equipment: ['panou'],
+};
 const { id: _id, ...RESOURCE_INPUT } = COURT;
 
 describe('CatalogController (public)', () => {
@@ -33,7 +46,10 @@ describe('CatalogController (public)', () => {
   const catalog = { listSports: jest.fn(), listResources: jest.fn(), getResource: jest.fn() };
 
   beforeAll(async () => {
-    t = await createTestApp({ controllers: [CatalogController], providers: [{ provide: CatalogService, useValue: catalog }] });
+    t = await createTestApp({
+      controllers: [CatalogController],
+      providers: [{ provide: CatalogService, useValue: catalog }],
+    });
   });
   afterAll(() => t.close());
   beforeEach(() => jest.clearAllMocks());
@@ -54,7 +70,11 @@ describe('CatalogController (public)', () => {
 
     it('passes include_inactive and the caller (the service ignores it for non-admins)', async () => {
       catalog.listResources.mockResolvedValue([]);
-      await t.http().get('/api/v1/resources?include_inactive=true').set('Authorization', await t.bearer('admin')).expect(200);
+      await t
+        .http()
+        .get('/api/v1/resources?include_inactive=true')
+        .set('Authorization', await t.bearer('admin'))
+        .expect(200);
       expect(catalog.listResources).toHaveBeenCalledWith(TEST_USERS.admin, undefined, true);
     });
 
@@ -80,10 +100,18 @@ describe('CatalogController (public)', () => {
 
 describe('AdminCatalogController', () => {
   let t: TestApp;
-  const catalog = { createSport: jest.fn(), updateSport: jest.fn(), createResource: jest.fn(), updateResource: jest.fn() };
+  const catalog = {
+    createSport: jest.fn(),
+    updateSport: jest.fn(),
+    createResource: jest.fn(),
+    updateResource: jest.fn(),
+  };
 
   beforeAll(async () => {
-    t = await createTestApp({ controllers: [AdminCatalogController], providers: [{ provide: CatalogService, useValue: catalog }] });
+    t = await createTestApp({
+      controllers: [AdminCatalogController],
+      providers: [{ provide: CatalogService, useValue: catalog }],
+    });
   });
   afterAll(() => t.close());
   beforeEach(() => jest.clearAllMocks());
@@ -91,18 +119,33 @@ describe('AdminCatalogController', () => {
   describe('POST /admin/sports', () => {
     it('201 Sport', async () => {
       catalog.createSport.mockResolvedValue(BASKETBALL);
-      const res = await t.http().post('/api/v1/admin/sports').set('Authorization', await t.bearer('admin')).send(SPORT_INPUT).expect(201);
+      const res = await t
+        .http()
+        .post('/api/v1/admin/sports')
+        .set('Authorization', await t.bearer('admin'))
+        .send(SPORT_INPUT)
+        .expect(201);
       expect(res.body).toEqual(BASKETBALL);
       expect(catalog.createSport).toHaveBeenCalledWith(TEST_USERS.admin, SPORT_INPUT);
     });
 
     it('422 when required_equipment is missing', async () => {
       const { required_equipment: _r, ...partial } = SPORT_INPUT;
-      await t.http().post('/api/v1/admin/sports').set('Authorization', await t.bearer('admin')).send(partial).expect(422);
+      await t
+        .http()
+        .post('/api/v1/admin/sports')
+        .set('Authorization', await t.bearer('admin'))
+        .send(partial)
+        .expect(422);
     });
 
     it('403 for students, 401 anonymously', async () => {
-      await t.http().post('/api/v1/admin/sports').set('Authorization', await t.bearer('student')).send(SPORT_INPUT).expect(403);
+      await t
+        .http()
+        .post('/api/v1/admin/sports')
+        .set('Authorization', await t.bearer('student'))
+        .send(SPORT_INPUT)
+        .expect(403);
       await t.http().post('/api/v1/admin/sports').send(SPORT_INPUT).expect(401);
     });
   });
@@ -141,13 +184,21 @@ describe('AdminCatalogController', () => {
         .send(RESOURCE_INPUT)
         .expect(201);
       expect(res.body).toEqual(courtResponse);
-      expect(catalog.createResource.mock.calls[0][1]).toMatchObject({ name: 'Teren baschet 2', capacity: 10 });
+      expect(catalog.createResource.mock.calls[0][1]).toMatchObject({
+        name: 'Teren baschet 2',
+        capacity: 10,
+      });
     });
 
     it('422 when a required field is missing or hours are malformed', async () => {
       const auth = await t.bearer('admin');
       const { opening_hours: _o, ...noHours } = RESOURCE_INPUT;
-      const res = await t.http().post('/api/v1/admin/resources').set('Authorization', auth).send(noHours).expect(422);
+      const res = await t
+        .http()
+        .post('/api/v1/admin/resources')
+        .set('Authorization', auth)
+        .send(noHours)
+        .expect(422);
       expect(res.body.details.fields.opening_hours).toBeDefined();
       await t
         .http()
@@ -164,7 +215,12 @@ describe('AdminCatalogController', () => {
     });
 
     it('403 for non-admins', async () => {
-      await t.http().post('/api/v1/admin/resources').set('Authorization', await t.bearer('teacher')).send(RESOURCE_INPUT).expect(403);
+      await t
+        .http()
+        .post('/api/v1/admin/resources')
+        .set('Authorization', await t.bearer('teacher'))
+        .send(RESOURCE_INPUT)
+        .expect(403);
     });
   });
 
@@ -184,8 +240,18 @@ describe('AdminCatalogController', () => {
     it('404 unknown resource, 422 invalid value', async () => {
       const auth = await t.bearer('admin');
       catalog.updateResource.mockRejectedValue(new AppException('NOT_FOUND'));
-      await t.http().patch(`/api/v1/admin/resources/${COURT.id}`).set('Authorization', auth).send({ capacity: 12 }).expect(404);
-      await t.http().patch(`/api/v1/admin/resources/${COURT.id}`).set('Authorization', auth).send({ capacity: 0 }).expect(422);
+      await t
+        .http()
+        .patch(`/api/v1/admin/resources/${COURT.id}`)
+        .set('Authorization', auth)
+        .send({ capacity: 12 })
+        .expect(404);
+      await t
+        .http()
+        .patch(`/api/v1/admin/resources/${COURT.id}`)
+        .set('Authorization', auth)
+        .send({ capacity: 0 })
+        .expect(422);
     });
   });
 });

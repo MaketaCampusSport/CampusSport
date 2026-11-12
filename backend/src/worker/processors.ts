@@ -2,6 +2,7 @@ import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
 import { NoShowCheckJob, NotifyJob, OfferExpiredJob, QUEUES, SlotFreedJob } from '../modules/jobs/queues';
+import { notificationLag } from '../modules/metrics/metrics';
 import { NotificationDeliveryService } from '../modules/notifications/notification-delivery.service';
 import { WaitlistService } from '../modules/waitlist/waitlist.service';
 import { MaintenanceService } from './maintenance.service';
@@ -14,6 +15,8 @@ export class NotificationsProcessor extends WorkerHost {
   }
 
   async process(job: Job<NotifyJob>): Promise<unknown> {
+    const due = (job.timestamp ?? Date.now()) + (job.opts?.delay ?? 0);
+    notificationLag.observe({ type: job.data.type }, Math.max(0, (Date.now() - due) / 1000));
     return this.delivery.deliver(job.data);
   }
 }
@@ -32,7 +35,10 @@ export class WaitlistProcessor extends WorkerHost {
     switch (job.name) {
       case 'slot-freed': {
         const d = job.data as SlotFreedJob;
-        return this.waitlist.offerFreedPeriod(d.resourceId, { start: new Date(d.start), end: new Date(d.end) });
+        return this.waitlist.offerFreedPeriod(d.resourceId, {
+          start: new Date(d.start),
+          end: new Date(d.end),
+        });
       }
       case 'offer-expired':
         return this.waitlist.expireOffer((job.data as OfferExpiredJob).waitlistId);
@@ -55,7 +61,10 @@ export class BookingsProcessor extends WorkerHost {
       case 'no-show-check':
         return this.maintenance.checkNoShow((job.data as NoShowCheckJob).bookingId);
       case 'maintenance':
-        return { no_shows: await this.maintenance.scanNoShows(), completed: await this.maintenance.completeBookings() };
+        return {
+          no_shows: await this.maintenance.scanNoShows(),
+          completed: await this.maintenance.completeBookings(),
+        };
       case 'partitions':
         return this.maintenance.ensurePartitions();
       default:

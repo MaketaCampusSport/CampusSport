@@ -42,7 +42,12 @@ describe('loadConfig', () => {
   });
 
   it('prefers DATABASE_URL over DB_* parts', () => {
-    const cfg = loadConfig({ NODE_ENV: 'development', DATABASE_URL: 'postgres://u:p@h/db', DB_USER: 'x', DB_NAME: 'y' });
+    const cfg = loadConfig({
+      NODE_ENV: 'development',
+      DATABASE_URL: 'postgres://u:p@h/db',
+      DB_USER: 'x',
+      DB_NAME: 'y',
+    });
     expect(cfg.databaseUrl).toBe('postgres://u:p@h/db');
   });
 

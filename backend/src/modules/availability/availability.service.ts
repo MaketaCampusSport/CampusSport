@@ -37,7 +37,10 @@ export class AvailabilityService {
     const resources = await this.resolveResources(query, caller);
     const zone = this.config.facilityTimezone;
     const { start, end } = dayBounds(query.date, zone);
-    const [occupancies, rules] = await Promise.all([this.loadOccupancies(resources, start, end), this.settings.rules()]);
+    const [occupancies, rules] = await Promise.all([
+      this.loadOccupancies(resources, start, end),
+      this.settings.rules(),
+    ]);
 
     let quota: QuotaCounters = { used: 0, refunded: 0 };
     let activeBookings = 0;
@@ -50,11 +53,24 @@ export class AvailabilityService {
 
     return {
       date: query.date,
-      resources: buildGrid({ resources, occupancies, date: query.date, zone, now, rules, caller, quota, activeBookings }),
+      resources: buildGrid({
+        resources,
+        occupancies,
+        date: query.date,
+        zone,
+        now,
+        rules,
+        caller,
+        quota,
+        activeBookings,
+      }),
     };
   }
 
-  private async resolveResources(query: { resource?: string; sport?: string }, caller?: AuthUser): Promise<Resource[]> {
+  private async resolveResources(
+    query: { resource?: string; sport?: string },
+    caller?: AuthUser,
+  ): Promise<Resource[]> {
     if (query.resource) return [await this.catalog.getResource(query.resource, caller)];
     if (query.sport) {
       await this.catalog.getSport(query.sport);

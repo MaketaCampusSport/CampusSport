@@ -58,7 +58,10 @@ export class SessionsService {
   }
 
   /** Consumes the presented token and issues a new one; `null` if invalid, reused or expired. */
-  async rotate(token: string | undefined, role: (userId: string) => Promise<Role | null>): Promise<IssuedSession | null> {
+  async rotate(
+    token: string | undefined,
+    role: (userId: string) => Promise<Role | null>,
+  ): Promise<IssuedSession | null> {
     const parsed = this.parse(token);
     if (!parsed) return null;
     const stored = await this.kv.take<StoredSession>(`refresh:${parsed.sessionId}`);

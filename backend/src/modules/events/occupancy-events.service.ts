@@ -40,14 +40,29 @@ export class OccupancyEventsService {
     );
   }
 
-  async bookingCreated(booking: { id: string; userId: string; resourceId: string; start: Date; end: Date }, checkInClosesAt: Date): Promise<void> {
-    await this.slotsChanged([{ resourceId: booking.resourceId, start: booking.start, end: booking.end, status: 'occupied' }]);
-    this.jobs.notify({ type: 'booking-confirmed', userId: booking.userId, occupancyId: booking.id, data: {} });
+  async bookingCreated(
+    booking: { id: string; userId: string; resourceId: string; start: Date; end: Date },
+    checkInClosesAt: Date,
+  ): Promise<void> {
+    await this.slotsChanged([
+      { resourceId: booking.resourceId, start: booking.start, end: booking.end, status: 'occupied' },
+    ]);
+    this.jobs.notify({
+      type: 'booking-confirmed',
+      userId: booking.userId,
+      occupancyId: booking.id,
+      data: {},
+    });
     for (const hoursBefore of [24, 1]) {
       const at = new Date(booking.start.getTime() - hoursBefore * 3_600_000);
       if (at.getTime() > Date.now()) {
         this.jobs.notify(
-          { type: 'booking-reminder', userId: booking.userId, occupancyId: booking.id, data: { hours_before: hoursBefore } },
+          {
+            type: 'booking-reminder',
+            userId: booking.userId,
+            occupancyId: booking.id,
+            data: { hours_before: hoursBefore },
+          },
           { delay: at.getTime() - Date.now(), jobId: `reminder_${booking.id}_${hoursBefore}` },
         );
       }
@@ -59,11 +74,22 @@ export class OccupancyEventsService {
    * Bookings cancelled by their holder or by someone else. Freed slots go to the waitlist unless a block
    * now covers them; holders are notified when the cancellation was not their own (FR-35).
    */
-  async bookingsCancelled(bookings: CancelledBooking[], cause: CancellationCause, slotsFreed: boolean): Promise<void> {
+  async bookingsCancelled(
+    bookings: CancelledBooking[],
+    cause: CancellationCause,
+    slotsFreed: boolean,
+  ): Promise<void> {
     if (!bookings.length) return;
     if (slotsFreed) {
-      await this.slotsChanged(bookings.map((b) => ({ resourceId: b.resourceId, start: b.start, end: b.end, status: 'free' })));
-      for (const b of bookings) this.jobs.slotFreed({ resourceId: b.resourceId, start: b.start.toISOString(), end: b.end.toISOString() });
+      await this.slotsChanged(
+        bookings.map((b) => ({ resourceId: b.resourceId, start: b.start, end: b.end, status: 'free' })),
+      );
+      for (const b of bookings)
+        this.jobs.slotFreed({
+          resourceId: b.resourceId,
+          start: b.start.toISOString(),
+          end: b.end.toISOString(),
+        });
     }
     if (cause.source === 'user') return;
     for (const b of bookings) {

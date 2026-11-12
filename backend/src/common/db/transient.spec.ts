@@ -1,11 +1,16 @@
 import { QueryFailedError } from 'typeorm';
 import { isTransientPgError, withTransientRetry } from './transient';
 
-const pgError = (code: string) => new QueryFailedError('INSERT', [], Object.assign(new Error(code), { code }));
+const pgError = (code: string) =>
+  new QueryFailedError('INSERT', [], Object.assign(new Error(code), { code }));
 
 describe('withTransientRetry', () => {
   it('retries deadlocks and serialization failures, then succeeds', async () => {
-    const fn = jest.fn().mockRejectedValueOnce(pgError('40P01')).mockRejectedValueOnce(pgError('40001')).mockResolvedValue('ok');
+    const fn = jest
+      .fn()
+      .mockRejectedValueOnce(pgError('40P01'))
+      .mockRejectedValueOnce(pgError('40001'))
+      .mockResolvedValue('ok');
     await expect(withTransientRetry(fn)).resolves.toBe('ok');
     expect(fn).toHaveBeenCalledTimes(3);
   });

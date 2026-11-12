@@ -35,7 +35,11 @@ export const NOTIFICATION_CHANNELS = ['push', 'email', 'sms'] as const;
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 
 /** Waitlist priority by role (SRS 3.3): teacher 1, student 2, external 3. */
-export const ROLE_PRIORITY: Record<Exclude<Role, 'admin'>, 1 | 2 | 3> = { teacher: 1, student: 2, external: 3 };
+export const ROLE_PRIORITY: Record<Exclude<Role, 'admin'>, 1 | 2 | 3> = {
+  teacher: 1,
+  student: 2,
+  external: 3,
+};
 
 /** Block hierarchy (SRS 9.1): higher level supersedes lower level. */
 export const BLOCK_LEVEL: Record<BlockKind, number> = { emergency: 2, maintenance: 2, pe_class: 1, event: 1 };

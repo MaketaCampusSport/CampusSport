@@ -49,7 +49,11 @@ export function findSlot(hours: WeeklyHours, slotMinutes: number, start: Date, z
 }
 
 /** True when [start, end) lies inside one range of the weekly schedule (external access windows). */
-export function withinWeeklyHours(hours: WeeklyHours | null | undefined, interval: Interval, zone: string): boolean {
+export function withinWeeklyHours(
+  hours: WeeklyHours | null | undefined,
+  interval: Interval,
+  zone: string,
+): boolean {
   const date = DateTime.fromJSDate(interval.start, { zone }).toISODate()!;
   return openingRanges(hours, date, zone).some((r) => interval.start >= r.start && interval.end <= r.end);
 }

@@ -25,4 +25,3 @@ export function userEntity(key: keyof typeof EXAMPLE_USERS, overrides: Partial<U
     ...overrides,
   };
 }
-

@@ -11,7 +11,12 @@ import { QrService } from './qr.service';
 
 @Module({
   imports: [QuotaModule],
-  controllers: [BookingsController, PublicBookingLinksController, MyBookingsController, AdminBookingsController],
+  controllers: [
+    BookingsController,
+    PublicBookingLinksController,
+    MyBookingsController,
+    AdminBookingsController,
+  ],
   providers: [BookingsService, QrService],
   exports: [BookingsService],
 })

@@ -16,7 +16,13 @@ import { OccupancyEventsService } from '../events/occupancy-events.service';
 import type { CancelledBooking } from '../jobs/queues';
 import { QuotaService } from '../quota/quota.service';
 import { SettingsService } from '../settings/settings.service';
-import { BlockCreateDto, BlockResponse, BlockResultResponse, DeliveryStatusResponse, ListBlocksQueryDto } from './dto/block.dto';
+import {
+  BlockCreateDto,
+  BlockResponse,
+  BlockResultResponse,
+  DeliveryStatusResponse,
+  ListBlocksQueryDto,
+} from './dto/block.dto';
 
 interface BlockRow {
   id: string;
@@ -77,7 +83,9 @@ export class BlocksService {
     if (query.resource) where.push(`resource_id = $${params.push(query.resource)}`);
     if (query.kind) where.push(`kind = $${params.push(query.kind)}`);
     if (query.from || query.to) {
-      where.push(`period && tstzrange($${params.push(query.from ?? null)}, $${params.push(query.to ?? null)}, '[)')`);
+      where.push(
+        `period && tstzrange($${params.push(query.from ?? null)}, $${params.push(query.to ?? null)}, '[)')`,
+      );
     }
     const { skip, take } = pageOffset(query);
     const sqlWhere = where.join(' AND ');
@@ -112,13 +120,21 @@ export class BlocksService {
     if (end && end <= start) {
       throw new AppException('VALIDATION_FAILED', { details: { fields: { end: ['must be after start'] } } });
     }
-    const resource: { id: string }[] = await this.dataSource.query(`SELECT id FROM resources WHERE id = $1`, [dto.resource_id]);
+    const resource: { id: string }[] = await this.dataSource.query(`SELECT id FROM resources WHERE id = $1`, [
+      dto.resource_id,
+    ]);
     if (!resource.length) throw new AppException('NOT_FOUND');
 
     for (let attempt = 1; ; attempt++) {
       try {
-        const result = await this.dataSource.transaction((em) => this.createInTransaction(em, actor, dto, start, end));
-        await this.events.bookingsCancelled(result.cancelled, { source: dto.kind, reason: dto.reason, blockId: result.block.id }, false);
+        const result = await this.dataSource.transaction((em) =>
+          this.createInTransaction(em, actor, dto, start, end),
+        );
+        await this.events.bookingsCancelled(
+          result.cancelled,
+          { source: dto.kind, reason: dto.reason, blockId: result.block.id },
+          false,
+        );
         await this.events.slotsChanged([{ resourceId: dto.resource_id, start, end, status: 'blocked' }]);
         return {
           block: this.toResponse(result.block),
@@ -150,24 +166,25 @@ export class BlocksService {
     );
     const level = BLOCK_LEVEL[dto.kind];
     const blocks = overlapping.filter((o) => o.kind !== 'booking');
-    if (blocks.some((b) => BLOCK_LEVEL[b.kind as BlockKind] >= level)) throw new AppException('BLOCK_CONFLICT');
+    if (blocks.some((b) => BLOCK_LEVEL[b.kind as BlockKind] >= level))
+      throw new AppException('BLOCK_CONFLICT');
     const bookings = overlapping.filter((o) => o.kind === 'booking');
 
     if (blocks.length) {
-      await em.query(`UPDATE occupancy SET status = 'cancelled', cancel_source = $2 WHERE id = ANY($1::uuid[])`, [
-        blocks.map((b) => b.id),
-        dto.kind,
-      ]);
+      await em.query(
+        `UPDATE occupancy SET status = 'cancelled', cancel_source = $2 WHERE id = ANY($1::uuid[])`,
+        [blocks.map((b) => b.id), dto.kind],
+      );
     }
     if (bookings.length) {
-      await em.query(`UPDATE occupancy SET status = 'cancelled', cancel_source = $2, reason = $3 WHERE id = ANY($1::uuid[])`, [
-        bookings.map((b) => b.id),
-        dto.kind,
-        dto.reason,
-      ]);
+      await em.query(
+        `UPDATE occupancy SET status = 'cancelled', cancel_source = $2, reason = $3 WHERE id = ANY($1::uuid[])`,
+        [bookings.map((b) => b.id), dto.kind, dto.reason],
+      );
       // FR-27: entries cancelled by the facility are always returned.
       for (const b of bookings) {
-        if (b.role === 'student' && b.user_id) await this.quota.refund(b.user_id, monthOf(b.start, this.zone), em);
+        if (b.role === 'student' && b.user_id)
+          await this.quota.refund(b.user_id, monthOf(b.start, this.zone), em);
       }
     }
 
@@ -198,7 +215,13 @@ export class BlocksService {
     return {
       block,
       superseded: blocks.length,
-      cancelled: bookings.map((b) => ({ id: b.id, userId: b.user_id, resourceId: dto.resource_id, start: b.start, end: b.end! })),
+      cancelled: bookings.map((b) => ({
+        id: b.id,
+        userId: b.user_id,
+        resourceId: dto.resource_id,
+        start: b.start,
+        end: b.end!,
+      })),
     };
   }
 
@@ -208,13 +231,21 @@ export class BlocksService {
    */
   async remove(actor: AuthUser, id: string, now = new Date()): Promise<void> {
     const { block, freedFrom } = await this.dataSource.transaction(async (em) => {
-      const rows: BlockRow[] = await em.query(`${BLOCK_SELECT} WHERE id = $1 AND kind <> 'booking' AND status = 'active' FOR UPDATE`, [id]);
+      const rows: BlockRow[] = await em.query(
+        `${BLOCK_SELECT} WHERE id = $1 AND kind <> 'booking' AND status = 'active' FOR UPDATE`,
+        [id],
+      );
       const current = rows[0];
       if (!current) throw new AppException('NOT_FOUND');
       if (current.start > now) {
-        await em.query(`UPDATE occupancy SET status = 'cancelled', cancel_source = 'admin' WHERE id = $1`, [id]);
+        await em.query(`UPDATE occupancy SET status = 'cancelled', cancel_source = 'admin' WHERE id = $1`, [
+          id,
+        ]);
       } else {
-        await em.query(`UPDATE occupancy SET period = tstzrange(lower(period), $2, '[)') WHERE id = $1`, [id, now]);
+        await em.query(`UPDATE occupancy SET period = tstzrange(lower(period), $2, '[)') WHERE id = $1`, [
+          id,
+          now,
+        ]);
       }
       await this.audit.record(
         {
@@ -222,7 +253,11 @@ export class BlocksService {
           action: 'block.delete',
           entity: 'occupancy',
           entityId: id,
-          before: { start: current.start.toISOString(), end: current.end?.toISOString() ?? null, kind: current.kind },
+          before: {
+            start: current.start.toISOString(),
+            end: current.end?.toISOString() ?? null,
+            kind: current.kind,
+          },
         },
         em,
       );
@@ -236,7 +271,10 @@ export class BlocksService {
 
   /** "Anunțați / livrați" counter (FR-41, NFR-03), from the worker's `notifications` rows. */
   async delivery(id: string): Promise<DeliveryStatusResponse> {
-    const exists: unknown[] = await this.dataSource.query(`SELECT 1 FROM occupancy WHERE id = $1 AND kind <> 'booking'`, [id]);
+    const exists: unknown[] = await this.dataSource.query(
+      `SELECT 1 FROM occupancy WHERE id = $1 AND kind <> 'booking'`,
+      [id],
+    );
     if (!exists.length) throw new AppException('NOT_FOUND');
     const [totals]: { notified: string; delivered: string; failed: string }[] = await this.dataSource.query(
       `SELECT count(DISTINCT user_id) AS notified,

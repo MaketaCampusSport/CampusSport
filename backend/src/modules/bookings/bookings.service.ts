@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { rowsOf } from '../../common/db/rows';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DateTime } from 'luxon';
 import { DataSource, EntityManager } from 'typeorm';
@@ -14,6 +15,7 @@ import type { AppConfig } from '../../config/configuration';
 import { Resource } from '../../database/entities';
 import { findSlot, Interval } from '../availability/slots';
 import { OccupancyEventsService } from '../events/occupancy-events.service';
+import { bookingConflicts, bookingsCreated } from '../metrics/metrics';
 import type { CancelledBooking } from '../jobs/queues';
 import { QuotaService } from '../quota/quota.service';
 import { Rules, SettingsService } from '../settings/settings.service';
@@ -74,41 +76,54 @@ export class BookingsService {
     let bookingId: string;
     let rules: Rules;
     try {
-      ({ bookingId, rules, displaced } = await withTransientRetry(() => this.dataSource.transaction(async (em) => {
-        // One booking transaction per user at a time: quota and active-limit checks cannot race.
-        await em.query(`SELECT 1 FROM users WHERE id = $1 FOR NO KEY UPDATE`, [user.id]);
-        const txRules = await this.settings.rules(em);
-        const counters = user.role === 'student' ? await this.quota.counters(user.id, month, em) : NO_QUOTA;
-        const activeBookings = await this.quota.activeBookings(user.id, now, em);
-        const violation = checkBookingRules({
-          user,
-          resource,
-          slot,
-          now,
-          rules: txRules,
-          zone: this.zone,
-          quota: counters,
-          activeBookings,
-        });
-        if (violation) throw this.ruleError(violation, slot);
+      ({ bookingId, rules, displaced } = await withTransientRetry(() =>
+        this.dataSource.transaction(async (em) => {
+          // One booking transaction per user at a time: quota and active-limit checks cannot race.
+          await em.query(`SELECT 1 FROM users WHERE id = $1 FOR NO KEY UPDATE`, [user.id]);
+          const txRules = await this.settings.rules(em);
+          const counters = user.role === 'student' ? await this.quota.counters(user.id, month, em) : NO_QUOTA;
+          const activeBookings = await this.quota.activeBookings(user.id, now, em);
+          const violation = checkBookingRules({
+            user,
+            resource,
+            slot,
+            now,
+            rules: txRules,
+            zone: this.zone,
+            quota: counters,
+            activeBookings,
+          });
+          if (violation) throw this.ruleError(violation, slot);
 
-        const txDisplaced = dto.replace_external ? await this.displaceExternal(em, user, resource.id, slot, txRules) : [];
-        const [row]: { id: string }[] = await em.query(
-          `INSERT INTO occupancy (resource_id, period, kind, user_id, created_by, qr_nonce, participants_count, sport_id)
+          const txDisplaced = dto.replace_external
+            ? await this.displaceExternal(em, user, resource.id, slot, txRules)
+            : [];
+          const [row]: { id: string }[] = await em.query(
+            `INSERT INTO occupancy (resource_id, period, kind, user_id, created_by, qr_nonce, participants_count, sport_id)
            VALUES ($1, tstzrange($2, $3, '[)'), 'booking', $4, $4, gen_random_uuid(), $5, $6)
            RETURNING id`,
-          [resource.id, slot.start, slot.end, user.id, dto.participants_count ?? null, dto.sport_id ?? null],
-        );
-        if (user.role === 'student') await this.quota.consume(user.id, month, em);
-        await options.inTransaction?.(em, row.id);
-        return { bookingId: row.id, rules: txRules, displaced: txDisplaced };
-      })));
+            [
+              resource.id,
+              slot.start,
+              slot.end,
+              user.id,
+              dto.participants_count ?? null,
+              dto.sport_id ?? null,
+            ],
+          );
+          if (user.role === 'student') await this.quota.consume(user.id, month, em);
+          await options.inTransaction?.(em, row.id);
+          return { bookingId: row.id, rules: txRules, displaced: txDisplaced };
+        }),
+      ));
     } catch (err) {
       // A deadlock that survived the retries is still a lost race for the slot.
-      if (pgErrorCode(err) === PG_EXCLUSION_VIOLATION || isTransientPgError(err)) throw await this.conflictError(resource.id, slot);
+      if (pgErrorCode(err) === PG_EXCLUSION_VIOLATION || isTransientPgError(err))
+        throw await this.conflictError(resource.id, slot);
       throw err;
     }
 
+    bookingsCreated.inc({ role: user.role });
     await this.events.bookingsCancelled(displaced, { source: 'member_priority' }, false);
     await this.events.bookingCreated(
       { id: bookingId, userId: user.id, resourceId: resource.id, start: slot.start, end: slot.end },
@@ -151,13 +166,15 @@ export class BookingsService {
         details: { fields: { replace_external: ['not allowed for this account or disabled by the rules'] } },
       });
     }
-    const rows: { id: string; user_id: string; start: Date; end: Date }[] = await em.query(
-      `UPDATE occupancy o SET status = 'cancelled', cancel_source = 'member_priority'
+    const rows: { id: string; user_id: string; start: Date; end: Date }[] = rowsOf(
+      await em.query(
+        `UPDATE occupancy o SET status = 'cancelled', cancel_source = 'member_priority'
        FROM users u
        WHERE u.id = o.user_id AND u.role = 'external' AND o.resource_id = $1 AND o.kind = 'booking'
          AND o.status = 'active' AND o.period && tstzrange($2, $3, '[)')
        RETURNING o.id, o.user_id, lower(o.period) AS start, upper(o.period) AS "end"`,
-      [resourceId, slot.start, slot.end],
+        [resourceId, slot.start, slot.end],
+      ),
     );
     return rows.map((r) => ({ id: r.id, userId: r.user_id, resourceId, start: r.start, end: r.end }));
   }
@@ -168,8 +185,9 @@ export class BookingsService {
       `SELECT kind FROM occupancy WHERE resource_id = $1 AND status = 'active' AND period && tstzrange($2, $3, '[)')`,
       [resourceId, slot.start, slot.end],
     );
-    const blocked = rows.some((r) => r.kind !== 'booking');
-    return new AppException(blocked ? 'SLOT_BLOCKED' : 'SLOT_TAKEN', {
+    const code = rows.some((r) => r.kind !== 'booking') ? 'SLOT_BLOCKED' : 'SLOT_TAKEN';
+    bookingConflicts.inc({ code });
+    return new AppException(code, {
       extra: {
         waitlist_offer: {
           resource_id: resourceId,
@@ -199,10 +217,16 @@ export class BookingsService {
   async get(user: AuthUser, id: string): Promise<BookingResponse> {
     const row = await this.loadRow(id);
     if (!row || (row.user_id !== user.id && user.role !== 'admin')) throw new AppException('NOT_FOUND');
-    return toBookingResponse(row, this.zone, { qrToken: row.user_id === user.id ? this.qrFor(row) : undefined });
+    return toBookingResponse(row, this.zone, {
+      qrToken: row.user_id === user.id ? this.qrFor(row) : undefined,
+    });
   }
 
-  async listMine(user: AuthUser, query: MyBookingsQueryDto, now = new Date()): Promise<Page<BookingResponse>> {
+  async listMine(
+    user: AuthUser,
+    query: MyBookingsQueryDto,
+    now = new Date(),
+  ): Promise<Page<BookingResponse>> {
     const upcoming = query.scope !== 'history';
     const where = upcoming
       ? `o.user_id = $1 AND o.kind = 'booking' AND o.status = 'active' AND upper(o.period) > $2`
@@ -232,12 +256,15 @@ export class BookingsService {
     const { row, refunded } = await this.dataSource.transaction(async (em) => {
       const current = await this.loadRow(id, em, true);
       if (!current || current.user_id !== user.id) throw new AppException('NOT_FOUND');
-      if (current.status !== 'active' || current.start <= now) throw new AppException('BOOKING_NOT_CANCELLABLE');
+      if (current.status !== 'active' || current.start <= now)
+        throw new AppException('BOOKING_NOT_CANCELLABLE');
       await em.query(`UPDATE occupancy SET status = 'cancelled', cancel_source = 'user' WHERE id = $1`, [id]);
       const rules = await this.settings.rules(em);
       const inTime = current.start.getTime() >= addHours(now, rules.cancel_free_hours).getTime();
       const wasRefunded =
-        user.role === 'student' && inTime ? await this.quota.refund(user.id, monthOf(current.start, this.zone), em) : false;
+        user.role === 'student' && inTime
+          ? await this.quota.refund(user.id, monthOf(current.start, this.zone), em)
+          : false;
       return { row: current, refunded: wasRefunded };
     });
     await this.events.bookingsCancelled(
@@ -255,7 +282,12 @@ export class BookingsService {
    * The holder confirms with the button; staff (an `admin` account, README decision 1) scan the QR.
    * Allowed from `checkin_minutes_before` before to `checkin_minutes_after` after the start.
    */
-  async checkIn(caller: AuthUser, id: string, dto: CheckInDto, now = new Date()): Promise<CheckInResultResponse> {
+  async checkIn(
+    caller: AuthUser,
+    id: string,
+    dto: CheckInDto,
+    now = new Date(),
+  ): Promise<CheckInResultResponse> {
     return this.dataSource.transaction(async (em) => {
       const row = await this.loadRow(id, em, true);
       const isHolder = row?.user_id === caller.id;
@@ -265,7 +297,8 @@ export class BookingsService {
       if (dto.method === 'qr') {
         if (!isStaff) throw new AppException('FORBIDDEN');
         const verified = this.qr.verify(dto.qr_token ?? '', dayOf(now, this.zone));
-        if (!verified || verified.bookingId !== row.id || verified.nonce !== row.qr_nonce) throw new AppException('QR_INVALID');
+        if (!verified || verified.bookingId !== row.id || verified.nonce !== row.qr_nonce)
+          throw new AppException('QR_INVALID');
       }
       if (row.checked_in_at) throw new AppException('ALREADY_CHECKED_IN');
       if (row.status !== 'active') throw new AppException('BOOKING_NOT_ACTIVE');

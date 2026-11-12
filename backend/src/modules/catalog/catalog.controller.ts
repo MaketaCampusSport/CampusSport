@@ -31,7 +31,10 @@ export class CatalogController {
   @Get('resources')
   @ApiOperation({ operationId: 'listResources', summary: 'Resursele cu dotările necesare sportului' })
   @ApiOkResponse({ type: [ResourceResponse] })
-  listResources(@Query() query: ListResourcesQueryDto, @CurrentUser() caller?: AuthUser): Promise<ResourceResponse[]> {
+  listResources(
+    @Query() query: ListResourcesQueryDto,
+    @CurrentUser() caller?: AuthUser,
+  ): Promise<ResourceResponse[]> {
     return this.catalog.listResources(caller, query.sport, query.include_inactive);
   }
 
@@ -39,7 +42,10 @@ export class CatalogController {
   @Get('resources/:id')
   @ApiOperation({ operationId: 'getResource', summary: 'Fișa unei resurse' })
   @ApiOkResponse({ type: ResourceResponse })
-  async getResource(@Param('id', UuidParamPipe) id: string, @CurrentUser() caller?: AuthUser): Promise<ResourceResponse> {
+  async getResource(
+    @Param('id', UuidParamPipe) id: string,
+    @CurrentUser() caller?: AuthUser,
+  ): Promise<ResourceResponse> {
     return toResourceResponse(await this.catalog.getResource(id, caller));
   }
 }

@@ -49,7 +49,9 @@ export interface RulesSnapshot {
   updatedAt: Date | null;
 }
 
-export function rulesFromRows(rows: Pick<Setting, 'key' | 'value' | 'updatedBy' | 'updatedAt'>[]): RulesSnapshot {
+export function rulesFromRows(
+  rows: Pick<Setting, 'key' | 'value' | 'updatedBy' | 'updatedAt'>[],
+): RulesSnapshot {
   const rules: Rules = { ...DEFAULT_RULES, monthly_quota_per_sport: {} };
   let latest: Pick<Setting, 'updatedBy' | 'updatedAt'> | null = null;
   for (const row of rows) {

@@ -5,7 +5,9 @@ import { EXAMPLE_RESOURCES, EXAMPLE_SPORTS, EXAMPLE_USERS } from './example-data
  * Idempotent development seed: sports, resources and one user per role.
  * Seeded SSO users have `sso_subject = seed:<role>`; the first real SSO login with the same email takes them over.
  */
-export async function seedDevelopmentData(ds: DataSource): Promise<{ sports: number; resources: number; users: number }> {
+export async function seedDevelopmentData(
+  ds: DataSource,
+): Promise<{ sports: number; resources: number; users: number }> {
   await ds.transaction(async (em) => {
     for (const s of Object.values(EXAMPLE_SPORTS)) {
       await em.query(

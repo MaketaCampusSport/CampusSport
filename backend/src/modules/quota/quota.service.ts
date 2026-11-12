@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { rowsOf } from '../../common/db/rows';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
 import type { QuotaCounters } from '../bookings/booking-rules';
@@ -13,7 +14,12 @@ export class QuotaService {
   }
 
   /** `forUpdate` locks the row inside a booking transaction so concurrent bookings cannot both pass the check. */
-  async counters(userId: string, month: string, em?: EntityManager, forUpdate = false): Promise<QuotaCounters> {
+  async counters(
+    userId: string,
+    month: string,
+    em?: EntityManager,
+    forUpdate = false,
+  ): Promise<QuotaCounters> {
     const rows: { used: number; refunded: number }[] = await this.runner(em).query(
       `SELECT used, refunded FROM monthly_quota WHERE user_id = $1 AND month = $2${forUpdate ? ' FOR UPDATE' : ''}`,
       [userId, month],
@@ -40,10 +46,12 @@ export class QuotaService {
 
   /** Returns the entry (FR-27); never refunds more than was used (monthly_quota_refunded_ck). */
   async refund(userId: string, month: string, em: EntityManager): Promise<boolean> {
-    const rows: unknown[] = await em.query(
-      `UPDATE monthly_quota SET refunded = refunded + 1
+    const rows: unknown[] = rowsOf(
+      await em.query(
+        `UPDATE monthly_quota SET refunded = refunded + 1
        WHERE user_id = $1 AND month = $2 AND refunded < used RETURNING 1`,
-      [userId, month],
+        [userId, month],
+      ),
     );
     return rows.length > 0;
   }

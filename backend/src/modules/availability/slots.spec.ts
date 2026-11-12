@@ -1,5 +1,13 @@
 import { STANDARD_HOURS } from '../../database/seeds/example-data';
-import { findSlot, invalidRanges, openingRanges, overlaps, slotsForDay, weekdayOf, withinWeeklyHours } from './slots';
+import {
+  findSlot,
+  invalidRanges,
+  openingRanges,
+  overlaps,
+  slotsForDay,
+  weekdayOf,
+  withinWeeklyHours,
+} from './slots';
 
 const TZ = 'Europe/Chisinau';
 const iso = (d: Date) => d.toISOString();
@@ -26,7 +34,12 @@ describe('slot grid', () => {
   });
 
   it('handles several ranges per day', () => {
-    const hours = { mon: [{ open: '08:00', close: '10:00' }, { open: '16:00', close: '18:00' }] };
+    const hours = {
+      mon: [
+        { open: '08:00', close: '10:00' },
+        { open: '16:00', close: '18:00' },
+      ],
+    };
     expect(slotsForDay(hours, 60, '2026-11-09', TZ).map((s) => iso(s.start))).toEqual([
       '2026-11-09T06:00:00.000Z',
       '2026-11-09T07:00:00.000Z',
@@ -46,13 +59,21 @@ describe('slot grid', () => {
 describe('findSlot', () => {
   it('resolves the spec example start 18:00+02:00 to 18:00–19:00', () => {
     const r = findSlot(STANDARD_HOURS, 60, new Date('2026-11-12T18:00:00+02:00'), TZ);
-    expect(r).toEqual({ slot: { start: new Date('2026-11-12T16:00:00Z'), end: new Date('2026-11-12T17:00:00Z') } });
+    expect(r).toEqual({
+      slot: { start: new Date('2026-11-12T16:00:00Z'), end: new Date('2026-11-12T17:00:00Z') },
+    });
   });
 
   it('INVALID_SLOT for a start off the grid, OUTSIDE_OPENING_HOURS when closed', () => {
-    expect(findSlot(STANDARD_HOURS, 60, new Date('2026-11-12T18:30:00+02:00'), TZ)).toEqual({ error: 'INVALID_SLOT' });
-    expect(findSlot(STANDARD_HOURS, 60, new Date('2026-11-12T06:00:00+02:00'), TZ)).toEqual({ error: 'OUTSIDE_OPENING_HOURS' });
-    expect(findSlot(STANDARD_HOURS, 60, new Date('2026-11-15T10:00:00+02:00'), TZ)).toEqual({ error: 'OUTSIDE_OPENING_HOURS' });
+    expect(findSlot(STANDARD_HOURS, 60, new Date('2026-11-12T18:30:00+02:00'), TZ)).toEqual({
+      error: 'INVALID_SLOT',
+    });
+    expect(findSlot(STANDARD_HOURS, 60, new Date('2026-11-12T06:00:00+02:00'), TZ)).toEqual({
+      error: 'OUTSIDE_OPENING_HOURS',
+    });
+    expect(findSlot(STANDARD_HOURS, 60, new Date('2026-11-15T10:00:00+02:00'), TZ)).toEqual({
+      error: 'OUTSIDE_OPENING_HOURS',
+    });
   });
 });
 
@@ -70,11 +91,15 @@ describe('helpers', () => {
     const slot = { start: new Date('2026-11-12T16:00:00Z'), end: new Date('2026-11-12T17:00:00Z') };
     expect(overlaps({ start: new Date('2026-11-12T15:00:00Z'), end: null }, slot)).toBe(true);
     expect(overlaps({ start: new Date('2026-11-12T17:00:00Z'), end: null }, slot)).toBe(false);
-    expect(overlaps({ start: new Date('2026-11-12T15:00:00Z'), end: new Date('2026-11-12T16:00:00Z') }, slot)).toBe(false);
+    expect(
+      overlaps({ start: new Date('2026-11-12T15:00:00Z'), end: new Date('2026-11-12T16:00:00Z') }, slot),
+    ).toBe(false);
   });
 
   it('invalidRanges reports close <= open', () => {
     expect(invalidRanges(STANDARD_HOURS)).toEqual([]);
-    expect(invalidRanges({ tue: [{ open: '18:00', close: '08:00' }] })).toEqual(['tue[0]: close must be after open']);
+    expect(invalidRanges({ tue: [{ open: '18:00', close: '08:00' }] })).toEqual([
+      'tue[0]: close must be after open',
+    ]);
   });
 });

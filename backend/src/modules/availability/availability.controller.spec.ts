@@ -15,7 +15,14 @@ const AVAILABILITY = {
     {
       resource_id: COURT.id,
       resource_name: 'Teren baschet 2',
-      slots: [{ start: '2026-11-12T18:00:00+02:00', end: '2026-11-12T19:00:00+02:00', status: 'free', bookable: true }],
+      slots: [
+        {
+          start: '2026-11-12T18:00:00+02:00',
+          end: '2026-11-12T19:00:00+02:00',
+          status: 'free',
+          bookable: true,
+        },
+      ],
     },
   ],
 };
@@ -28,7 +35,9 @@ function readSse(port: number, path: string, onData: (chunk: string, req: http.C
       res.on('end', () => resolve(res.statusCode ?? 0));
       res.on('error', () => resolve(res.statusCode ?? 0));
     });
-    req.on('error', (err) => ((err as NodeJS.ErrnoException).code === 'ECONNRESET' ? resolve(200) : reject(err)));
+    req.on('error', (err) =>
+      (err as NodeJS.ErrnoException).code === 'ECONNRESET' ? resolve(200) : reject(err),
+    );
   });
 }
 
@@ -57,7 +66,10 @@ describe('AvailabilityController', () => {
       availability.getAvailability.mockResolvedValue(AVAILABILITY);
       const res = await t.http().get(`/api/v1/availability?resource=${COURT.id}&date=2026-11-12`).expect(200);
       expect(res.body).toEqual(AVAILABILITY);
-      expect(availability.getAvailability).toHaveBeenCalledWith({ resource: COURT.id, date: '2026-11-12' }, undefined);
+      expect(availability.getAvailability).toHaveBeenCalledWith(
+        { resource: COURT.id, date: '2026-11-12' },
+        undefined,
+      );
     });
 
     it('200 by sport, with the caller passed for role-specific fields', async () => {
@@ -94,17 +106,26 @@ describe('AvailabilityController', () => {
   describe('GET /stream/availability (SSE)', () => {
     it('streams slot-changed events for the resource and day only', async () => {
       availability.assertResource.mockResolvedValue(undefined);
-      const event = { resource_id: COURT.id, start: '2026-11-12T18:00:00+02:00', end: '2026-11-12T19:00:00+02:00', status: 'occupied' as const };
+      const event = {
+        resource_id: COURT.id,
+        start: '2026-11-12T18:00:00+02:00',
+        end: '2026-11-12T19:00:00+02:00',
+        status: 'occupied' as const,
+      };
       let received = '';
-      const status = await readSse(port, `/api/v1/stream/availability?resource=${COURT.id}&date=2026-11-12`, (chunk, req) => {
-        received += chunk;
-        if (chunk.startsWith(': connected')) {
-          void realtime.publish({ ...event, resource_id: EXAMPLE_RESOURCES.tennisCourt.id }); // other resource
-          void realtime.publish({ ...event, start: '2026-11-13T18:00:00+02:00' }); // other day
-          void realtime.publish(event);
-        }
-        if (received.includes('event: slot-changed')) req.destroy();
-      });
+      const status = await readSse(
+        port,
+        `/api/v1/stream/availability?resource=${COURT.id}&date=2026-11-12`,
+        (chunk, req) => {
+          received += chunk;
+          if (chunk.startsWith(': connected')) {
+            void realtime.publish({ ...event, resource_id: EXAMPLE_RESOURCES.tennisCourt.id }); // other resource
+            void realtime.publish({ ...event, start: '2026-11-13T18:00:00+02:00' }); // other day
+            void realtime.publish(event);
+          }
+          if (received.includes('event: slot-changed')) req.destroy();
+        },
+      );
       expect(status).toBe(200);
       expect(received).toContain(`event: slot-changed\ndata: ${JSON.stringify(event)}\n\n`);
       expect(received.match(/event: slot-changed/g)).toHaveLength(1);

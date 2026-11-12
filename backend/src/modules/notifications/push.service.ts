@@ -13,11 +13,15 @@ export class PushService {
 
   constructor(@Inject(APP_CONFIG) config: AppConfig) {
     this.enabled = Boolean(config.vapid.publicKey && config.vapid.privateKey);
-    if (this.enabled) webpush.setVapidDetails(config.vapid.subject, config.vapid.publicKey, config.vapid.privateKey);
+    if (this.enabled)
+      webpush.setVapidDetails(config.vapid.subject, config.vapid.publicKey, config.vapid.privateKey);
     else this.logger.warn('VAPID keys missing: push notifications are disabled');
   }
 
-  async send(subscription: { endpoint: string; keys: { p256dh: string; auth: string } }, payload: object): Promise<{ outcome: PushOutcome; error?: string }> {
+  async send(
+    subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
+    payload: object,
+  ): Promise<{ outcome: PushOutcome; error?: string }> {
     if (!this.enabled) return { outcome: 'failed', error: 'push disabled' };
     try {
       await webpush.sendNotification(subscription, JSON.stringify(payload), { TTL: 3600, urgency: 'high' });

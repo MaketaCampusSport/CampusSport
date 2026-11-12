@@ -22,7 +22,11 @@ export class AdminService {
   ) {}
 
   private toSettingsResponse(s: RulesSnapshot): SettingsResponse {
-    return { ...s.rules, updated_by: s.updatedBy, updated_at: toIsoOrNull(s.updatedAt, this.config.facilityTimezone) };
+    return {
+      ...s.rules,
+      updated_by: s.updatedBy,
+      updated_at: toIsoOrNull(s.updatedAt, this.config.facilityTimezone),
+    };
   }
 
   async getSettings(): Promise<SettingsResponse> {
@@ -37,7 +41,9 @@ export class AdminService {
       throw new AppException('VALIDATION_FAILED', {
         message_ro: 'Cota separată per sport nu este încă disponibilă.',
         message_en: 'A separate quota per sport is not available yet.',
-        details: { fields: { monthly_quota_per_sport: ['must be empty until per-sport quotas are supported'] } },
+        details: {
+          fields: { monthly_quota_per_sport: ['must be empty until per-sport quotas are supported'] },
+        },
       });
     }
     const next: Rules = { ...dto, monthly_quota_per_sport: perSport };
@@ -78,7 +84,16 @@ export class AdminService {
     const sqlWhere = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const { skip, take } = pageOffset(query);
     const [rows, count]: [
-      { id: string; actor_id: string | null; action: string; entity: string; entity_id: string | null; before: never; after: never; at: Date }[],
+      {
+        id: string;
+        actor_id: string | null;
+        action: string;
+        entity: string;
+        entity_id: string | null;
+        before: never;
+        after: never;
+        at: Date;
+      }[],
       { n: string }[],
     ] = await Promise.all([
       this.dataSource.query(

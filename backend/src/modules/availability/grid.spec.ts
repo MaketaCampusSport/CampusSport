@@ -74,8 +74,18 @@ describe('buildGrid', () => {
     const { resource, at } = grid();
     expect(resource).toMatchObject({ resource_id: court.id, resource_name: 'Teren baschet 2' });
     expect(resource.slots).toHaveLength(15);
-    expect(at('17')).toEqual({ start: '2026-11-12T17:00:00+02:00', end: '2026-11-12T18:00:00+02:00', status: 'free', bookable: true });
-    expect(at('18')).toEqual({ start: '2026-11-12T18:00:00+02:00', end: '2026-11-12T19:00:00+02:00', status: 'occupied', bookable: false });
+    expect(at('17')).toEqual({
+      start: '2026-11-12T17:00:00+02:00',
+      end: '2026-11-12T18:00:00+02:00',
+      status: 'free',
+      bookable: true,
+    });
+    expect(at('18')).toEqual({
+      start: '2026-11-12T18:00:00+02:00',
+      end: '2026-11-12T19:00:00+02:00',
+      status: 'occupied',
+      bookable: false,
+    });
     expect(at('20')).toMatchObject({ status: 'blocked', block_kind: 'emergency', bookable: false });
     expect(at('21')).toMatchObject({ status: 'blocked' });
     expect(at('07')).toMatchObject({ status: 'free', bookable: false }); // already started
@@ -89,7 +99,10 @@ describe('buildGrid', () => {
       bookable: false,
       booking_id: EXAMPLE_BOOKING.id,
     });
-    expect(grid({ caller: TEST_USERS.teacher }).at('18')).toMatchObject({ status: 'occupied', waitlist_available: true });
+    expect(grid({ caller: TEST_USERS.teacher }).at('18')).toMatchObject({
+      status: 'occupied',
+      waitlist_available: true,
+    });
     expect(grid({ caller: TEST_USERS.teacher }).at('18').booking_id).toBeUndefined();
   });
 

@@ -9,12 +9,7 @@ export const QUEUES = {
 
 /** notifications queue */
 export interface NotifyJob {
-  type:
-    | 'booking-confirmed'
-    | 'booking-reminder'
-    | 'booking-cancelled'
-    | 'waitlist-offer'
-    | 'announcement';
+  type: 'booking-confirmed' | 'booking-reminder' | 'booking-cancelled' | 'waitlist-offer' | 'announcement';
   userId: string;
   occupancyId?: string | null;
   blockId?: string | null;
@@ -54,7 +49,14 @@ export interface CancellationCause {
   blockId?: string | null;
 }
 
-export function redisConnection(url: string): { host: string; port: number; username?: string; password?: string; db?: number; tls?: object } {
+export function redisConnection(url: string): {
+  host: string;
+  port: number;
+  username?: string;
+  password?: string;
+  db?: number;
+  tls?: object;
+} {
   const u = new URL(url);
   return {
     host: u.hostname || 'localhost',

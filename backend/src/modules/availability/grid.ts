@@ -86,7 +86,8 @@ export function buildGrid(input: GridInput): ResourceAvailabilityView[] {
         if (caller?.role === 'admin' && occ.holderName) view.holder_name = occ.holderName;
         if (view.status === 'occupied' && caller && caller.role !== 'admin' && slot.start > now) {
           view.waitlist_available = true;
-          if (isMember && rules.member_replaces_external && occ.holderRole === 'external') view.replaceable = true;
+          if (isMember && rules.member_replaces_external && occ.holderRole === 'external')
+            view.replaceable = true;
         }
         return view;
       });

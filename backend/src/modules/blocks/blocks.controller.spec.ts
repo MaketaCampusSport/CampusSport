@@ -16,14 +16,22 @@ const BLOCK = {
   created_by: EXAMPLE_USERS.admin.id,
 };
 /** `BlockResult` example. */
-const RESULT = { block: BLOCK, cancelled_bookings_count: 23, superseded_blocks_count: 0, notified_users_count: 23 };
+const RESULT = {
+  block: BLOCK,
+  cancelled_bookings_count: 23,
+  superseded_blocks_count: 0,
+  notified_users_count: 23,
+};
 
 describe('BlocksController', () => {
   let t: TestApp;
   const blocks = { list: jest.fn(), create: jest.fn(), remove: jest.fn(), delivery: jest.fn() };
 
   beforeAll(async () => {
-    t = await createTestApp({ controllers: [BlocksController], providers: [{ provide: BlocksService, useValue: blocks }] });
+    t = await createTestApp({
+      controllers: [BlocksController],
+      providers: [{ provide: BlocksService, useValue: blocks }],
+    });
   });
   afterAll(() => t.close());
   beforeEach(() => jest.clearAllMocks());
@@ -37,38 +45,68 @@ describe('BlocksController', () => {
         .set('Authorization', await t.bearer('admin'))
         .expect(200);
       expect(res.body.items).toEqual([BLOCK]);
-      expect(blocks.list).toHaveBeenCalledWith(expect.objectContaining({ resource: BLOCK.resource_id, kind: 'emergency' }));
+      expect(blocks.list).toHaveBeenCalledWith(
+        expect.objectContaining({ resource: BLOCK.resource_id, kind: 'emergency' }),
+      );
     });
 
     it('422 for an unknown kind, 403 for students', async () => {
-      await t.http().get('/api/v1/admin/blocks?kind=booking').set('Authorization', await t.bearer('admin')).expect(422);
-      await t.http().get('/api/v1/admin/blocks').set('Authorization', await t.bearer('student')).expect(403);
+      await t
+        .http()
+        .get('/api/v1/admin/blocks?kind=booking')
+        .set('Authorization', await t.bearer('admin'))
+        .expect(422);
+      await t
+        .http()
+        .get('/api/v1/admin/blocks')
+        .set('Authorization', await t.bearer('student'))
+        .expect(403);
     });
   });
 
   describe('POST /admin/blocks', () => {
     it('201 BlockResult for the emergency example (end: null)', async () => {
       blocks.create.mockResolvedValue(RESULT);
-      const res = await t.http().post('/api/v1/admin/blocks').set('Authorization', await t.bearer('admin')).send(EXAMPLE_BLOCK_CREATE).expect(201);
+      const res = await t
+        .http()
+        .post('/api/v1/admin/blocks')
+        .set('Authorization', await t.bearer('admin'))
+        .send(EXAMPLE_BLOCK_CREATE)
+        .expect(201);
       expect(res.body).toEqual(RESULT);
       expect(blocks.create).toHaveBeenCalledWith(TEST_USERS.admin, EXAMPLE_BLOCK_CREATE);
     });
 
     it('409 BLOCK_CONFLICT', async () => {
       blocks.create.mockRejectedValue(new AppException('BLOCK_CONFLICT'));
-      const res = await t.http().post('/api/v1/admin/blocks').set('Authorization', await t.bearer('admin')).send(EXAMPLE_BLOCK_CREATE).expect(409);
+      const res = await t
+        .http()
+        .post('/api/v1/admin/blocks')
+        .set('Authorization', await t.bearer('admin'))
+        .send(EXAMPLE_BLOCK_CREATE)
+        .expect(409);
       expect(res.body.code).toBe('BLOCK_CONFLICT');
     });
 
     it('422 for pe_class/event kinds or a missing reason', async () => {
       const auth = await t.bearer('admin');
-      await t.http().post('/api/v1/admin/blocks').set('Authorization', auth).send({ ...EXAMPLE_BLOCK_CREATE, kind: 'event' }).expect(422);
+      await t
+        .http()
+        .post('/api/v1/admin/blocks')
+        .set('Authorization', auth)
+        .send({ ...EXAMPLE_BLOCK_CREATE, kind: 'event' })
+        .expect(422);
       const { reason: _r, ...noReason } = EXAMPLE_BLOCK_CREATE;
       await t.http().post('/api/v1/admin/blocks').set('Authorization', auth).send(noReason).expect(422);
     });
 
     it('403 for teachers', async () => {
-      await t.http().post('/api/v1/admin/blocks').set('Authorization', await t.bearer('teacher')).send(EXAMPLE_BLOCK_CREATE).expect(403);
+      await t
+        .http()
+        .post('/api/v1/admin/blocks')
+        .set('Authorization', await t.bearer('teacher'))
+        .send(EXAMPLE_BLOCK_CREATE)
+        .expect(403);
     });
   });
 
@@ -87,12 +125,20 @@ describe('BlocksController', () => {
     it('200 DeliveryStatus example', async () => {
       const status = { notified: 23, delivered: 21, failed: 0, by_channel: { push: 19, email: 23, sms: 4 } };
       blocks.delivery.mockResolvedValue(status);
-      await t.http().get(`/api/v1/admin/blocks/${BLOCK_ID}/delivery`).set('Authorization', await t.bearer('admin')).expect(200, status);
+      await t
+        .http()
+        .get(`/api/v1/admin/blocks/${BLOCK_ID}/delivery`)
+        .set('Authorization', await t.bearer('admin'))
+        .expect(200, status);
     });
 
     it('404 unknown block', async () => {
       blocks.delivery.mockRejectedValue(new AppException('NOT_FOUND'));
-      await t.http().get(`/api/v1/admin/blocks/${BLOCK_ID}/delivery`).set('Authorization', await t.bearer('admin')).expect(404);
+      await t
+        .http()
+        .get(`/api/v1/admin/blocks/${BLOCK_ID}/delivery`)
+        .set('Authorization', await t.bearer('admin'))
+        .expect(404);
     });
   });
 
@@ -104,9 +150,10 @@ describe('BlocksController', () => {
       ['delete', `/api/v1/admin/schedule/recurrences/${BLOCK_ID}`],
       ['post', '/api/v1/admin/events'],
     ] as const)('%s %s', async (method, path) => {
-      const res = await t.http()[method](path).set('Authorization', await t.bearer('admin')).expect(501);
+      const send = (auth: string) => t.http()[method](path).set('Authorization', auth);
+      const res = await send(await t.bearer('admin')).expect(501);
       expect(res.body.code).toBe('NOT_IMPLEMENTED');
-      await t.http()[method](path).set('Authorization', await t.bearer('student')).expect(403);
+      await send(await t.bearer('student')).expect(403);
     });
   });
 });

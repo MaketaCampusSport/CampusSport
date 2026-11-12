@@ -7,7 +7,12 @@ import { APP_CONFIG } from '../../config/configuration';
 import type { AppConfig } from '../../config/configuration';
 import type { User } from '../../database/entities';
 import { MailService, SmsService } from '../messaging/messaging.service';
-import { ExternalLoginDto, ExternalRegistrationDto, ExternalVerifyDto, OtpSentResponse } from './dto/auth.dto';
+import {
+  ExternalLoginDto,
+  ExternalRegistrationDto,
+  ExternalVerifyDto,
+  OtpSentResponse,
+} from './dto/auth.dto';
 import { mapRole, OidcService } from './oidc.service';
 import { OTP_TTL_SECONDS, OtpService } from './otp.service';
 import { TotpService } from './totp.service';
@@ -28,8 +33,7 @@ interface TwoFactorChallenge {
 }
 
 export type SsoCallbackResult =
-  | { kind: 'member'; user: User; redirectTo: string }
-  | { kind: 'second-factor'; redirectTo: string };
+  { kind: 'member'; user: User; redirectTo: string } | { kind: 'second-factor'; redirectTo: string };
 
 /** Only same-origin paths of the PWA are accepted, to avoid open redirects. */
 export function safeReturnTo(value: string | undefined): string {
@@ -114,7 +118,11 @@ export class AuthFlowsService {
   }
 
   async registerExternal(dto: ExternalRegistrationDto): Promise<OtpSentResponse> {
-    const user = await this.users.createOrResetExternal({ fullName: dto.full_name, email: dto.email, phone: dto.phone });
+    const user = await this.users.createOrResetExternal({
+      fullName: dto.full_name,
+      email: dto.email,
+      phone: dto.phone,
+    });
     await this.sendCodes(user, true);
     return { expires_in: OTP_TTL_SECONDS };
   }

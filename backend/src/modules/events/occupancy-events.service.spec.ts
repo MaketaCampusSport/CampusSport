@@ -31,7 +31,9 @@ describe('OccupancyEventsService', () => {
       end: '2026-11-12T19:00:00+02:00',
       status: 'occupied',
     });
-    expect(jobs.notify).toHaveBeenCalledWith(expect.objectContaining({ type: 'booking-confirmed', occupancyId: booking.id }));
+    expect(jobs.notify).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'booking-confirmed', occupancyId: booking.id }),
+    );
     const reminders = jobs.notify.mock.calls.filter(([job]) => job.type === 'booking-reminder');
     expect(reminders.map(([job, opts]) => [job.data.hours_before, opts.jobId])).toEqual([
       [24, `reminder_${booking.id}_24`],
@@ -58,10 +60,19 @@ describe('OccupancyEventsService', () => {
   });
 
   it('cancellation by a block notifies holders (critical) and does not free the slot', async () => {
-    await events.bookingsCancelled([booking], { source: 'emergency', reason: 'Avarie', blockId: 'b1' }, false);
+    await events.bookingsCancelled(
+      [booking],
+      { source: 'emergency', reason: 'Avarie', blockId: 'b1' },
+      false,
+    );
     expect(jobs.slotFreed).not.toHaveBeenCalled();
     expect(jobs.notify).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'booking-cancelled', critical: true, blockId: 'b1', data: { cancel_source: 'emergency', reason: 'Avarie' } }),
+      expect.objectContaining({
+        type: 'booking-cancelled',
+        critical: true,
+        blockId: 'b1',
+        data: { cancel_source: 'emergency', reason: 'Avarie' },
+      }),
     );
   });
 

@@ -40,7 +40,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private toAppException(exception: unknown): AppException {
     if (exception instanceof AppException) return exception;
     if (exception instanceof HttpException) {
-      const code = STATUS_TO_CODE[exception.getStatus()] ?? (exception.getStatus() >= 500 ? 'INTERNAL_ERROR' : 'BAD_REQUEST');
+      const code =
+        STATUS_TO_CODE[exception.getStatus()] ??
+        (exception.getStatus() >= 500 ? 'INTERNAL_ERROR' : 'BAD_REQUEST');
       return new AppException(code);
     }
     if (pgErrorCode(exception) === PG_EXCLUSION_VIOLATION) {
