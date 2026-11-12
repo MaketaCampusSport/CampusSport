@@ -10,6 +10,7 @@ import type { AppConfig } from '../../config/configuration';
 import { User } from '../../database/entities';
 import type { Role } from '../../database/enums';
 import { AuditService } from '../audit/audit.service';
+import type { CancelledBooking } from '../jobs/queues';
 import { ListUsersQueryDto, toUserResponse, UserResponse } from './dto/user.dto';
 
 export interface SsoIdentity {
@@ -198,13 +199,13 @@ export class UsersService {
    * Administrators cannot delete themselves here: their audit entries reference the account.
    * Returns the cancelled bookings so the caller can free the slots.
    */
-  async deleteSelf(user: AuthUser): Promise<{ cancelledBookingIds: string[] }> {
+  async deleteSelf(user: AuthUser): Promise<CancelledBooking[]> {
     if (user.role === 'admin') throw new AppException('FORBIDDEN');
     return this.dataSource.transaction(async (em) => {
-      const cancelled: { id: string }[] = await em.query(
+      const cancelled: { id: string; resource_id: string; start: Date; end: Date }[] = await em.query(
         `UPDATE occupancy SET status = 'cancelled', cancel_source = 'user'
          WHERE user_id = $1 AND kind = 'booking' AND status = 'active' AND lower(period) > now()
-         RETURNING id`,
+         RETURNING id, resource_id, lower(period) AS start, upper(period) AS "end"`,
         [user.id],
       );
       await em.query(`UPDATE occupancy SET user_id = NULL, anonymized_at = now() WHERE user_id = $1`, [user.id]);
@@ -213,7 +214,7 @@ export class UsersService {
         { actorId: null, action: 'user.delete', entity: 'user', entityId: user.id, after: { self_service: true } },
         em,
       );
-      return { cancelledBookingIds: cancelled.map((r) => r.id) };
+      return cancelled.map((r) => ({ id: r.id, userId: null, resourceId: r.resource_id, start: r.start, end: r.end }));
     });
   }
 }

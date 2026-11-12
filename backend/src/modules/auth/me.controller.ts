@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTa
 import type { AuthUser } from '../../common/auth/auth.types';
 import { CurrentUser } from '../../common/auth/decorators';
 import { notImplemented } from '../../common/errors/app.exception';
+import { OccupancyEventsService } from '../events/occupancy-events.service';
 import { UserResponse } from './dto/user.dto';
 import { SessionsService } from './sessions.service';
 import { UsersService } from './users.service';
@@ -14,6 +15,7 @@ export class MeController {
   constructor(
     private readonly users: UsersService,
     private readonly sessions: SessionsService,
+    private readonly events: OccupancyEventsService,
   ) {}
 
   @Get()
@@ -28,8 +30,9 @@ export class MeController {
   @ApiOperation({ operationId: 'deleteCurrentUser', summary: 'Șterge contul și datele personale' })
   @ApiNoContentResponse({ description: 'Cont șters.' })
   async deleteMe(@CurrentUser() user: AuthUser): Promise<void> {
-    await this.users.deleteSelf(user);
+    const cancelled = await this.users.deleteSelf(user);
     await this.sessions.revokeAll(user.id);
+    await this.events.bookingsCancelled(cancelled, { source: 'user' }, true);
   }
 
   @Get('export')
