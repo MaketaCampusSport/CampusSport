@@ -2,6 +2,7 @@ import { AppException } from '../../common/errors/app.exception';
 import { createTestApp, TEST_CONFIG, TEST_USERS, TestApp } from '../../testing/test-app';
 import { userEntity } from '../../testing/fixtures';
 import { toUserResponse } from './dto/user.dto';
+import { OccupancyEventsService } from '../events/occupancy-events.service';
 import { MeController } from './me.controller';
 import { SessionsService } from './sessions.service';
 import { UsersService } from './users.service';
@@ -14,6 +15,7 @@ describe('MeController', () => {
     toResponse: jest.fn((u) => toUserResponse(u, TEST_CONFIG.facilityTimezone)),
   };
   const sessions = { revokeAll: jest.fn() };
+  const events = { bookingsCancelled: jest.fn() };
 
   beforeAll(async () => {
     t = await createTestApp({
@@ -21,6 +23,7 @@ describe('MeController', () => {
       providers: [
         { provide: UsersService, useValue: users },
         { provide: SessionsService, useValue: sessions },
+        { provide: OccupancyEventsService, useValue: events },
       ],
     });
   });
@@ -58,11 +61,21 @@ describe('MeController', () => {
   });
 
   describe('DELETE /me', () => {
-    it('204, deletes the account and revokes all sessions', async () => {
-      users.deleteSelf.mockResolvedValue({ cancelledBookingIds: ['e3a94f60-1b2c-4d7e-8f05-6c2b9a0d4e11'] });
+    it('204, deletes the account, revokes all sessions and frees future slots', async () => {
+      const cancelled = [
+        {
+          id: 'e3a94f60-1b2c-4d7e-8f05-6c2b9a0d4e11',
+          userId: null,
+          resourceId: '7d2f4c1e-3a5b-4e8f-9c10-2b6a1d3e5f70',
+          start: new Date('2026-11-12T18:00:00+02:00'),
+          end: new Date('2026-11-12T19:00:00+02:00'),
+        },
+      ];
+      users.deleteSelf.mockResolvedValue(cancelled);
       await t.http().delete('/api/v1/me').set('Authorization', await t.bearer('external')).expect(204);
       expect(users.deleteSelf).toHaveBeenCalledWith(TEST_USERS.external);
       expect(sessions.revokeAll).toHaveBeenCalledWith(TEST_USERS.external.id);
+      expect(events.bookingsCancelled).toHaveBeenCalledWith(cancelled, { source: 'user' }, true);
     });
 
     it('403 for administrators', async () => {
