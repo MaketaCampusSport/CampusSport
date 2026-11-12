@@ -1,0 +1,77 @@
+# Local development stack.
+#   Infrastructure only:  docker compose up -d postgres redis keycloak mailpit
+#   Everything:           docker compose --profile app up -d --build
+name: campussport
+
+x-app-env: &app-env
+  NODE_ENV: development
+  DATABASE_URL: postgres://campussport:campussport@postgres:5432/campussport
+  REDIS_URL: redis://redis:6379
+  JWT_ACCESS_SECRET: dev-only-access-secret-change-me
+  QR_HMAC_SECRET: dev-only-qr-secret-change-me
+  COOKIE_SECURE: "false"
+  # The browser and the API container must see the same issuer URL;
+  # host.docker.internal resolves on Docker Desktop and through extra_hosts on Linux.
+  OIDC_ISSUER: http://host.docker.internal:8080/realms/campussport
+  OIDC_ALLOW_INSECURE: "true"
+  SMTP_HOST: mailpit
+  SMTP_PORT: "1025"
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: campussport
+      POSTGRES_PASSWORD: campussport
+      POSTGRES_DB: campussport
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campussport"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports: ["8080:8080"]
+    volumes:
+      - ./docker/keycloak:/opt/keycloak/data/import:ro
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ["1025:1025", "8025:8025"]
+
+  api:
+    profiles: [app]
+    build: .
+    environment: *app-env
+    ports: ["3000:3000"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  worker:
+    profiles: [app]
+    build: .
+    command: ["node", "dist/worker.js"]
+    environment: *app-env
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+volumes:
+  pgdata:

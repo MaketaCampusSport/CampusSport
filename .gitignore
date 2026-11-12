@@ -1,0 +1,24 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Office lock files (livrabil documents)
+~$*
+
+# Node (any package in the repo)
+node_modules/
+dist/
+coverage/
+*.log
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Claude Code local settings
+.claude/settings.local.json
