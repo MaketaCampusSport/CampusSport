@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { rowsOf } from '../../common/db/rows';
 import { generateSecret, generateURI } from 'otplib';
 import { loadConfig } from '../../config/configuration';
 import { loadEnvFile } from '../../config/load-env';
@@ -16,9 +17,11 @@ async function main(): Promise<void> {
   const ds = await createDataSource(config).initialize();
   try {
     const secret = generateSecret();
-    const rows: { id: string }[] = await ds.query(
-      `UPDATE users SET totp_secret = $1 WHERE email = $2 AND role = 'admin' RETURNING id`,
-      [secret, email],
+    const rows: { id: string }[] = rowsOf(
+      await ds.query(`UPDATE users SET totp_secret = $1 WHERE email = $2 AND role = 'admin' RETURNING id`, [
+        secret,
+        email,
+      ]),
     );
     if (!rows.length) throw new Error(`No administrator with email ${email}`);
     console.log(generateURI({ issuer: config.totpIssuer, label: email, secret }));

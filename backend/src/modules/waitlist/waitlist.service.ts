@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { rowsOf } from '../../common/db/rows';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DateTime } from 'luxon';
 import { DataSource, EntityManager } from 'typeorm';
@@ -57,23 +58,34 @@ export class WaitlistService {
   async join(user: AuthUser, dto: WaitlistJoinDto, now = new Date()): Promise<WaitlistEntryResponse> {
     if (user.role === 'admin') throw new AppException('FORBIDDEN');
     if (isSuspended(user, now)) throw new AppException('ACCOUNT_SUSPENDED');
-    const entry: Partial<WaitlistEntry> = { userId: user.id, day: dto.day, priority: ROLE_PRIORITY[user.role] };
+    const entry: Partial<WaitlistEntry> = {
+      userId: user.id,
+      day: dto.day,
+      priority: ROLE_PRIORITY[user.role],
+    };
 
     if (dto.resource_id) {
-      if (!dto.start || !dto.end) throw invalid({ start: ['required with resource_id'], end: ['required with resource_id'] });
+      if (!dto.start || !dto.end)
+        throw invalid({ start: ['required with resource_id'], end: ['required with resource_id'] });
       const start = new Date(dto.start);
       const end = new Date(dto.end);
       const resource = await this.dataSource.getRepository(Resource).findOneBy({ id: dto.resource_id });
       if (!resource || !resource.active) throw new AppException('NOT_FOUND');
       const lookup = findSlot(resource.openingHours, resource.slotMinutes, start, this.zone);
-      if ('error' in lookup || lookup.slot.end.getTime() !== end.getTime()) throw invalid({ start: ['not a slot of this resource'] });
+      if ('error' in lookup || lookup.slot.end.getTime() !== end.getTime())
+        throw invalid({ start: ['not a slot of this resource'] });
       if (dayOf(start, this.zone) !== dto.day) throw invalid({ day: ['must be the day of start'] });
       if (start <= now) throw invalid({ start: ['the slot has already started'] });
-      Object.assign(entry, { resourceId: resource.id, sportId: dto.sport_id ?? null, period: { start, end } });
+      Object.assign(entry, {
+        resourceId: resource.id,
+        sportId: dto.sport_id ?? null,
+        period: { start, end },
+      });
     } else {
       if (!dto.sport_id) throw invalid({ sport_id: ['required for a day + sport subscription'] });
       if (dto.start || dto.end) throw invalid({ resource_id: ['required with start/end'] });
-      if (!(await this.dataSource.getRepository(Sport).existsBy({ id: dto.sport_id }))) throw new AppException('NOT_FOUND');
+      if (!(await this.dataSource.getRepository(Sport).existsBy({ id: dto.sport_id })))
+        throw new AppException('NOT_FOUND');
       if (dto.day < dayOf(now, this.zone)) throw invalid({ day: ['must not be in the past'] });
       Object.assign(entry, { resourceId: null, sportId: dto.sport_id, period: null });
     }
@@ -121,7 +133,10 @@ export class WaitlistService {
   async accept(user: AuthUser, id: string, now = new Date()): Promise<BookingResponse> {
     const entry = await this.dataSource.getRepository(WaitlistEntry).findOneBy({ id, userId: user.id });
     if (!entry) throw new AppException('NOT_FOUND');
-    if (entry.status === 'expired' || (entry.status === 'offered' && entry.offerExpiresAt && entry.offerExpiresAt <= now)) {
+    if (
+      entry.status === 'expired' ||
+      (entry.status === 'offered' && entry.offerExpiresAt && entry.offerExpiresAt <= now)
+    ) {
       throw new AppException('OFFER_EXPIRED');
     }
     if (entry.status !== 'offered' || !entry.offeredResourceId || !entry.offeredPeriod?.end) {
@@ -136,9 +151,11 @@ export class WaitlistService {
         {
           now,
           inTransaction: async (em) => {
-            const updated: unknown[] = await em.query(
-              `UPDATE waitlist SET status = 'accepted' WHERE id = $1 AND status = 'offered' RETURNING 1`,
-              [id],
+            const updated: unknown[] = rowsOf(
+              await em.query(
+                `UPDATE waitlist SET status = 'accepted' WHERE id = $1 AND status = 'offered' RETURNING 1`,
+                [id],
+              ),
             );
             if (!updated.length) throw new AppException('OFFER_TAKEN');
             // Simultaneous offers for the same slot go back to waiting.
@@ -177,12 +194,16 @@ export class WaitlistService {
    * starts in less than `waitlist_simultaneous_under_hours` (BR-07).
    */
   async offerFreedPeriod(resourceId: string, period: Interval, now = new Date()): Promise<OfferResult[]> {
-    const resource = await this.dataSource.getRepository(Resource).findOne({ where: { id: resourceId }, relations: { sports: true } });
+    const resource = await this.dataSource
+      .getRepository(Resource)
+      .findOne({ where: { id: resourceId }, relations: { sports: true } });
     if (!resource?.active) return [];
     const rules = await this.settings.rules();
     const results: OfferResult[] = [];
     for (const slot of this.slotsWithin(resource, period, now)) {
-      const result = await this.dataSource.transaction(async (em) => this.offerSlot(em, resource, slot, now, rules));
+      const result = await this.dataSource.transaction(async (em) =>
+        this.offerSlot(em, resource, slot, now, rules),
+      );
       if (result) results.push(result);
     }
     for (const r of results) {
@@ -194,11 +215,24 @@ export class WaitlistService {
   }
 
   /** Grid slots of the resource lying fully inside the period and not started yet. */
-  slotsWithin(resource: Pick<Resource, 'openingHours' | 'slotMinutes'>, period: Interval, now: Date): Interval[] {
+  slotsWithin(
+    resource: Pick<Resource, 'openingHours' | 'slotMinutes'>,
+    period: Interval,
+    now: Date,
+  ): Interval[] {
     const slots: Interval[] = [];
     const last = dayOf(period.end, this.zone);
-    for (let day = DateTime.fromJSDate(period.start, { zone: this.zone }); day.toISODate()! <= last; day = day.plus({ days: 1 })) {
-      for (const slot of slotsForDay(resource.openingHours, resource.slotMinutes, day.toISODate()!, this.zone)) {
+    for (
+      let day = DateTime.fromJSDate(period.start, { zone: this.zone });
+      day.toISODate()! <= last;
+      day = day.plus({ days: 1 })
+    ) {
+      for (const slot of slotsForDay(
+        resource.openingHours,
+        resource.slotMinutes,
+        day.toISODate()!,
+        this.zone,
+      )) {
         if (slot.start >= period.start && slot.end <= period.end && slot.start > now) slots.push(slot);
       }
     }
@@ -236,7 +270,8 @@ export class WaitlistService {
     );
     if (!candidates.length) return null;
 
-    const simultaneous = slot.start.getTime() < addHours(now, rules.waitlist_simultaneous_under_hours).getTime();
+    const simultaneous =
+      slot.start.getTime() < addHours(now, rules.waitlist_simultaneous_under_hours).getTime();
     const chosen = simultaneous ? candidates : candidates.slice(0, 1);
     const expiresAt = simultaneous ? null : addMinutes(now, rules.waitlist_offer_minutes);
     await em.query(
@@ -265,12 +300,19 @@ export class WaitlistService {
 
   /** The 10-minute offer lapsed without an answer: the entry expires and the next candidate gets it. */
   async expireOffer(waitlistId: string, now = new Date()): Promise<void> {
-    const rows: { offered_resource_id: string; start: Date; end: Date }[] = await this.dataSource.query(
-      `UPDATE waitlist SET status = 'expired'
+    const rows: { offered_resource_id: string; start: Date; end: Date }[] = rowsOf(
+      await this.dataSource.query(
+        `UPDATE waitlist SET status = 'expired'
        WHERE id = $1 AND status = 'offered' AND offer_expires_at <= $2
        RETURNING offered_resource_id, lower(offered_period) AS start, upper(offered_period) AS "end"`,
-      [waitlistId, now],
+        [waitlistId, now],
+      ),
     );
-    if (rows.length) await this.offerFreedPeriod(rows[0].offered_resource_id, { start: rows[0].start, end: rows[0].end }, now);
+    if (rows.length)
+      await this.offerFreedPeriod(
+        rows[0].offered_resource_id,
+        { start: rows[0].start, end: rows[0].end },
+        now,
+      );
   }
 }

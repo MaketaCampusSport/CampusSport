@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { rowsOf } from '../common/db/rows';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DateTime } from 'luxon';
 import { DataSource } from 'typeorm';
@@ -30,12 +31,14 @@ export class MaintenanceService {
   async checkNoShow(bookingId: string, now = new Date()): Promise<boolean> {
     const rules = await this.settings.rules();
     return this.dataSource.transaction(async (em) => {
-      const marked: { user_id: string | null; start: Date }[] = await em.query(
-        `UPDATE occupancy SET status = 'no_show'
+      const marked: { user_id: string | null; start: Date }[] = rowsOf(
+        await em.query(
+          `UPDATE occupancy SET status = 'no_show'
          WHERE id = $1 AND kind = 'booking' AND status = 'active' AND checked_in_at IS NULL
            AND lower(period) + make_interval(mins => $2) <= $3
          RETURNING user_id, lower(period) AS start`,
-        [bookingId, rules.checkin_minutes_after, now],
+          [bookingId, rules.checkin_minutes_after, now],
+        ),
       );
       const row = marked[0];
       if (!row?.user_id) return Boolean(row);
@@ -48,10 +51,12 @@ export class MaintenanceService {
       );
       if (Number(n) >= rules.no_show_threshold) {
         const until = DateTime.fromJSDate(now).plus({ days: rules.no_show_suspension_days }).toJSDate();
-        const suspended: unknown[] = await em.query(
-          `UPDATE users SET status = 'suspended', suspended_until = GREATEST(COALESCE(suspended_until, $2), $2)
+        const suspended: unknown[] = rowsOf(
+          await em.query(
+            `UPDATE users SET status = 'suspended', suspended_until = GREATEST(COALESCE(suspended_until, $2), $2)
            WHERE id = $1 AND role <> 'admin' RETURNING 1`,
-          [row.user_id, until],
+            [row.user_id, until],
+          ),
         );
         if (suspended.length) {
           await this.audit.record(
@@ -60,7 +65,11 @@ export class MaintenanceService {
               action: 'user.auto_suspend',
               entity: 'user',
               entityId: row.user_id,
-              after: { status: 'suspended', suspended_until: until.toISOString(), no_shows_this_month: Number(n) },
+              after: {
+                status: 'suspended',
+                suspended_until: until.toISOString(),
+                no_shows_this_month: Number(n),
+              },
             },
             em,
           );
@@ -86,11 +95,13 @@ export class MaintenanceService {
 
   /** Checked-in bookings that ended become `completed`. */
   async completeBookings(now = new Date()): Promise<number> {
-    const rows: unknown[] = await this.dataSource.query(
-      `UPDATE occupancy SET status = 'completed'
+    const rows: unknown[] = rowsOf(
+      await this.dataSource.query(
+        `UPDATE occupancy SET status = 'completed'
        WHERE kind = 'booking' AND status = 'active' AND checked_in_at IS NOT NULL AND upper(period) <= $1
        RETURNING 1`,
-      [now],
+        [now],
+      ),
     );
     return rows.length;
   }
@@ -99,7 +110,9 @@ export class MaintenanceService {
   async ensurePartitions(now = new Date()): Promise<void> {
     const month = DateTime.fromJSDate(now, { zone: this.config.facilityTimezone }).startOf('month');
     for (let i = 0; i <= 2; i++) {
-      await this.dataSource.query(`SELECT create_monthly_partitions($1::date)`, [month.plus({ months: i }).toISODate()]);
+      await this.dataSource.query(`SELECT create_monthly_partitions($1::date)`, [
+        month.plus({ months: i }).toISODate(),
+      ]);
     }
   }
 

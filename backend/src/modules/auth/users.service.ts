@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { rowsOf } from '../../common/db/rows';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, ILike, Repository } from 'typeorm';
 import type { FindOptionsWhere } from 'typeorm';
@@ -82,7 +83,13 @@ export class UsersService {
     if (user) {
       await this.users.update(
         { id: user.id },
-        { ssoSubject: identity.subject, email, fullName: identity.fullName, role: identity.role, lastActiveAt: new Date() },
+        {
+          ssoSubject: identity.subject,
+          email,
+          fullName: identity.fullName,
+          role: identity.role,
+          lastActiveAt: new Date(),
+        },
       );
       return this.getById(user.id);
     }
@@ -110,7 +117,13 @@ export class UsersService {
       return this.getById(existing.id);
     }
     const created = await this.users.save(
-      this.users.create({ fullName: input.fullName, email, phone: input.phone, role: 'external', ssoSubject: null }),
+      this.users.create({
+        fullName: input.fullName,
+        email,
+        phone: input.phone,
+        role: 'external',
+        ssoSubject: null,
+      }),
     );
     return this.getById(created.id);
   }
@@ -140,7 +153,11 @@ export class UsersService {
           { ...base, email: ILike(`%${escapeLike(term)}%`) },
         ]
       : base;
-    const [rows, total] = await this.users.findAndCount({ where, order: { fullName: 'ASC' }, ...pageOffset(query) });
+    const [rows, total] = await this.users.findAndCount({
+      where,
+      order: { fullName: 'ASC' },
+      ...pageOffset(query),
+    });
     return pageOf(
       query,
       rows.map((u) => this.toResponse(u)),
@@ -150,7 +167,9 @@ export class UsersService {
 
   async suspend(actor: AuthUser, id: string, until: Date, reason: string): Promise<UserResponse> {
     if (until.getTime() <= Date.now()) {
-      throw new AppException('VALIDATION_FAILED', { details: { fields: { until: ['must be in the future'] } } });
+      throw new AppException('VALIDATION_FAILED', {
+        details: { fields: { until: ['must be in the future'] } },
+      });
     }
     return this.dataSource.transaction(async (em) => {
       const repo = em.getRepository(User);
@@ -202,19 +221,35 @@ export class UsersService {
   async deleteSelf(user: AuthUser): Promise<CancelledBooking[]> {
     if (user.role === 'admin') throw new AppException('FORBIDDEN');
     return this.dataSource.transaction(async (em) => {
-      const cancelled: { id: string; resource_id: string; start: Date; end: Date }[] = await em.query(
-        `UPDATE occupancy SET status = 'cancelled', cancel_source = 'user'
+      const cancelled: { id: string; resource_id: string; start: Date; end: Date }[] = rowsOf(
+        await em.query(
+          `UPDATE occupancy SET status = 'cancelled', cancel_source = 'user'
          WHERE user_id = $1 AND kind = 'booking' AND status = 'active' AND lower(period) > now()
          RETURNING id, resource_id, lower(period) AS start, upper(period) AS "end"`,
-        [user.id],
+          [user.id],
+        ),
       );
-      await em.query(`UPDATE occupancy SET user_id = NULL, anonymized_at = now() WHERE user_id = $1`, [user.id]);
+      await em.query(`UPDATE occupancy SET user_id = NULL, anonymized_at = now() WHERE user_id = $1`, [
+        user.id,
+      ]);
       await em.query(`DELETE FROM users WHERE id = $1`, [user.id]);
       await this.audit.record(
-        { actorId: null, action: 'user.delete', entity: 'user', entityId: user.id, after: { self_service: true } },
+        {
+          actorId: null,
+          action: 'user.delete',
+          entity: 'user',
+          entityId: user.id,
+          after: { self_service: true },
+        },
         em,
       );
-      return cancelled.map((r) => ({ id: r.id, userId: null, resourceId: r.resource_id, start: r.start, end: r.end }));
+      return cancelled.map((r) => ({
+        id: r.id,
+        userId: null,
+        resourceId: r.resource_id,
+        start: r.start,
+        end: r.end,
+      }));
     });
   }
 }
