@@ -34,8 +34,8 @@ describe('OccupancyEventsService', () => {
     expect(jobs.notify).toHaveBeenCalledWith(expect.objectContaining({ type: 'booking-confirmed', occupancyId: booking.id }));
     const reminders = jobs.notify.mock.calls.filter(([job]) => job.type === 'booking-reminder');
     expect(reminders.map(([job, opts]) => [job.data.hours_before, opts.jobId])).toEqual([
-      [24, `reminder:${booking.id}:24`],
-      [1, `reminder:${booking.id}:1`],
+      [24, `reminder_${booking.id}_24`],
+      [1, `reminder_${booking.id}_1`],
     ]);
     expect(jobs.noShowCheck).toHaveBeenCalledWith({ bookingId: booking.id }, closes);
   });

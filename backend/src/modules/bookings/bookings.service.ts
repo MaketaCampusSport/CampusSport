@@ -5,6 +5,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import type { AuthUser } from '../../common/auth/auth.types';
 import { AppException } from '../../common/errors/app.exception';
 import type { ErrorCode } from '../../common/errors/error-codes';
+import { isTransientPgError, withTransientRetry } from '../../common/db/transient';
 import { pgErrorCode, PG_EXCLUSION_VIOLATION } from '../../common/errors/all-exceptions.filter';
 import { Page, pageOf, pageOffset } from '../../common/http/pagination';
 import { addHours, addMinutes, dayOf, monthOf, toIsoInZone } from '../../common/time';
@@ -73,7 +74,7 @@ export class BookingsService {
     let bookingId: string;
     let rules: Rules;
     try {
-      ({ bookingId, rules, displaced } = await this.dataSource.transaction(async (em) => {
+      ({ bookingId, rules, displaced } = await withTransientRetry(() => this.dataSource.transaction(async (em) => {
         // One booking transaction per user at a time: quota and active-limit checks cannot race.
         await em.query(`SELECT 1 FROM users WHERE id = $1 FOR NO KEY UPDATE`, [user.id]);
         const txRules = await this.settings.rules(em);
@@ -101,9 +102,10 @@ export class BookingsService {
         if (user.role === 'student') await this.quota.consume(user.id, month, em);
         await options.inTransaction?.(em, row.id);
         return { bookingId: row.id, rules: txRules, displaced: txDisplaced };
-      }));
+      })));
     } catch (err) {
-      if (pgErrorCode(err) === PG_EXCLUSION_VIOLATION) throw await this.conflictError(resource.id, slot);
+      // A deadlock that survived the retries is still a lost race for the slot.
+      if (pgErrorCode(err) === PG_EXCLUSION_VIOLATION || isTransientPgError(err)) throw await this.conflictError(resource.id, slot);
       throw err;
     }
 

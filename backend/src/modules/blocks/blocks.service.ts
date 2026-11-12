@@ -3,6 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
 import type { AuthUser } from '../../common/auth/auth.types';
 import { AppException } from '../../common/errors/app.exception';
+import { isTransientPgError } from '../../common/db/transient';
 import { pgErrorCode, PG_EXCLUSION_VIOLATION } from '../../common/errors/all-exceptions.filter';
 import { Page, pageOf, pageOffset } from '../../common/http/pagination';
 import { addHours, monthOf, toIsoInZone, toIsoOrNull } from '../../common/time';
@@ -126,8 +127,9 @@ export class BlocksService {
           notified_users_count: new Set(result.cancelled.map((b) => b.userId).filter(Boolean)).size,
         };
       } catch (err) {
-        // A booking committed between our lock and the insert: run the algorithm again.
-        if (pgErrorCode(err) !== PG_EXCLUSION_VIOLATION || attempt >= MAX_ATTEMPTS) throw err;
+        // A booking committed (or was being inserted) between our lock and the insert: run the algorithm again.
+        const retryable = pgErrorCode(err) === PG_EXCLUSION_VIOLATION || isTransientPgError(err);
+        if (!retryable || attempt >= MAX_ATTEMPTS) throw err;
       }
     }
   }
