@@ -1,0 +1,84 @@
+{
+  "realm": "campussport",
+  "enabled": true,
+  "displayName": "CampusSport (dezvoltare)",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "roles": {
+    "realm": [
+      { "name": "student", "description": "Student" },
+      { "name": "teacher", "description": "Cadru didactic" },
+      { "name": "admin", "description": "Administrator al bazei sportive" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "campussport-api",
+      "name": "CampusSport API",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "campussport-dev-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/api/v1/auth/sso/callback"
+      ],
+      "webOrigins": ["http://localhost:3000", "http://localhost:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "campussport-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "campussport_roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "student1",
+      "email": "student1@campussport.example",
+      "firstName": "Ion",
+      "lastName": "Popescu",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "parola123", "temporary": false }],
+      "realmRoles": ["student"]
+    },
+    {
+      "username": "teacher1",
+      "email": "teacher1@campussport.example",
+      "firstName": "Maria",
+      "lastName": "Ionescu",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "parola123", "temporary": false }],
+      "realmRoles": ["teacher"]
+    },
+    {
+      "username": "admin1",
+      "email": "admin1@campussport.example",
+      "firstName": "Andrei",
+      "lastName": "Rusu",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "parola123", "temporary": false }],
+      "realmRoles": ["admin"]
+    }
+  ]
+}
