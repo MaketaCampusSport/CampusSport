@@ -34,7 +34,10 @@ describe('quotaView', () => {
     });
   });
   it('never goes below zero', () => {
-    expect(quotaView({ used: 6, refunded: 0 }, 4)).toMatchObject({ remaining: 0, over_quota_last_24h_only: true });
+    expect(quotaView({ used: 6, refunded: 0 }, 4)).toMatchObject({
+      remaining: 0,
+      over_quota_last_24h_only: true,
+    });
   });
 });
 
@@ -54,7 +57,9 @@ describe('checkBookingRules (SDD 7.1)', () => {
   });
 
   it('ACCOUNT_SUSPENDED first', () => {
-    expect(checkBookingRules(input({ user: TEST_USERS.suspended, resource: { ...court, active: false } }))).toBe('ACCOUNT_SUSPENDED');
+    expect(
+      checkBookingRules(input({ user: TEST_USERS.suspended, resource: { ...court, active: false } })),
+    ).toBe('ACCOUNT_SUSPENDED');
   });
 
   it('RESOURCE_INACTIVE', () => {
@@ -66,7 +71,10 @@ describe('checkBookingRules (SDD 7.1)', () => {
   });
 
   it('WINDOW_EXCEEDED beyond 7 days for students, but fine for teachers', () => {
-    const in10Days = { start: new Date('2026-11-21T18:00:00+02:00'), end: new Date('2026-11-21T19:00:00+02:00') };
+    const in10Days = {
+      start: new Date('2026-11-21T18:00:00+02:00'),
+      end: new Date('2026-11-21T19:00:00+02:00'),
+    };
     expect(checkBookingRules(input({ slot: in10Days }))).toBe('WINDOW_EXCEEDED');
     expect(checkBookingRules(input({ slot: in10Days, user: TEST_USERS.teacher }))).toBeNull();
   });
@@ -76,15 +84,26 @@ describe('checkBookingRules (SDD 7.1)', () => {
     const ext = TEST_USERS.external;
     expect(checkBookingRules(input({ user: ext, slot: SLOT }))).toBe('WINDOW_EXCEEDED');
     expect(checkBookingRules(input({ user: ext, slot: soon }))).toBeNull();
-    expect(checkBookingRules(input({ user: ext, slot: soon, resource: { ...court, externalAccess: 'never' } }))).toBe(
+    expect(
+      checkBookingRules(input({ user: ext, slot: soon, resource: { ...court, externalAccess: 'never' } })),
+    ).toBe('EXTERNAL_ACCESS_DENIED');
+    const hall = EXAMPLE_RESOURCES.sportsHall; // window: Saturday 09–18 only
+    const windowed = {
+      active: true,
+      externalAccess: 'window' as const,
+      externalAccessWindows: hall.external_access_windows,
+    };
+    expect(checkBookingRules(input({ user: ext, slot: soon, resource: windowed }))).toBe(
       'EXTERNAL_ACCESS_DENIED',
     );
-    const hall = EXAMPLE_RESOURCES.sportsHall; // window: Saturday 09–18 only
-    const windowed = { active: true, externalAccess: 'window' as const, externalAccessWindows: hall.external_access_windows };
-    expect(checkBookingRules(input({ user: ext, slot: soon, resource: windowed }))).toBe('EXTERNAL_ACCESS_DENIED');
     const saturdayNow = new Date('2026-11-14T08:00:00+02:00');
-    const saturdaySlot = { start: new Date('2026-11-14T10:00:00+02:00'), end: new Date('2026-11-14T11:30:00+02:00') };
-    expect(checkBookingRules(input({ user: ext, now: saturdayNow, slot: saturdaySlot, resource: windowed }))).toBeNull();
+    const saturdaySlot = {
+      start: new Date('2026-11-14T10:00:00+02:00'),
+      end: new Date('2026-11-14T11:30:00+02:00'),
+    };
+    expect(
+      checkBookingRules(input({ user: ext, now: saturdayNow, slot: saturdaySlot, resource: windowed })),
+    ).toBeNull();
   });
 
   it('QUOTA_EXHAUSTED for students, except last-minute slots (FR-28)', () => {

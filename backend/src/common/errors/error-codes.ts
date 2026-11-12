@@ -50,8 +50,16 @@ interface ErrorDefinition {
 export const ERRORS: Record<ErrorCode, ErrorDefinition> = {
   BAD_REQUEST: { status: 400, ro: 'Cererea nu este corectă.', en: 'The request is not valid.' },
   UNAUTHENTICATED: { status: 401, ro: 'Te rugăm să te autentifici din nou.', en: 'Please sign in again.' },
-  OTP_INVALID: { status: 401, ro: 'Codul este greșit sau a expirat.', en: 'The code is wrong or has expired.' },
-  FORBIDDEN: { status: 403, ro: 'Nu ai acces la această acțiune.', en: 'You do not have access to this action.' },
+  OTP_INVALID: {
+    status: 401,
+    ro: 'Codul este greșit sau a expirat.',
+    en: 'The code is wrong or has expired.',
+  },
+  FORBIDDEN: {
+    status: 403,
+    ro: 'Nu ai acces la această acțiune.',
+    en: 'You do not have access to this action.',
+  },
   ACCOUNT_SUSPENDED: {
     status: 403,
     ro: 'Contul tău este suspendat temporar.',

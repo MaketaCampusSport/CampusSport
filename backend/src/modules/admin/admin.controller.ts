@@ -41,7 +41,10 @@ export class AdminController {
   }
 
   @Get('reports')
-  @ApiOperation({ operationId: 'getMonthlyReport', summary: 'Rapoarte lunare, export CSV/PDF — neimplementat (501)' })
+  @ApiOperation({
+    operationId: 'getMonthlyReport',
+    summary: 'Rapoarte lunare, export CSV/PDF — neimplementat (501)',
+  })
   reports(): never {
     notImplemented();
   }

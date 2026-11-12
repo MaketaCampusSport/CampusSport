@@ -1,5 +1,12 @@
 import { Controller, Get, Inject, Query, Req, Res } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiProduces, ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
+import {
+  ApiOkResponse,
+  ApiOperation,
+  ApiProduces,
+  ApiProperty,
+  ApiPropertyOptional,
+  ApiTags,
+} from '@nestjs/swagger';
 import { IsISO8601, IsOptional, IsUUID, Matches } from 'class-validator';
 import type { Request, Response } from 'express';
 import { filter } from 'rxjs';
@@ -19,7 +26,10 @@ export class AvailabilityQueryDto {
   @IsUUID()
   resource?: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'Alternativă la `resource`. Extindere față de SDD 6.1.' })
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Alternativă la `resource`. Extindere față de SDD 6.1.',
+  })
   @IsOptional()
   @IsUUID()
   sport?: string;
@@ -56,7 +66,10 @@ export class AvailabilityController {
   @Get('availability')
   @ApiOperation({ operationId: 'getAvailability', summary: 'Grila de sloturi' })
   @ApiOkResponse({ description: 'Grila pentru ziua cerută (`Availability`).' })
-  getAvailability(@Query() query: AvailabilityQueryDto, @CurrentUser() caller?: AuthUser): Promise<AvailabilityView> {
+  getAvailability(
+    @Query() query: AvailabilityQueryDto,
+    @CurrentUser() caller?: AuthUser,
+  ): Promise<AvailabilityView> {
     return this.availability.getAvailability(query, caller);
   }
 

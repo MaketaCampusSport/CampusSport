@@ -55,7 +55,16 @@ export class CatalogService {
         requiredEquipment: dto.required_equipment,
       });
       const after = toSportResponse(sport);
-      await this.audit.record({ actorId: actor.id, action: 'sport.create', entity: 'sport', entityId: sport.id, after: { ...after } }, em);
+      await this.audit.record(
+        {
+          actorId: actor.id,
+          action: 'sport.create',
+          entity: 'sport',
+          entityId: sport.id,
+          after: { ...after },
+        },
+        em,
+      );
       return after;
     });
   }
@@ -74,7 +83,14 @@ export class CatalogService {
       });
       const after = toSportResponse(await repo.save(sport));
       await this.audit.record(
-        { actorId: actor.id, action: 'sport.update', entity: 'sport', entityId: id, before: { ...before }, after: { ...after } },
+        {
+          actorId: actor.id,
+          action: 'sport.update',
+          entity: 'sport',
+          entityId: id,
+          before: { ...before },
+          after: { ...after },
+        },
         em,
       );
       return after;
@@ -84,7 +100,11 @@ export class CatalogService {
   // ---------- Resources ----------
 
   /** With `sportId`, only resources allowed for the sport AND having all its required equipment (SRS 9.5). */
-  async findResources(options: { sportId?: string; includeInactive?: boolean; ids?: string[] }): Promise<Resource[]> {
+  async findResources(options: {
+    sportId?: string;
+    includeInactive?: boolean;
+    ids?: string[];
+  }): Promise<Resource[]> {
     const qb = this.resources
       .createQueryBuilder('r')
       .leftJoinAndSelect('r.sports', 's')
@@ -102,8 +122,15 @@ export class CatalogService {
     return qb.getMany();
   }
 
-  async listResources(caller: AuthUser | undefined, sportId?: string, includeInactive?: boolean): Promise<ResourceResponse[]> {
-    const rows = await this.findResources({ sportId, includeInactive: includeInactive && caller?.role === 'admin' });
+  async listResources(
+    caller: AuthUser | undefined,
+    sportId?: string,
+    includeInactive?: boolean,
+  ): Promise<ResourceResponse[]> {
+    const rows = await this.findResources({
+      sportId,
+      includeInactive: includeInactive && caller?.role === 'admin',
+    });
     return rows.map(toResourceResponse);
   }
 
@@ -117,7 +144,11 @@ export class CatalogService {
   async createResource(actor: AuthUser, dto: ResourceCreateDto): Promise<ResourceResponse> {
     const rules = await this.settings.rules();
     const externalAccess = dto.external_access ?? 'leftover';
-    this.checkSchedules(dto.opening_hours as WeeklyHours, externalAccess, dto.external_access_windows as WeeklyHours | null | undefined);
+    this.checkSchedules(
+      dto.opening_hours as WeeklyHours,
+      externalAccess,
+      dto.external_access_windows as WeeklyHours | null | undefined,
+    );
     return this.dataSource.transaction(async (em) => {
       const sports = await this.loadSports(em.getRepository(Sport), dto.sport_ids);
       const repo = em.getRepository(Resource);
@@ -139,7 +170,13 @@ export class CatalogService {
       );
       const after = toResourceResponse(saved);
       await this.audit.record(
-        { actorId: actor.id, action: 'resource.create', entity: 'resource', entityId: saved.id, after: { ...after } },
+        {
+          actorId: actor.id,
+          action: 'resource.create',
+          entity: 'resource',
+          entityId: saved.id,
+          after: { ...after },
+        },
         em,
       );
       return after;
@@ -164,15 +201,24 @@ export class CatalogService {
       if (dto.opening_hours !== undefined) patch.openingHours = dto.opening_hours as WeeklyHours;
       if (dto.slot_minutes !== undefined) patch.slotMinutes = dto.slot_minutes;
       if (dto.external_access !== undefined) patch.externalAccess = dto.external_access;
-      if (dto.external_access_windows !== undefined) patch.externalAccessWindows = dto.external_access_windows as WeeklyHours | null;
+      if (dto.external_access_windows !== undefined)
+        patch.externalAccessWindows = dto.external_access_windows as WeeklyHours | null;
       if (dto.active !== undefined) patch.active = dto.active;
       Object.assign(resource, patch);
       this.checkSchedules(resource.openingHours, resource.externalAccess, resource.externalAccessWindows);
-      if (dto.sport_ids !== undefined) resource.sports = await this.loadSports(em.getRepository(Sport), dto.sport_ids);
+      if (dto.sport_ids !== undefined)
+        resource.sports = await this.loadSports(em.getRepository(Sport), dto.sport_ids);
 
       const after = toResourceResponse(await repo.save(resource));
       await this.audit.record(
-        { actorId: actor.id, action: 'resource.update', entity: 'resource', entityId: id, before: { ...before }, after: { ...after } },
+        {
+          actorId: actor.id,
+          action: 'resource.update',
+          entity: 'resource',
+          entityId: id,
+          before: { ...before },
+          after: { ...after },
+        },
         em,
       );
       return after;
@@ -186,7 +232,11 @@ export class CatalogService {
     return sports;
   }
 
-  private checkSchedules(opening: WeeklyHours, externalAccess: string, windows: WeeklyHours | null | undefined): void {
+  private checkSchedules(
+    opening: WeeklyHours,
+    externalAccess: string,
+    windows: WeeklyHours | null | undefined,
+  ): void {
     const fields: Record<string, string[]> = {};
     const openingProblems = invalidRanges(opening);
     if (openingProblems.length) fields.opening_hours = openingProblems;

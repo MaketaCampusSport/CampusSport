@@ -157,7 +157,11 @@ describe('AuthFlowsService', () => {
   beforeEach(() => jest.clearAllMocks());
 
   async function login(roleValues: string[]) {
-    oidc.authorizationRequest.mockResolvedValue({ url: 'https://idp/auth', state: `s-${roleValues.join()}`, codeVerifier: 'v' });
+    oidc.authorizationRequest.mockResolvedValue({
+      url: 'https://idp/auth',
+      state: `s-${roleValues.join()}`,
+      codeVerifier: 'v',
+    });
     await flows.startSso('/start');
     oidc.exchange.mockResolvedValue({ subject: 'kc-1', email: 'x@example.edu', fullName: 'X', roleValues });
     return flows.finishSso({ code: 'c', state: `s-${roleValues.join()}` });
@@ -166,14 +170,25 @@ describe('AuthFlowsService', () => {
   it('SSO member login returns the user and the PWA target', async () => {
     users.upsertFromSso.mockResolvedValue(userEntity('student'));
     const result = await login(['student']);
-    expect(result).toEqual({ kind: 'member', user: userEntity('student'), redirectTo: 'http://localhost:5173/start' });
-    expect(users.upsertFromSso).toHaveBeenCalledWith({ subject: 'kc-1', email: 'x@example.edu', fullName: 'X', role: 'student' });
+    expect(result).toEqual({
+      kind: 'member',
+      user: userEntity('student'),
+      redirectTo: 'http://localhost:5173/start',
+    });
+    expect(users.upsertFromSso).toHaveBeenCalledWith({
+      subject: 'kc-1',
+      email: 'x@example.edu',
+      fullName: 'X',
+      role: 'student',
+    });
   });
 
   it('SSO state is single-use', async () => {
     users.upsertFromSso.mockResolvedValue(userEntity('student'));
     await login(['student']);
-    await expect(flows.finishSso({ code: 'c', state: 's-student' })).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await expect(flows.finishSso({ code: 'c', state: 's-student' })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
   });
 
   it('SSO without a mapped role -> FORBIDDEN', async () => {
@@ -190,8 +205,12 @@ describe('AuthFlowsService', () => {
     const challengeId = new URL(result.redirectTo).searchParams.get('challenge_id')!;
 
     await expect(flows.verifySecondFactor(challengeId, '000000')).rejects.toBeInstanceOf(AppException);
-    await expect(flows.verifySecondFactor(challengeId, generateSync({ secret }))).resolves.toMatchObject({ role: 'admin' });
-    await expect(flows.verifySecondFactor(challengeId, generateSync({ secret }))).rejects.toMatchObject({ code: 'OTP_INVALID' });
+    await expect(flows.verifySecondFactor(challengeId, generateSync({ secret }))).resolves.toMatchObject({
+      role: 'admin',
+    });
+    await expect(flows.verifySecondFactor(challengeId, generateSync({ secret }))).rejects.toMatchObject({
+      code: 'OTP_INVALID',
+    });
   });
 
   it('admin without TOTP enrolment is sent back with an error', async () => {
@@ -202,7 +221,9 @@ describe('AuthFlowsService', () => {
   });
 
   it('external registration sends an email code and an SMS code', async () => {
-    users.createOrResetExternal.mockResolvedValue(userEntity('external', { emailVerifiedAt: null, phoneVerifiedAt: null }));
+    users.createOrResetExternal.mockResolvedValue(
+      userEntity('external', { emailVerifiedAt: null, phoneVerifiedAt: null }),
+    );
     await expect(
       flows.registerExternal({ full_name: 'Ana Rusu', email: 'ana.rusu@example.com', phone: '+37360000001' }),
     ).resolves.toEqual({ expires_in: 600 });
@@ -232,7 +253,9 @@ describe('AuthFlowsService', () => {
 
   it('external login does not reveal unknown emails', async () => {
     users.findByEmail.mockResolvedValue(null);
-    await expect(flows.requestExternalLogin({ email: 'nobody@example.com' })).resolves.toEqual({ expires_in: 600 });
+    await expect(flows.requestExternalLogin({ email: 'nobody@example.com' })).resolves.toEqual({
+      expires_in: 600,
+    });
     expect(mail.send).not.toHaveBeenCalled();
   });
 });

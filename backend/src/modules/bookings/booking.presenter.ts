@@ -55,7 +55,11 @@ export function toBookingResponse(
 }
 
 /** Success screen text (spec example: "Gata! Te așteptăm joi la 18:00 pe Teren baschet 2."). */
-export function confirmationMessages(resourceName: string, start: Date, zone: string): { message_ro: string; message_en: string } {
+export function confirmationMessages(
+  resourceName: string,
+  start: Date,
+  zone: string,
+): { message_ro: string; message_en: string } {
   const t = DateTime.fromJSDate(start, { zone });
   const hour = t.toFormat('HH:mm');
   return {

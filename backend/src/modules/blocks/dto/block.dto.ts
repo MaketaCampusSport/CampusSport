@@ -1,6 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsIn, IsISO8601, IsOptional, IsString, IsUUID, Matches, MaxLength, MinLength, ValidateIf, ValidateNested } from 'class-validator';
+import {
+  IsIn,
+  IsISO8601,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength,
+  MinLength,
+  ValidateIf,
+  ValidateNested,
+} from 'class-validator';
 import { PageQueryDto } from '../../../common/http/pagination';
 import { BLOCK_KINDS } from '../../../database/enums';
 import type { BlockKind } from '../../../database/enums';
@@ -43,7 +54,11 @@ export class BlockCreateDto {
   @IsISO8601({ strict: true })
   start?: string;
 
-  @ApiPropertyOptional({ format: 'date-time', nullable: true, description: '`null` înseamnă „până la noi ordine”.' })
+  @ApiPropertyOptional({
+    format: 'date-time',
+    nullable: true,
+    description: '`null` înseamnă „până la noi ordine”.',
+  })
   @IsOptional()
   @ValidateIf((_o, v) => v !== null)
   @IsISO8601({ strict: true })
@@ -72,7 +87,8 @@ export class BlockResponse {
 export class BlockResultResponse {
   @ApiProperty({ type: BlockResponse }) block: BlockResponse;
   @ApiProperty({ example: 23 }) cancelled_bookings_count: number;
-  @ApiProperty({ example: 0, description: 'Blocări de nivel inferior înlăturate (SRS 9.1).' }) superseded_blocks_count: number;
+  @ApiProperty({ example: 0, description: 'Blocări de nivel inferior înlăturate (SRS 9.1).' })
+  superseded_blocks_count: number;
   @ApiProperty({ example: 23 }) notified_users_count: number;
 }
 
@@ -81,7 +97,11 @@ export class DeliveryStatusResponse {
   @ApiProperty({ example: 23 }) notified: number;
   @ApiProperty({ example: 21 }) delivered: number;
   @ApiProperty({ example: 0 }) failed: number;
-  @ApiProperty({ example: { push: 19, email: 23, sms: 4 } }) by_channel: { push: number; email: number; sms: number };
+  @ApiProperty({ example: { push: 19, email: 23, sms: 4 } }) by_channel: {
+    push: number;
+    email: number;
+    sms: number;
+  };
 }
 
 export class ListBlocksQueryDto extends PageQueryDto {

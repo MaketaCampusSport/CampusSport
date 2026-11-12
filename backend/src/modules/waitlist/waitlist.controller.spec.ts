@@ -32,7 +32,10 @@ describe('WaitlistController', () => {
   const waitlist = { join: jest.fn(), listMine: jest.fn(), leave: jest.fn(), accept: jest.fn() };
 
   beforeAll(async () => {
-    t = await createTestApp({ controllers: [WaitlistController], providers: [{ provide: WaitlistService, useValue: waitlist }] });
+    t = await createTestApp({
+      controllers: [WaitlistController],
+      providers: [{ provide: WaitlistService, useValue: waitlist }],
+    });
   });
   afterAll(() => t.close());
   beforeEach(() => jest.clearAllMocks());
@@ -40,29 +43,66 @@ describe('WaitlistController', () => {
   describe('POST /waitlist', () => {
     it('201 WaitlistEntry for a slot', async () => {
       waitlist.join.mockResolvedValue(ENTRY);
-      const res = await t.http().post('/api/v1/waitlist').set('Authorization', await t.bearer('student')).send(JOIN_SLOT).expect(201);
+      const res = await t
+        .http()
+        .post('/api/v1/waitlist')
+        .set('Authorization', await t.bearer('student'))
+        .send(JOIN_SLOT)
+        .expect(201);
       expect(res.body).toEqual(ENTRY);
       expect(waitlist.join).toHaveBeenCalledWith(TEST_USERS.student, JOIN_SLOT);
     });
 
     it('201 for a day + sport subscription', async () => {
-      waitlist.join.mockResolvedValue({ ...ENTRY, resource_id: null, sport_id: JOIN_SPORT.sport_id, start: null, end: null, priority: 1 });
-      const res = await t.http().post('/api/v1/waitlist').set('Authorization', await t.bearer('teacher')).send(JOIN_SPORT).expect(201);
+      waitlist.join.mockResolvedValue({
+        ...ENTRY,
+        resource_id: null,
+        sport_id: JOIN_SPORT.sport_id,
+        start: null,
+        end: null,
+        priority: 1,
+      });
+      const res = await t
+        .http()
+        .post('/api/v1/waitlist')
+        .set('Authorization', await t.bearer('teacher'))
+        .send(JOIN_SPORT)
+        .expect(201);
       expect(res.body.priority).toBe(1);
     });
 
     it('409 ALREADY_ON_WAITLIST', async () => {
       waitlist.join.mockRejectedValue(new AppException('ALREADY_ON_WAITLIST'));
-      const res = await t.http().post('/api/v1/waitlist').set('Authorization', await t.bearer('student')).send(JOIN_SLOT).expect(409);
+      const res = await t
+        .http()
+        .post('/api/v1/waitlist')
+        .set('Authorization', await t.bearer('student'))
+        .send(JOIN_SLOT)
+        .expect(409);
       expect(res.body.code).toBe('ALREADY_ON_WAITLIST');
     });
 
     it('422 without day or with a malformed date; 403 for admins', async () => {
       const auth = await t.bearer('student');
-      await t.http().post('/api/v1/waitlist').set('Authorization', auth).send({ sport_id: JOIN_SPORT.sport_id }).expect(422);
-      await t.http().post('/api/v1/waitlist').set('Authorization', auth).send({ ...JOIN_SLOT, start: 'joi' }).expect(422);
+      await t
+        .http()
+        .post('/api/v1/waitlist')
+        .set('Authorization', auth)
+        .send({ sport_id: JOIN_SPORT.sport_id })
+        .expect(422);
+      await t
+        .http()
+        .post('/api/v1/waitlist')
+        .set('Authorization', auth)
+        .send({ ...JOIN_SLOT, start: 'joi' })
+        .expect(422);
       waitlist.join.mockRejectedValue(new AppException('FORBIDDEN'));
-      await t.http().post('/api/v1/waitlist').set('Authorization', await t.bearer('admin')).send(JOIN_SLOT).expect(403);
+      await t
+        .http()
+        .post('/api/v1/waitlist')
+        .set('Authorization', await t.bearer('admin'))
+        .send(JOIN_SLOT)
+        .expect(403);
     });
 
     it('401 anonymously', async () => {
@@ -80,7 +120,11 @@ describe('WaitlistController', () => {
         offered_slot: { resource_id: JOIN_SLOT.resource_id, start: JOIN_SLOT.start, end: JOIN_SLOT.end },
       };
       waitlist.listMine.mockResolvedValue([offered]);
-      const res = await t.http().get('/api/v1/me/waitlist').set('Authorization', await t.bearer('student')).expect(200);
+      const res = await t
+        .http()
+        .get('/api/v1/me/waitlist')
+        .set('Authorization', await t.bearer('student'))
+        .expect(200);
       expect(res.body).toEqual([offered]);
     });
 
@@ -92,20 +136,32 @@ describe('WaitlistController', () => {
   describe('DELETE /waitlist/{id}', () => {
     it('204', async () => {
       waitlist.leave.mockResolvedValue(undefined);
-      await t.http().delete(`/api/v1/waitlist/${ENTRY_ID}`).set('Authorization', await t.bearer('student')).expect(204);
+      await t
+        .http()
+        .delete(`/api/v1/waitlist/${ENTRY_ID}`)
+        .set('Authorization', await t.bearer('student'))
+        .expect(204);
       expect(waitlist.leave).toHaveBeenCalledWith(TEST_USERS.student, ENTRY_ID);
     });
 
     it('404 for someone else’s entry', async () => {
       waitlist.leave.mockRejectedValue(new AppException('NOT_FOUND'));
-      await t.http().delete(`/api/v1/waitlist/${ENTRY_ID}`).set('Authorization', await t.bearer('teacher')).expect(404);
+      await t
+        .http()
+        .delete(`/api/v1/waitlist/${ENTRY_ID}`)
+        .set('Authorization', await t.bearer('teacher'))
+        .expect(404);
     });
   });
 
   describe('POST /waitlist/{id}/accept', () => {
     it('201 Booking when the spot is obtained', async () => {
       waitlist.accept.mockResolvedValue(EXAMPLE_BOOKING);
-      const res = await t.http().post(`/api/v1/waitlist/${ENTRY_ID}/accept`).set('Authorization', await t.bearer('student')).expect(201);
+      const res = await t
+        .http()
+        .post(`/api/v1/waitlist/${ENTRY_ID}/accept`)
+        .set('Authorization', await t.bearer('student'))
+        .expect(201);
       expect(res.body).toEqual(EXAMPLE_BOOKING);
     });
 
@@ -116,7 +172,11 @@ describe('WaitlistController', () => {
       ['NOT_FOUND', 404],
     ] as const)('%s -> %i', async (code, status) => {
       waitlist.accept.mockRejectedValue(new AppException(code));
-      const res = await t.http().post(`/api/v1/waitlist/${ENTRY_ID}/accept`).set('Authorization', await t.bearer('student')).expect(status);
+      const res = await t
+        .http()
+        .post(`/api/v1/waitlist/${ENTRY_ID}/accept`)
+        .set('Authorization', await t.bearer('student'))
+        .expect(status);
       expect(res.body.code).toBe(code);
     });
   });

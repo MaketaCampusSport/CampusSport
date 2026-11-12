@@ -38,6 +38,10 @@ export function pickAlternatives(input: {
   }
   const target = input.original.start.getTime();
   return candidates
-    .sort((a, b) => Math.abs(a.start.getTime() - target) - Math.abs(b.start.getTime() - target) || a.resourceName.localeCompare(b.resourceName))
+    .sort(
+      (a, b) =>
+        Math.abs(a.start.getTime() - target) - Math.abs(b.start.getTime() - target) ||
+        a.resourceName.localeCompare(b.resourceName),
+    )
     .slice(0, input.limit ?? 3);
 }

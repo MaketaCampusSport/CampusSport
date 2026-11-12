@@ -33,7 +33,11 @@ describe('MeController', () => {
   describe('GET /me', () => {
     it('200 User for the caller (example: Ion Popescu)', async () => {
       users.getById.mockResolvedValue(userEntity('student'));
-      const res = await t.http().get('/api/v1/me').set('Authorization', await t.bearer('student')).expect(200);
+      const res = await t
+        .http()
+        .get('/api/v1/me')
+        .set('Authorization', await t.bearer('student'))
+        .expect(200);
       expect(res.body).toEqual({
         id: '3c7d1e94-52af-4b08-9e61-a8f02d6b7c15',
         full_name: 'Ion Popescu',
@@ -51,7 +55,11 @@ describe('MeController', () => {
       users.getById.mockResolvedValue(
         userEntity('student', { status: 'suspended', suspendedUntil: new Date('2026-11-26T00:00:00+02:00') }),
       );
-      const res = await t.http().get('/api/v1/me').set('Authorization', await t.bearer('suspended')).expect(200);
+      const res = await t
+        .http()
+        .get('/api/v1/me')
+        .set('Authorization', await t.bearer('suspended'))
+        .expect(200);
       expect(res.body).toMatchObject({ status: 'suspended', suspended_until: '2026-11-26T00:00:00+02:00' });
     });
 
@@ -72,7 +80,11 @@ describe('MeController', () => {
         },
       ];
       users.deleteSelf.mockResolvedValue(cancelled);
-      await t.http().delete('/api/v1/me').set('Authorization', await t.bearer('external')).expect(204);
+      await t
+        .http()
+        .delete('/api/v1/me')
+        .set('Authorization', await t.bearer('external'))
+        .expect(204);
       expect(users.deleteSelf).toHaveBeenCalledWith(TEST_USERS.external);
       expect(sessions.revokeAll).toHaveBeenCalledWith(TEST_USERS.external.id);
       expect(events.bookingsCancelled).toHaveBeenCalledWith(cancelled, { source: 'user' }, true);
@@ -80,7 +92,11 @@ describe('MeController', () => {
 
     it('403 for administrators', async () => {
       users.deleteSelf.mockRejectedValue(new AppException('FORBIDDEN'));
-      await t.http().delete('/api/v1/me').set('Authorization', await t.bearer('admin')).expect(403);
+      await t
+        .http()
+        .delete('/api/v1/me')
+        .set('Authorization', await t.bearer('admin'))
+        .expect(403);
       expect(sessions.revokeAll).not.toHaveBeenCalled();
     });
 
@@ -91,7 +107,11 @@ describe('MeController', () => {
 
   describe('GET /me/export', () => {
     it('501 NOT_IMPLEMENTED (stub)', async () => {
-      const res = await t.http().get('/api/v1/me/export').set('Authorization', await t.bearer('student')).expect(501);
+      const res = await t
+        .http()
+        .get('/api/v1/me/export')
+        .set('Authorization', await t.bearer('student'))
+        .expect(501);
       expect(res.body.code).toBe('NOT_IMPLEMENTED');
     });
 

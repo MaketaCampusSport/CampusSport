@@ -35,7 +35,10 @@ export class WaitlistProcessor extends WorkerHost {
     switch (job.name) {
       case 'slot-freed': {
         const d = job.data as SlotFreedJob;
-        return this.waitlist.offerFreedPeriod(d.resourceId, { start: new Date(d.start), end: new Date(d.end) });
+        return this.waitlist.offerFreedPeriod(d.resourceId, {
+          start: new Date(d.start),
+          end: new Date(d.end),
+        });
       }
       case 'offer-expired':
         return this.waitlist.expireOffer((job.data as OfferExpiredJob).waitlistId);
@@ -58,7 +61,10 @@ export class BookingsProcessor extends WorkerHost {
       case 'no-show-check':
         return this.maintenance.checkNoShow((job.data as NoShowCheckJob).bookingId);
       case 'maintenance':
-        return { no_shows: await this.maintenance.scanNoShows(), completed: await this.maintenance.completeBookings() };
+        return {
+          no_shows: await this.maintenance.scanNoShows(),
+          completed: await this.maintenance.completeBookings(),
+        };
       case 'partitions':
         return this.maintenance.ensurePartitions();
       default:

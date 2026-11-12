@@ -65,7 +65,10 @@ export class AuthController {
   @Throttle(STRICT)
   @Post('2fa/verify')
   @HttpCode(200)
-  @ApiOperation({ operationId: 'verifyTwoFactor', summary: 'Al doilea pas de autentificare pentru administratori' })
+  @ApiOperation({
+    operationId: 'verifyTwoFactor',
+    summary: 'Al doilea pas de autentificare pentru administratori',
+  })
   @ApiOkResponse({ type: SessionResponse, description: 'Sesiune de administrator creată (valabilă 8 ore).' })
   @ApiUnauthorizedResponse({ description: 'Cod greșit sau provocare expirată (`OTP_INVALID`).' })
   @ApiTooManyRequestsResponse()
@@ -92,7 +95,10 @@ export class AuthController {
   @Throttle(STRICT)
   @Post('external/login')
   @HttpCode(202)
-  @ApiOperation({ operationId: 'loginExternal', summary: 'Solicitare cod OTP pentru un extern deja înregistrat' })
+  @ApiOperation({
+    operationId: 'loginExternal',
+    summary: 'Solicitare cod OTP pentru un extern deja înregistrat',
+  })
   @ApiAcceptedResponse({ type: OtpSentResponse })
   loginExternal(@Body() dto: ExternalLoginDto): Promise<OtpSentResponse> {
     return this.flows.requestExternalLogin(dto);

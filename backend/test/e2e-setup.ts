@@ -38,13 +38,16 @@ async function resolveDatabaseUrl(): Promise<{ url: string; stop?: () => Promise
     return { url: devUrl.toString() };
   }
   const { PostgreSqlContainer } = await import('@testcontainers/postgresql');
-  const container = await new PostgreSqlContainer('postgres:18-alpine').withDatabase('campussport_test').start();
+  const container = await new PostgreSqlContainer('postgres:18-alpine')
+    .withDatabase('campussport_test')
+    .start();
   return { url: container.getConnectionUri(), stop: async () => void (await container.stop()) };
 }
 
 async function resetSchema(url: string): Promise<void> {
   const name = decodeURIComponent(new URL(url).pathname.slice(1));
-  if (!name.endsWith('_test')) throw new Error(`Refusing to reset "${name}": e2e databases must end with _test`);
+  if (!name.endsWith('_test'))
+    throw new Error(`Refusing to reset "${name}": e2e databases must end with _test`);
   await ensureDatabase(url);
   const client = new Client({ connectionString: url });
   await client.connect();
@@ -100,7 +103,8 @@ export async function createE2eApp(): Promise<E2eContext> {
     .useValue(fakeRedis)
     .overrideProvider(KV_STORE)
     .useValue(new MemoryKvStore());
-  for (const queue of Object.values(QUEUES)) builder = builder.overrideProvider(getQueueToken(queue)).useValue(fakeQueue(queue));
+  for (const queue of Object.values(QUEUES))
+    builder = builder.overrideProvider(getQueueToken(queue)).useValue(fakeQueue(queue));
   const moduleRef = await builder.compile();
 
   const app = configureApp(moduleRef.createNestApplication());

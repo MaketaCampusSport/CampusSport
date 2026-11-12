@@ -1,4 +1,13 @@
-import { CallHandler, Controller, ExecutionContext, Get, Header, Injectable, Module, NestInterceptor } from '@nestjs/common';
+import {
+  CallHandler,
+  Controller,
+  ExecutionContext,
+  Get,
+  Header,
+  Injectable,
+  Module,
+  NestInterceptor,
+} from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ApiExcludeController } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
@@ -17,7 +26,8 @@ export class HttpMetricsInterceptor implements NestInterceptor {
     return next.handle().pipe(
       finalize(() => {
         const route = (req.route?.path as string | undefined) ?? 'unmatched';
-        if (route !== '/metrics' && route !== '/health') end({ method: req.method, route, status: String(res.statusCode) });
+        if (route !== '/metrics' && route !== '/health')
+          end({ method: req.method, route, status: String(res.statusCode) });
       }),
     );
   }

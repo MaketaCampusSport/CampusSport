@@ -36,7 +36,10 @@ export class MeController {
   }
 
   @Get('export')
-  @ApiOperation({ operationId: 'exportCurrentUserData', summary: 'Descarcă datele personale (JSON) — neimplementat (501)' })
+  @ApiOperation({
+    operationId: 'exportCurrentUserData',
+    summary: 'Descarcă datele personale (JSON) — neimplementat (501)',
+  })
   exportData(): never {
     notImplemented();
   }

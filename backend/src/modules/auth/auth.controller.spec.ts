@@ -51,7 +51,9 @@ describe('AuthController', () => {
 
   describe('GET /auth/sso/login', () => {
     it('302 to the identity provider, keeping return_to', async () => {
-      flows.startSso.mockResolvedValue('http://localhost:8080/realms/campussport/protocol/openid-connect/auth?x=1');
+      flows.startSso.mockResolvedValue(
+        'http://localhost:8080/realms/campussport/protocol/openid-connect/auth?x=1',
+      );
       const res = await t.http().get('/api/v1/auth/sso/login?return_to=/start').expect(302);
       expect(res.headers.location).toContain('/protocol/openid-connect/auth');
       expect(flows.startSso).toHaveBeenCalledWith('/start');
@@ -153,7 +155,11 @@ describe('AuthController', () => {
   describe('POST /auth/external/login', () => {
     it('202 OtpSent', async () => {
       flows.requestExternalLogin.mockResolvedValue({ expires_in: 600 });
-      await t.http().post('/api/v1/auth/external/login').send({ email: REGISTRATION.email }).expect(202, { expires_in: 600 });
+      await t
+        .http()
+        .post('/api/v1/auth/external/login')
+        .send({ email: REGISTRATION.email })
+        .expect(202, { expires_in: 600 });
     });
 
     it('422 for an invalid email', async () => {
@@ -189,7 +195,11 @@ describe('AuthController', () => {
       const sessions = t.get(SessionsService);
       const first = await sessions.create(student);
 
-      const res = await t.http().post('/api/v1/auth/refresh').set('Cookie', `refresh_token=${first.token}`).expect(200);
+      const res = await t
+        .http()
+        .post('/api/v1/auth/refresh')
+        .set('Cookie', `refresh_token=${first.token}`)
+        .expect(200);
       expect(res.body).toMatchObject({ token_type: 'Bearer', expires_in: 900, user: { id: student.id } });
       const rotated = refreshCookie(res)!.split(';')[0];
       expect(rotated).not.toBe(`refresh_token=${first.token}`);

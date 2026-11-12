@@ -52,7 +52,8 @@ const METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const;
 function operations(doc: Spec): Map<string, string> {
   const ops = new Map<string, string>();
   for (const [path, item] of Object.entries(doc.paths)) {
-    for (const method of METHODS) if (item[method]) ops.set(item[method].operationId, `${method.toUpperCase()} ${path}`);
+    for (const method of METHODS)
+      if (item[method]) ops.set(item[method].operationId, `${method.toUpperCase()} ${path}`);
   }
   return ops;
 }
@@ -69,7 +70,10 @@ describe('API conformance with livrabil05/openapi.json', () => {
       .compile();
     app = moduleRef.createNestApplication();
     await app.init();
-    generated = SwaggerModule.createDocument(app, { openapi: '3.0.3', info: { title: 't', version: '1' } }) as unknown as Spec;
+    generated = SwaggerModule.createDocument(app, {
+      openapi: '3.0.3',
+      info: { title: 't', version: '1' },
+    }) as unknown as Spec;
   });
   afterAll(() => app.close());
 
@@ -77,7 +81,9 @@ describe('API conformance with livrabil05/openapi.json', () => {
     const expected = operations(spec);
     const actual = operations(generated);
     expect(expected.size).toBe(60);
-    const missing = [...expected].filter(([id, route]) => actual.get(id) !== route).map(([id, route]) => `${id}: ${route} (got ${actual.get(id) ?? 'nothing'})`);
+    const missing = [...expected]
+      .filter(([id, route]) => actual.get(id) !== route)
+      .map(([id, route]) => `${id}: ${route} (got ${actual.get(id) ?? 'nothing'})`);
     const extra = [...actual].filter(([id]) => !expected.has(id)).map(([id, route]) => `${id}: ${route}`);
     expect({ missing, extra }).toEqual({ missing: [], extra: [] });
   });
@@ -86,7 +92,8 @@ describe('API conformance with livrabil05/openapi.json', () => {
     const reflector = new Reflector();
     const expectedRoles = new Map<string, string>();
     for (const item of Object.values(spec.paths)) {
-      for (const method of METHODS) if (item[method]) expectedRoles.set(item[method].operationId, item[method]['x-min-role']);
+      for (const method of METHODS)
+        if (item[method]) expectedRoles.set(item[method].operationId, item[method]['x-min-role']);
     }
     const problems: string[] = [];
     let checked = 0;
@@ -96,17 +103,22 @@ describe('API conformance with livrabil05/openapi.json', () => {
         const handler = proto[name];
         if (name === 'constructor' || typeof handler !== 'function') continue;
         if (Reflect.getMetadata('method', handler) === undefined) continue;
-        const operationId: string | undefined = Reflect.getMetadata('swagger/apiOperation', handler)?.operationId;
+        const operationId: string | undefined = Reflect.getMetadata(
+          'swagger/apiOperation',
+          handler,
+        )?.operationId;
         if (!operationId) {
           problems.push(`${controller.name}.${name} has no operationId`);
           continue;
         }
-        const isPublic = reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [handler as never, controller]) ?? false;
+        const isPublic =
+          reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [handler as never, controller]) ?? false;
         const roles = reflector.getAllAndOverride<string[]>(ROLES_KEY, [handler as never, controller]) ?? [];
         const minRole = expectedRoles.get(operationId);
         let ok: boolean;
         if (minRole === 'public' || COOKIE_AUTH.has(operationId)) ok = isPublic;
-        else if (minRole === 'admin' || minRole === 'student') ok = !isPublic && roles.length === 1 && roles[0] === minRole;
+        else if (minRole === 'admin' || minRole === 'student')
+          ok = !isPublic && roles.length === 1 && roles[0] === minRole;
         else ok = !isPublic && roles.length === 0; // utilizator, titular, titular / personal: ownership checked in services
         checked++;
         if (!ok) problems.push(`${operationId}: x-min-role ${minRole}, public=${isPublic}, roles=[${roles}]`);

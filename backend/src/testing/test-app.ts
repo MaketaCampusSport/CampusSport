@@ -34,7 +34,14 @@ export const TEST_USERS = {
 export type TestCaller = keyof typeof TEST_USERS;
 
 function toAuth(u: { id: string; role: AuthUser['role']; full_name: string; email: string }): AuthUser {
-  return { id: u.id, role: u.role, fullName: u.full_name, email: u.email, status: 'active', suspendedUntil: null };
+  return {
+    id: u.id,
+    role: u.role,
+    fullName: u.full_name,
+    email: u.email,
+    status: 'active',
+    suspendedUntil: null,
+  };
 }
 
 class FakeAuthUserLoader implements AuthUserLoader {

@@ -85,7 +85,10 @@ export class OidcService {
   }
 
   /** Exchanges the code and returns the identity; claims missing from the ID token are read from userinfo. */
-  async exchange(callbackQuery: string, checks: { state: string; codeVerifier: string }): Promise<OidcClaims> {
+  async exchange(
+    callbackQuery: string,
+    checks: { state: string; codeVerifier: string },
+  ): Promise<OidcClaims> {
     const oidc = await this.client();
     const config = await this.configuration();
     const currentUrl = new URL(this.config.oidc.redirectUri);
@@ -109,7 +112,8 @@ export class OidcService {
     const fullName =
       (typeof claims.name === 'string' && claims.name.trim()) ||
       [claims.given_name, claims.family_name].filter(Boolean).join(' ').trim();
-    if (typeof claims.sub !== 'string' || typeof claims.email !== 'string') throw new AppException('BAD_REQUEST');
+    if (typeof claims.sub !== 'string' || typeof claims.email !== 'string')
+      throw new AppException('BAD_REQUEST');
     return {
       subject: claims.sub,
       email: claims.email,

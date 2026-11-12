@@ -1,11 +1,22 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put } from '@nestjs/common';
-import { ApiBearerAuth, ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { AuthUser } from '../../common/auth/auth.types';
 import { CurrentUser, Roles } from '../../common/auth/decorators';
 import { notImplemented } from '../../common/errors/app.exception';
 import { UuidParamPipe } from '../../common/http/uuid.pipe';
 import type { NotificationPreferencesValue } from '../../database/entities';
-import { NotificationPreferencesDto, PushSubscriptionInputDto, PushSubscriptionResponse } from './dto/notifications.dto';
+import {
+  NotificationPreferencesDto,
+  PushSubscriptionInputDto,
+  PushSubscriptionResponse,
+} from './dto/notifications.dto';
 import { NotificationsService } from './notifications.service';
 
 @ApiTags('Notificări')
@@ -15,9 +26,15 @@ export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
 
   @Post('me/push-subscriptions')
-  @ApiOperation({ operationId: 'registerPushSubscription', summary: 'Înregistrează dispozitivul pentru notificări push' })
+  @ApiOperation({
+    operationId: 'registerPushSubscription',
+    summary: 'Înregistrează dispozitivul pentru notificări push',
+  })
   @ApiCreatedResponse({ type: PushSubscriptionResponse })
-  register(@CurrentUser() user: AuthUser, @Body() dto: PushSubscriptionInputDto): Promise<PushSubscriptionResponse> {
+  register(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: PushSubscriptionInputDto,
+  ): Promise<PushSubscriptionResponse> {
     return this.notifications.registerPush(user, dto);
   }
 
@@ -39,13 +56,19 @@ export class NotificationsController {
   @Put('me/notification-preferences')
   @ApiOperation({ operationId: 'updateNotificationPreferences', summary: 'Alege canalele preferate' })
   @ApiOkResponse({ type: NotificationPreferencesDto })
-  updatePreferences(@CurrentUser() user: AuthUser, @Body() dto: NotificationPreferencesDto): Promise<NotificationPreferencesValue> {
+  updatePreferences(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: NotificationPreferencesDto,
+  ): Promise<NotificationPreferencesValue> {
     return this.notifications.updatePreferences(user, dto);
   }
 
   @Roles('admin')
   @Post('admin/announcements')
-  @ApiOperation({ operationId: 'createAnnouncement', summary: 'Anunț către utilizatori — neimplementat (501)' })
+  @ApiOperation({
+    operationId: 'createAnnouncement',
+    summary: 'Anunț către utilizatori — neimplementat (501)',
+  })
   announce(): never {
     notImplemented();
   }

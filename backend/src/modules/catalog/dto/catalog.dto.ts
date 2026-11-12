@@ -25,7 +25,8 @@ import type { ExternalAccess } from '../../../database/enums';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
-const toBool = ({ value }: { value: unknown }) => (value === 'true' ? true : value === 'false' ? false : value);
+const toBool = ({ value }: { value: unknown }) =>
+  value === 'true' ? true : value === 'false' ? false : value;
 
 // ---------- Sports ----------
 
@@ -50,7 +51,11 @@ export class SportInputDto {
   @Matches(/^[a-z0-9-]{1,40}$/)
   icon: string;
 
-  @ApiProperty({ type: [String], example: ['panou'], description: 'Dotările pe care trebuie să le aibă o resursă.' })
+  @ApiProperty({
+    type: [String],
+    example: ['panou'],
+    description: 'Dotările pe care trebuie să le aibă o resursă.',
+  })
   @IsArray()
   @ArrayMaxSize(30)
   @ArrayUnique()
@@ -65,7 +70,13 @@ export class SportResponse extends SportInputDto {
 }
 
 export function toSportResponse(s: Sport): SportResponse {
-  return { id: s.id, name_ro: s.nameRo, name_en: s.nameEn, icon: s.icon, required_equipment: s.requiredEquipment };
+  return {
+    id: s.id,
+    name_ro: s.nameRo,
+    name_en: s.nameEn,
+    icon: s.icon,
+    required_equipment: s.requiredEquipment,
+  };
 }
 
 // ---------- Resources ----------
@@ -82,25 +93,46 @@ export class TimeRangeDto {
 
 /** `WeeklyHours`: a missing day means closed. */
 export class WeeklyHoursDto {
-  @ApiPropertyOptional({ type: [TimeRangeDto] }) @IsOptional() @ValidateNested({ each: true }) @Type(() => TimeRangeDto)
+  @ApiPropertyOptional({ type: [TimeRangeDto] })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => TimeRangeDto)
   mon?: TimeRangeDto[];
 
-  @ApiPropertyOptional({ type: [TimeRangeDto] }) @IsOptional() @ValidateNested({ each: true }) @Type(() => TimeRangeDto)
+  @ApiPropertyOptional({ type: [TimeRangeDto] })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => TimeRangeDto)
   tue?: TimeRangeDto[];
 
-  @ApiPropertyOptional({ type: [TimeRangeDto] }) @IsOptional() @ValidateNested({ each: true }) @Type(() => TimeRangeDto)
+  @ApiPropertyOptional({ type: [TimeRangeDto] })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => TimeRangeDto)
   wed?: TimeRangeDto[];
 
-  @ApiPropertyOptional({ type: [TimeRangeDto] }) @IsOptional() @ValidateNested({ each: true }) @Type(() => TimeRangeDto)
+  @ApiPropertyOptional({ type: [TimeRangeDto] })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => TimeRangeDto)
   thu?: TimeRangeDto[];
 
-  @ApiPropertyOptional({ type: [TimeRangeDto] }) @IsOptional() @ValidateNested({ each: true }) @Type(() => TimeRangeDto)
+  @ApiPropertyOptional({ type: [TimeRangeDto] })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => TimeRangeDto)
   fri?: TimeRangeDto[];
 
-  @ApiPropertyOptional({ type: [TimeRangeDto] }) @IsOptional() @ValidateNested({ each: true }) @Type(() => TimeRangeDto)
+  @ApiPropertyOptional({ type: [TimeRangeDto] })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => TimeRangeDto)
   sat?: TimeRangeDto[];
 
-  @ApiPropertyOptional({ type: [TimeRangeDto] }) @IsOptional() @ValidateNested({ each: true }) @Type(() => TimeRangeDto)
+  @ApiPropertyOptional({ type: [TimeRangeDto] })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => TimeRangeDto)
   sun?: TimeRangeDto[];
 }
 
@@ -127,7 +159,11 @@ export class ResourceCreateDto {
   @MaxLength(250)
   location: string;
 
-  @ApiPropertyOptional({ format: 'uri', nullable: true, example: 'https://campussport.example/media/teren-baschet-2.jpg' })
+  @ApiPropertyOptional({
+    format: 'uri',
+    nullable: true,
+    example: 'https://campussport.example/media/teren-baschet-2.jpg',
+  })
   @IsOptional()
   @ValidateIf((_o, v) => v !== null)
   @IsUrl({ require_protocol: true, protocols: ['http', 'https'], require_tld: false })
@@ -158,7 +194,11 @@ export class ResourceCreateDto {
   @Type(() => WeeklyHoursDto)
   opening_hours: WeeklyHoursDto;
 
-  @ApiPropertyOptional({ minimum: 15, example: 60, description: 'Dacă lipsește, `default_slot_minutes` din setări.' })
+  @ApiPropertyOptional({
+    minimum: 15,
+    example: 60,
+    description: 'Dacă lipsește, `default_slot_minutes` din setări.',
+  })
   @IsOptional()
   @IsInt()
   @Min(15)
@@ -169,7 +209,11 @@ export class ResourceCreateDto {
   @IsIn(EXTERNAL_ACCESS)
   external_access?: ExternalAccess;
 
-  @ApiPropertyOptional({ type: WeeklyHoursDto, nullable: true, description: 'Folosit doar când `external_access` este `window`.' })
+  @ApiPropertyOptional({
+    type: WeeklyHoursDto,
+    nullable: true,
+    description: 'Folosit doar când `external_access` este `window`.',
+  })
   @IsOptional()
   @ValidateIf((_o, v) => v !== null)
   @ValidateNested()
@@ -225,7 +269,10 @@ export class ListResourcesQueryDto {
   @IsUUID()
   sport?: string;
 
-  @ApiPropertyOptional({ default: false, description: 'Include resursele dezactivate. Ignorat dacă apelantul nu este admin.' })
+  @ApiPropertyOptional({
+    default: false,
+    description: 'Include resursele dezactivate. Ignorat dacă apelantul nu este admin.',
+  })
   @IsOptional()
   @Transform(toBool)
   @IsBoolean()

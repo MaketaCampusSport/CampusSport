@@ -18,9 +18,14 @@ describe('tstzrange', () => {
   });
 
   it('formats as half-open [start,end)', () => {
-    const s = formatTstzRange({ start: new Date('2026-11-12T16:00:00Z'), end: new Date('2026-11-12T17:00:00Z') });
+    const s = formatTstzRange({
+      start: new Date('2026-11-12T16:00:00Z'),
+      end: new Date('2026-11-12T17:00:00Z'),
+    });
     expect(s).toBe('[2026-11-12T16:00:00.000Z,2026-11-12T17:00:00.000Z)');
-    expect(formatTstzRange({ start: new Date('2026-11-12T16:00:00Z'), end: null })).toBe('[2026-11-12T16:00:00.000Z,)');
+    expect(formatTstzRange({ start: new Date('2026-11-12T16:00:00Z'), end: null })).toBe(
+      '[2026-11-12T16:00:00.000Z,)',
+    );
   });
 
   it('round-trips through the transformer and keeps nulls', () => {

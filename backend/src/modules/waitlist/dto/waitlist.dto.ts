@@ -50,7 +50,11 @@ export class WaitlistEntryResponse {
   @ApiProperty({ example: 2, description: '1 profesor, 2 student, 3 extern.' }) priority: number;
   @ApiProperty({ enum: WAITLIST_STATUSES }) status: WaitlistStatus;
   @ApiProperty({ format: 'date-time', nullable: true }) offered_at: string | null;
-  @ApiProperty({ format: 'date-time', nullable: true, description: '`null` când oferta merge la toți simultan.' })
+  @ApiProperty({
+    format: 'date-time',
+    nullable: true,
+    description: '`null` când oferta merge la toți simultan.',
+  })
   offer_expires_at: string | null;
   @ApiPropertyOptional({ type: SlotReferenceResponse }) offered_slot?: SlotReferenceResponse;
 }

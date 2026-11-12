@@ -4,7 +4,8 @@ import { IsEmail, IsOptional, IsString, IsUUID, Matches, MaxLength, MinLength } 
 import { UserResponse } from './user.dto';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
-const lower = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().toLowerCase() : value);
+const lower = ({ value }: { value: unknown }) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : value;
 
 /** `Session` schema. */
 export class SessionResponse {
@@ -28,7 +29,10 @@ export class OtpSentResponse {
 }
 
 export class SsoLoginQueryDto {
-  @ApiPropertyOptional({ example: '/start', description: 'Ruta din PWA la care se revine după autentificare.' })
+  @ApiPropertyOptional({
+    example: '/start',
+    description: 'Ruta din PWA la care se revine după autentificare.',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(500)

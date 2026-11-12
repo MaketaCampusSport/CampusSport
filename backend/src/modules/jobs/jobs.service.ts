@@ -20,7 +20,11 @@ export class JobsService {
   ) {}
 
   notify(job: NotifyJob, opts: JobsOptions = {}): void {
-    this.add(this.notifications, job.type, job, { attempts: 5, backoff: { type: 'exponential', delay: 5_000 }, ...opts });
+    this.add(this.notifications, job.type, job, {
+      attempts: 5,
+      backoff: { type: 'exponential', delay: 5_000 },
+      ...opts,
+    });
   }
 
   slotFreed(job: SlotFreedJob): void {
@@ -44,9 +48,15 @@ export class JobsService {
   /** BullMQ 6 rejects custom job ids containing ":"; ids here use "_" as separator. */
   private add(queue: Queue, name: string, data: object, opts: JobsOptions): void {
     const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`timed out after ${ENQUEUE_TIMEOUT_MS} ms`)), ENQUEUE_TIMEOUT_MS).unref(),
+      setTimeout(
+        () => reject(new Error(`timed out after ${ENQUEUE_TIMEOUT_MS} ms`)),
+        ENQUEUE_TIMEOUT_MS,
+      ).unref(),
     );
-    Promise.race([queue.add(name, data, { removeOnComplete: 1000, removeOnFail: 5000, ...opts }), timeout]).catch((err) =>
+    Promise.race([
+      queue.add(name, data, { removeOnComplete: 1000, removeOnFail: 5000, ...opts }),
+      timeout,
+    ]).catch((err) =>
       this.logger.error(`Could not enqueue ${queue.name}/${name}: ${(err as Error).message}`),
     );
   }

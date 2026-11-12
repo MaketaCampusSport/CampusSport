@@ -97,7 +97,9 @@ export function renderMessage(
           : 'The first to confirm gets the spot.';
       return {
         title: ro ? 'S-a eliberat un loc' : 'A spot is free',
-        body: ro ? `${name}, ${when(start, zone, lang)}. ${deadline}` : `${name}, ${when(start, zone, lang)}. ${deadline}`,
+        body: ro
+          ? `${name}, ${when(start, zone, lang)}. ${deadline}`
+          : `${name}, ${when(start, zone, lang)}. ${deadline}`,
         url: `/waitlist/${d.waitlist_id}`,
       };
     }

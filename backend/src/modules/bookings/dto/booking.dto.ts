@@ -1,5 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsIn, IsInt, IsISO8601, IsOptional, IsString, IsUUID, Min, ValidateIf } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsISO8601,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 import { PageQueryDto } from '../../../common/http/pagination';
 import { CANCEL_SOURCES, OCCUPANCY_STATUSES } from '../../../database/enums';
 import type { CancelSource, OccupancyStatus } from '../../../database/enums';
@@ -10,16 +20,27 @@ export class BookingCreateDto {
   @IsUUID()
   resource_id: string;
 
-  @ApiProperty({ format: 'date-time', example: '2026-11-12T18:00:00+02:00', description: 'Începutul unui slot al resursei.' })
+  @ApiProperty({
+    format: 'date-time',
+    example: '2026-11-12T18:00:00+02:00',
+    description: 'Începutul unui slot al resursei.',
+  })
   @IsISO8601({ strict: true })
   start: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'Obligatoriu doar dacă este activă o cotă separată per sport (FR-25).' })
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'Obligatoriu doar dacă este activă o cotă separată per sport (FR-25).',
+  })
   @IsOptional()
   @IsUUID()
   sport_id?: string;
 
-  @ApiPropertyOptional({ minimum: 1, example: 8, description: 'Rezervare pentru echipă; nu poate depăși `capacity`.' })
+  @ApiPropertyOptional({
+    minimum: 1,
+    example: 8,
+    description: 'Rezervare pentru echipă; nu poate depăși `capacity`.',
+  })
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -36,7 +57,8 @@ export class BookingResponse {
   @ApiProperty({ format: 'uuid', example: 'e3a94f60-1b2c-4d7e-8f05-6c2b9a0d4e11' }) id: string;
   @ApiProperty({ format: 'uuid' }) resource_id: string;
   @ApiProperty({ example: 'Teren baschet 2' }) resource_name: string;
-  @ApiProperty({ format: 'uuid', nullable: true, description: 'Devine `null` după anonimizare.' }) user_id: string | null;
+  @ApiProperty({ format: 'uuid', nullable: true, description: 'Devine `null` după anonimizare.' }) user_id:
+    string | null;
   @ApiProperty({ format: 'date-time', example: '2026-11-12T18:00:00+02:00' }) start: string;
   @ApiProperty({ format: 'date-time', example: '2026-11-12T19:00:00+02:00' }) end: string;
   @ApiProperty({ enum: OCCUPANCY_STATUSES }) status: OccupancyStatus;
@@ -44,10 +66,14 @@ export class BookingResponse {
   @ApiPropertyOptional({ nullable: true }) cancel_reason?: string | null;
   @ApiProperty({ format: 'date-time', nullable: true }) checked_in_at: string | null;
   @ApiProperty({ nullable: true, example: 8 }) participants_count: number | null;
-  @ApiPropertyOptional({ example: 'e3a94f60.a91c07d2.5f2b8c', description: 'Doar pentru titular, cât timp rezervarea e activă.' })
+  @ApiPropertyOptional({
+    example: 'e3a94f60.a91c07d2.5f2b8c',
+    description: 'Doar pentru titular, cât timp rezervarea e activă.',
+  })
   qr_token?: string;
   @ApiPropertyOptional({ example: 'Gata! Te așteptăm joi la 18:00 pe Teren baschet 2.' }) message_ro?: string;
-  @ApiPropertyOptional({ example: 'All set! See you Thursday at 18:00 on Teren baschet 2.' }) message_en?: string;
+  @ApiPropertyOptional({ example: 'All set! See you Thursday at 18:00 on Teren baschet 2.' })
+  message_en?: string;
 }
 
 export class CancellationResultResponse {
@@ -61,7 +87,10 @@ export class CheckInDto {
   @IsIn(['qr', 'button'])
   method: 'qr' | 'button';
 
-  @ApiPropertyOptional({ example: 'e3a94f60.a91c07d2.5f2b8c', description: 'Obligatoriu pentru `method = qr`.' })
+  @ApiPropertyOptional({
+    example: 'e3a94f60.a91c07d2.5f2b8c',
+    description: 'Obligatoriu pentru `method = qr`.',
+  })
   @ValidateIf((o: CheckInDto) => o.method === 'qr')
   @IsString()
   qr_token?: string;
@@ -93,7 +122,8 @@ export class BookingPage {
 export class QuotaResponse {
   @ApiProperty({ format: 'date', example: '2026-11-01', description: 'Prima zi a lunii.' }) month: string;
   @ApiProperty({ example: 4 }) limit: number;
-  @ApiProperty({ example: 3, description: 'Intrări folosite, inclusiv cele restituite ulterior.' }) used: number;
+  @ApiProperty({ example: 3, description: 'Intrări folosite, inclusiv cele restituite ulterior.' })
+  used: number;
   @ApiProperty({ example: 1 }) refunded: number;
   @ApiProperty({ example: 2 }) remaining: number;
   @ApiProperty({ example: false }) over_quota_last_24h_only: boolean;

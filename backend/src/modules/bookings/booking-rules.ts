@@ -76,16 +76,24 @@ export function checkBookingRules(input: RuleInput): ErrorCode | null {
 
   if (user.role === 'external') {
     if (resource.externalAccess === 'never') return 'EXTERNAL_ACCESS_DENIED';
-    if (resource.externalAccess === 'window' && !withinWeeklyHours(resource.externalAccessWindows, slot, input.zone)) {
+    if (
+      resource.externalAccess === 'window' &&
+      !withinWeeklyHours(resource.externalAccessWindows, slot, input.zone)
+    ) {
       return 'EXTERNAL_ACCESS_DENIED';
     }
   }
 
   // FR-28: with the quota used up, a student may still take slots left free in the last 24 h.
-  if (user.role === 'student' && quotaView(input.quota, rules.monthly_quota).remaining === 0 && !isLastMinute(slot.start, now)) {
+  if (
+    user.role === 'student' &&
+    quotaView(input.quota, rules.monthly_quota).remaining === 0 &&
+    !isLastMinute(slot.start, now)
+  ) {
     return 'QUOTA_EXHAUSTED';
   }
 
-  if (user.role !== 'admin' && input.activeBookings >= rules.max_active_bookings) return 'ACTIVE_LIMIT_REACHED';
+  if (user.role !== 'admin' && input.activeBookings >= rules.max_active_bookings)
+    return 'ACTIVE_LIMIT_REACHED';
   return null;
 }

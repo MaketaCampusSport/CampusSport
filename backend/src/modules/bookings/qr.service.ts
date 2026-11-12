@@ -19,7 +19,9 @@ export class QrService {
   constructor(@Inject(APP_CONFIG) private readonly config: AppConfig) {}
 
   private signature(p: QrPayload): string {
-    return createHmac('sha256', this.config.qrHmacSecret).update(`${p.bookingId}.${p.nonce}.${p.day}`).digest('base64url');
+    return createHmac('sha256', this.config.qrHmacSecret)
+      .update(`${p.bookingId}.${p.nonce}.${p.day}`)
+      .digest('base64url');
   }
 
   sign(p: QrPayload): string {

@@ -137,9 +137,17 @@ describe('common HTTP layer', () => {
     });
 
     it('@Roles(admin): student -> 403 FORBIDDEN, admin -> 200', async () => {
-      const res = await t.http().get('/api/v1/probe/admin').set('Authorization', await t.bearer('student')).expect(403);
+      const res = await t
+        .http()
+        .get('/api/v1/probe/admin')
+        .set('Authorization', await t.bearer('student'))
+        .expect(403);
       expect(res.body.code).toBe('FORBIDDEN');
-      await t.http().get('/api/v1/probe/admin').set('Authorization', await t.bearer('admin')).expect(200);
+      await t
+        .http()
+        .get('/api/v1/probe/admin')
+        .set('Authorization', await t.bearer('admin'))
+        .expect(200);
     });
   });
 
@@ -151,12 +159,20 @@ describe('common HTTP layer', () => {
     });
 
     it('unknown fields are rejected', async () => {
-      const res = await t.http().post('/api/v1/probe/echo').send({ name: 'x', count: 1, extra: true }).expect(422);
+      const res = await t
+        .http()
+        .post('/api/v1/probe/echo')
+        .send({ name: 'x', count: 1, extra: true })
+        .expect(422);
       expect(res.body.details.fields.extra).toBeDefined();
     });
 
     it('valid body passes', async () => {
-      await t.http().post('/api/v1/probe/echo').send({ name: 'x', count: 1 }).expect(201, { name: 'x', count: 1 });
+      await t
+        .http()
+        .post('/api/v1/probe/echo')
+        .send({ name: 'x', count: 1 })
+        .expect(201, { name: 'x', count: 1 });
     });
   });
 
@@ -234,8 +250,12 @@ describe('error catalogue', () => {
 describe('isSuspended', () => {
   const now = new Date('2026-11-12T12:00:00Z');
   it('is true until suspended_until, false afterwards and for active users', () => {
-    expect(isSuspended({ status: 'suspended', suspendedUntil: new Date('2026-11-26T00:00:00Z') }, now)).toBe(true);
-    expect(isSuspended({ status: 'suspended', suspendedUntil: new Date('2026-11-01T00:00:00Z') }, now)).toBe(false);
+    expect(isSuspended({ status: 'suspended', suspendedUntil: new Date('2026-11-26T00:00:00Z') }, now)).toBe(
+      true,
+    );
+    expect(isSuspended({ status: 'suspended', suspendedUntil: new Date('2026-11-01T00:00:00Z') }, now)).toBe(
+      false,
+    );
     expect(isSuspended({ status: 'active', suspendedUntil: null }, now)).toBe(false);
   });
 });
