@@ -22,3 +22,6 @@ coverage/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Postman environment with generated tokens (npm run dev:token -- --postman)
+postman/*-local.postman_environment.json

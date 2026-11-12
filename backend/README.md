@@ -39,6 +39,7 @@ The seed adds the sports, resources and users from the spec's examples. Ion Pope
 | `npm run test:cov` | Coverage (CI requires ≥ 70% lines, NFR-13) |
 | `npm run test:e2e` | Whole app against a real PostgreSQL (see below) |
 | `npm run spec:check` | Only the API conformance test |
+| `npm run dev:token -- student`, `-- --postman` | Development tokens for the seeded users (Swagger, Postman); refuses production |
 | `npm run lint` / `npm run typecheck` / `npm run format` | Static checks |
 | `npm run migration:run` / `migration:revert` / `seed` | Database |
 | `npm run k6:prepare -- 100` then `k6 run k6/booking-concurrency.js` | NFR-04: 100 simultaneous bookings of one slot, exactly one succeeds |

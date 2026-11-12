@@ -123,6 +123,22 @@ describe('SessionsService', () => {
     expect(await sessions.rotate(b.token, async () => 'student')).toBeNull();
   });
 
+  it('revocation is best effort when Redis is down', async () => {
+    const broken = new SessionsService(
+      {
+        take: async () => {
+          throw new Error('ECONNREFUSED');
+        },
+        smembers: async () => {
+          throw new Error('ECONNREFUSED');
+        },
+      } as never,
+      TEST_CONFIG,
+    );
+    await expect(broken.revokeAll(student.id)).resolves.toBeUndefined();
+    await expect(broken.revoke('a.b')).resolves.toBeUndefined();
+  });
+
   it('a deleted user cannot refresh', async () => {
     const s = await sessions.create(student);
     expect(await sessions.rotate(s.token, async () => null)).toBeNull();

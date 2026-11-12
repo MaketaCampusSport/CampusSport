@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { CookieOptions, Response } from 'express';
 import { KV_STORE } from '../../common/kv/kv-store';
 import type { KvStore } from '../../common/kv/kv-store';
@@ -34,6 +34,8 @@ function hashSecret(secret: string): string {
  */
 @Injectable()
 export class SessionsService {
+  private readonly logger = new Logger(SessionsService.name);
+
   constructor(
     @Inject(KV_STORE) private readonly kv: KvStore,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
@@ -72,16 +74,29 @@ export class SessionsService {
     return this.create({ id: stored.userId, role: currentRole }, stored.admin ? stored.expiresAt : undefined);
   }
 
+  /**
+   * Best effort: it runs after the database change (logout, suspension, deletion) has committed, and the
+   * guard re-reads the user on every request, so a Redis outage must not turn those into a 500.
+   */
   async revoke(token: string | undefined): Promise<void> {
     const parsed = this.parse(token);
     if (!parsed) return;
-    const stored = await this.kv.take<StoredSession>(`refresh:${parsed.sessionId}`);
-    if (stored) await this.kv.srem(`user-sessions:${stored.userId}`, parsed.sessionId);
+    try {
+      const stored = await this.kv.take<StoredSession>(`refresh:${parsed.sessionId}`);
+      if (stored) await this.kv.srem(`user-sessions:${stored.userId}`, parsed.sessionId);
+    } catch (err) {
+      this.logger.warn(`Could not revoke a refresh session: ${(err as Error).message}`);
+    }
   }
 
+  /** Best effort, see revoke(). */
   async revokeAll(userId: string): Promise<void> {
-    const ids = await this.kv.smembers(`user-sessions:${userId}`);
-    await this.kv.del(...ids.map((id) => `refresh:${id}`), `user-sessions:${userId}`);
+    try {
+      const ids = await this.kv.smembers(`user-sessions:${userId}`);
+      await this.kv.del(...ids.map((id) => `refresh:${id}`), `user-sessions:${userId}`);
+    } catch (err) {
+      this.logger.warn(`Could not revoke the sessions of user ${userId}: ${(err as Error).message}`);
+    }
   }
 
   cookieOptions(expiresAt?: number): CookieOptions {

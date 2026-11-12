@@ -27,7 +27,8 @@
     "admin:enroll-totp": "nest build && node dist/database/cli/enroll-totp.js",
     "spec:check": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js src/spec-conformance.spec.ts",
     "k6:prepare": "nest build && node dist/database/cli/k6-users.js",
-    "k6:cleanup": "nest build && node dist/database/cli/k6-users.js cleanup"
+    "k6:cleanup": "nest build && node dist/database/cli/k6-users.js cleanup",
+    "dev:token": "nest build && node dist/database/cli/dev-token.js"
   },
   "dependencies": {
     "@nestjs/bullmq": "^12.0.1",

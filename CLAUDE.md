@@ -70,4 +70,4 @@ The e2e database is `TEST_DATABASE_URL`, otherwise `<DB_NAME>_test` derived from
 
 ## Git workflow
 
-Work on one branch per task, created from `main`, and commit after each medium or large change. Merge into `main` with `git merge --no-ff`, then delete the local branch. Don't push unless asked.
+Don't commit, merge or push unless the user asks for it. Leave changes uncommitted for review. When asked to commit, use one branch per task (`feat/`, `fix/`, `docs/` ...) with a descriptive message, and merge into `main` with `--no-ff`.
