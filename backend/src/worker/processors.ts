@@ -2,6 +2,7 @@ import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
 import { NoShowCheckJob, NotifyJob, OfferExpiredJob, QUEUES, SlotFreedJob } from '../modules/jobs/queues';
+import { notificationLag } from '../modules/metrics/metrics';
 import { NotificationDeliveryService } from '../modules/notifications/notification-delivery.service';
 import { WaitlistService } from '../modules/waitlist/waitlist.service';
 import { MaintenanceService } from './maintenance.service';
@@ -14,6 +15,8 @@ export class NotificationsProcessor extends WorkerHost {
   }
 
   async process(job: Job<NotifyJob>): Promise<unknown> {
+    const due = (job.timestamp ?? Date.now()) + (job.opts?.delay ?? 0);
+    notificationLag.observe({ type: job.data.type }, Math.max(0, (Date.now() - due) / 1000));
     return this.delivery.deliver(job.data);
   }
 }

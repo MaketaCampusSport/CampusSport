@@ -14,6 +14,7 @@ import type { AppConfig } from '../../config/configuration';
 import { Resource } from '../../database/entities';
 import { findSlot, Interval } from '../availability/slots';
 import { OccupancyEventsService } from '../events/occupancy-events.service';
+import { bookingConflicts, bookingsCreated } from '../metrics/metrics';
 import type { CancelledBooking } from '../jobs/queues';
 import { QuotaService } from '../quota/quota.service';
 import { Rules, SettingsService } from '../settings/settings.service';
@@ -109,6 +110,7 @@ export class BookingsService {
       throw err;
     }
 
+    bookingsCreated.inc({ role: user.role });
     await this.events.bookingsCancelled(displaced, { source: 'member_priority' }, false);
     await this.events.bookingCreated(
       { id: bookingId, userId: user.id, resourceId: resource.id, start: slot.start, end: slot.end },
@@ -168,8 +170,9 @@ export class BookingsService {
       `SELECT kind FROM occupancy WHERE resource_id = $1 AND status = 'active' AND period && tstzrange($2, $3, '[)')`,
       [resourceId, slot.start, slot.end],
     );
-    const blocked = rows.some((r) => r.kind !== 'booking');
-    return new AppException(blocked ? 'SLOT_BLOCKED' : 'SLOT_TAKEN', {
+    const code = rows.some((r) => r.kind !== 'booking') ? 'SLOT_BLOCKED' : 'SLOT_TAKEN';
+    bookingConflicts.inc({ code });
+    return new AppException(code, {
       extra: {
         waitlist_offer: {
           resource_id: resourceId,

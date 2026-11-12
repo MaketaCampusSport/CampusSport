@@ -9,6 +9,7 @@ import type { NotificationChannel } from '../../database/enums';
 import { BOOKING_SELECT, BookingRow } from '../bookings/booking.presenter';
 import type { NotifyJob } from '../jobs/queues';
 import { MailService, SmsService } from '../messaging/messaging.service';
+import { notificationsSent } from '../metrics/metrics';
 import { AlternativeResource, pickAlternatives } from './alternatives';
 import { renderMessage, RenderedMessage } from './messages';
 import { PushService } from './push.service';
@@ -72,6 +73,7 @@ export class NotificationDeliveryService {
     if (user.phone && (prefs.sms || (job.critical && !pushOk))) results.push(await this.viaSms(user, message));
 
     for (const r of results) {
+      notificationsSent.inc({ channel: r.channel, outcome: r.delivered ? 'delivered' : 'failed' });
       await this.dataSource.query(
         `INSERT INTO notifications (user_id, occupancy_id, block_id, type, channel, payload, sent_at, delivered_at, error)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,

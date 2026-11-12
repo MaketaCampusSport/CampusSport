@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { RedisModule } from './common/kv/redis.module';
+import { loggingModule } from './common/logging';
 import { AppConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { AuditModule } from './modules/audit/audit.module';
@@ -17,6 +18,7 @@ import { BookingsProcessor, NotificationsProcessor, SchedulerService, WaitlistPr
 @Module({
   imports: [
     AppConfigModule,
+    loggingModule('worker'),
     DatabaseModule,
     RedisModule,
     AuditModule,
