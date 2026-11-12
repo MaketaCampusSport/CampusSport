@@ -1,0 +1,129 @@
+<!doctype html>
+<!-- size: 1400x1190 -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Database example rows</title>
+<style>
+  :root { --ink: #1B2733; --muted: #5B6B7B; --line: #D5DDE5; --head: #E8F1FB; --headline: #2F6DB5; --ok: #2E8B57; --bad: #C0392B; --warn: #C27C0E; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px 32px; width: 1400px; background: #fff; color: var(--ink); font: 13px/1.35 "Segoe UI", Helvetica, Arial, sans-serif; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p.lead { margin: 0 0 18px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 22px; }
+  .wide { grid-column: 1 / -1; }
+  h2 { font-size: 14px; margin: 0 0 6px; color: var(--headline); }
+  h2 small { color: var(--muted); font-weight: 400; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid var(--line); padding: 4px 7px; text-align: left; vertical-align: top; white-space: nowrap; }
+  th { background: var(--head); font-weight: 600; }
+  td.mono, span.mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; }
+  .ok { color: var(--ok); font-weight: 600; }
+  .bad { color: var(--bad); font-weight: 600; }
+  .warn { color: var(--warn); font-weight: 600; }
+  .note { margin-top: 5px; color: var(--muted); font-size: 12px; white-space: normal; }
+</style>
+</head>
+<body>
+<h1>CampusSport — example rows</h1>
+<p class="lead">Seed data (<span class="mono">backend/src/database/seeds/example-data.ts</span>, ids from <span class="mono">livrabil05/openapi.yaml</span>) and a sample Thursday, 2026-11-12, in the main tables. Times are Europe/Chisinau (+02:00); ids are shortened.</p>
+
+<div class="grid">
+
+<section>
+<h2>users <small>— role decides the rules; externals have no SSO subject but need a phone</small></h2>
+<table>
+<tr><th>id</th><th>full_name</th><th>role</th><th>status</th><th>sso_subject</th><th>phone</th></tr>
+<tr><td class="mono">3c7d1e94…</td><td>Ion Popescu</td><td>student</td><td class="ok">active</td><td class="mono">kc-…</td><td>+37360000000</td></tr>
+<tr><td class="mono">8a1f3b27…</td><td>Maria Ionescu</td><td>teacher</td><td class="ok">active</td><td class="mono">kc-…</td><td>—</td></tr>
+<tr><td class="mono">b4e6c8d0…</td><td>Andrei Rusu</td><td>admin</td><td class="ok">active</td><td class="mono">kc-…</td><td>—</td></tr>
+<tr><td class="mono">f0e1d2c3…</td><td>Ana Rusu</td><td>external</td><td class="ok">active</td><td>NULL</td><td>+37360000001</td></tr>
+</table>
+</section>
+
+<section>
+<h2>sports <small>— required equipment filters resources (SRS 9.5)</small></h2>
+<table>
+<tr><th>id</th><th>name_ro</th><th>name_en</th><th>icon</th><th>required_equipment</th></tr>
+<tr><td class="mono">5b1a8e02…</td><td>Baschet</td><td>Basketball</td><td>basketball</td><td>{panou}</td></tr>
+<tr><td class="mono">9c3d5e7f…</td><td>Tenis</td><td>Tennis</td><td>tennis</td><td>{fileu tenis}</td></tr>
+<tr><td class="mono">1d2e3f40…</td><td>Fotbal</td><td>Football</td><td>football</td><td>{porți fotbal}</td></tr>
+<tr><td class="mono">6e7f8091…</td><td>Volei</td><td>Volleyball</td><td>volleyball</td><td>{fileu volei}</td></tr>
+</table>
+</section>
+
+<section class="wide">
+<h2>resources <small>— opening_hours and slot_minutes build the grid; external_access limits externals</small></h2>
+<table>
+<tr><th>id</th><th>name</th><th>capacity</th><th>equipment</th><th>sports (resource_sports)</th><th>slot_minutes</th><th>opening_hours</th><th>external_access</th></tr>
+<tr><td class="mono">7d2f4c1e…</td><td>Teren baschet 2</td><td>10</td><td>{panou, minge baschet, vestiar}</td><td>Baschet</td><td>60</td><td class="mono">mon–fri 07:00–22:00, sat 09:00–18:00</td><td>leftover</td></tr>
+<tr><td class="mono">2c9e7a10…</td><td>Sala polivalentă</td><td>30</td><td>{panou, fileu volei, vestiar}</td><td>Baschet, Volei</td><td>90</td><td class="mono">mon–fri 07:00–22:00, sat 09:00–18:00</td><td>window (sat 09:00–18:00)</td></tr>
+<tr><td class="mono">4a5b6c7d…</td><td>Teren tenis 1</td><td>4</td><td>{fileu tenis, rachete}</td><td>Tenis</td><td>60</td><td class="mono">mon–fri 07:00–22:00, sat 09:00–18:00</td><td>leftover</td></tr>
+<tr><td class="mono">0b1c2d3e…</td><td>Teren tenis 2 (fără fileu)</td><td>4</td><td>{rachete}</td><td>Tenis <span class="warn">→ hidden for “Tenis”: no net</span></td><td>60</td><td class="mono">mon–fri 07:00–22:00, sat 09:00–18:00</td><td>never</td></tr>
+<tr><td class="mono">c1d2e3f4…</td><td>Teren fotbal</td><td>22</td><td>{porți fotbal, vestiar}</td><td>Fotbal</td><td>90</td><td class="mono">mon–fri 07:00–22:00, sat 09:00–18:00</td><td>leftover</td></tr>
+</table>
+</section>
+
+<section class="wide">
+<h2>occupancy <small>— bookings and blocks in one table; EXCLUDE no_overlap (resource_id WITH =, period WITH &amp;&amp;) WHERE status = 'active'</small></h2>
+<table>
+<tr><th>id</th><th>resource</th><th>period</th><th>kind</th><th>status</th><th>user / created_by</th><th>reason</th><th>cancel_source</th><th>checked_in_at</th><th>participants</th></tr>
+<tr><td class="mono">a1…</td><td>Teren baschet 2</td><td class="mono">[10:00, 11:30)</td><td>pe_class</td><td class="ok">active</td><td>— / Andrei Rusu</td><td>Educație fizică, TI-231</td><td>NULL</td><td>NULL</td><td>NULL</td></tr>
+<tr><td class="mono">a2…</td><td>Teren baschet 2</td><td class="mono">[16:00, 17:00)</td><td>booking</td><td class="bad">cancelled</td><td>Ana Rusu</td><td>NULL</td><td>user</td><td>NULL</td><td>NULL</td></tr>
+<tr><td class="mono">e3a94f60…</td><td>Teren baschet 2</td><td class="mono">[18:00, 19:00)</td><td>booking</td><td class="ok">active</td><td>Ion Popescu</td><td>NULL</td><td>NULL</td><td>17:55</td><td>8</td></tr>
+<tr><td class="mono">—</td><td>Teren baschet 2</td><td class="mono">[18:00, 19:00)</td><td>booking</td><td colspan="6" class="bad">INSERT rejected: 23P01 no_overlap → 409 SLOT_TAKEN with waitlist_offer</td></tr>
+<tr><td class="mono">a3…</td><td>Sala polivalentă</td><td class="mono">[14:30, 16:00)</td><td>booking</td><td class="ok">active</td><td>Maria Ionescu</td><td>NULL</td><td>NULL</td><td>NULL</td><td>12</td></tr>
+<tr><td class="mono">a4…</td><td>Sala polivalentă</td><td class="mono">[16:00, ∞)</td><td>emergency</td><td class="ok">active</td><td>— / Andrei Rusu</td><td>Avarie</td><td>NULL</td><td>NULL</td><td>NULL</td></tr>
+<tr><td class="mono">a5…</td><td>Sala polivalentă</td><td class="mono">[17:30, 19:00)</td><td>booking</td><td class="bad">cancelled</td><td>Ion Popescu</td><td>Avarie</td><td>emergency</td><td>NULL</td><td>NULL</td></tr>
+<tr><td class="mono">a6…</td><td>Teren tenis 1</td><td class="mono">[07:00, 09:00)</td><td>maintenance</td><td class="ok">active</td><td>— / Andrei Rusu</td><td>Plasă nouă</td><td>NULL</td><td>NULL</td><td>NULL</td></tr>
+<tr><td class="mono">a7…</td><td>Teren tenis 1</td><td class="mono">[19:00, 20:00)</td><td>booking</td><td class="ok">active</td><td>Maria Ionescu (from waitlist)</td><td>NULL</td><td>NULL</td><td>NULL</td><td>NULL</td></tr>
+</table>
+<div class="note">An open upper bound (<span class="mono">[16:00, ∞)</span>) is an emergency “until further notice”; only blocks may have it. Cancelled rows keep their history but no longer take part in no_overlap.</div>
+</section>
+
+<section>
+<h2>monthly_quota <small>— remaining = monthly_quota − (used − refunded)</small></h2>
+<table>
+<tr><th>user</th><th>month</th><th>used</th><th>refunded</th><th>remaining (limit 4)</th></tr>
+<tr><td>Ion Popescu</td><td>2026-11-01</td><td>3</td><td>1</td><td class="ok">2</td></tr>
+</table>
+<div class="note">The emergency refunded the 17:30 entry (FR-27). A user cancellation refunds only ≥ 2 h before the start.</div>
+</section>
+
+<section>
+<h2>waitlist <small>— priority 1 teacher, 2 student, 3 external, then created_at</small></h2>
+<table>
+<tr><th>user</th><th>target</th><th>day</th><th>priority</th><th>status</th><th>offer_expires_at</th></tr>
+<tr><td>Maria Ionescu</td><td>Teren tenis 1 [19:00, 20:00)</td><td>2026-11-12</td><td>1</td><td class="ok">accepted</td><td>15:10</td></tr>
+<tr><td>Ion Popescu</td><td>sport Fotbal (any resource)</td><td>2026-11-12</td><td>2</td><td>waiting</td><td>NULL</td></tr>
+<tr><td>Ana Rusu</td><td>Teren baschet 2 [18:00, 19:00)</td><td>2026-11-12</td><td>3</td><td>waiting</td><td>NULL</td></tr>
+</table>
+</section>
+
+<section>
+<h2>settings <small>— rules read on every request (SRS 9.2 defaults)</small></h2>
+<table>
+<tr><th>key</th><th>value</th><th>key</th><th>value</th></tr>
+<tr><td>monthly_quota</td><td>4</td><td>checkin_minutes_before / after</td><td>10 / 15</td></tr>
+<tr><td>max_active_bookings</td><td>2</td><td>no_show_threshold</td><td>3</td></tr>
+<tr><td>booking_window_days_student / teacher</td><td>7 / 14</td><td>no_show_suspension_days</td><td>14</td></tr>
+<tr><td>booking_window_hours_external</td><td>24</td><td>waitlist_offer_minutes</td><td>10</td></tr>
+<tr><td>cancel_free_hours</td><td>2</td><td>waitlist_simultaneous_under_hours</td><td>2</td></tr>
+<tr><td>default_slot_minutes</td><td>60</td><td>member_replaces_external</td><td>false</td></tr>
+</table>
+</section>
+
+<section>
+<h2>audit_log <small>— insert-only (trigger), partitioned by month</small></h2>
+<table>
+<tr><th>at</th><th>actor</th><th>action</th><th>entity</th><th>after</th></tr>
+<tr><td>06:50</td><td>Andrei Rusu</td><td>block.create</td><td>occupancy</td><td class="mono">{"kind":"maintenance","reason":"Plasă nouă"}</td></tr>
+<tr><td>16:00</td><td>Andrei Rusu</td><td>block.create</td><td>occupancy</td><td class="mono">{"kind":"emergency","cancelled_booking_ids":["a5…"]}</td></tr>
+<tr><td>16:20</td><td>Andrei Rusu</td><td>settings.update</td><td>settings</td><td class="mono">{"monthly_quota":4}</td></tr>
+</table>
+<div class="note">UPDATE or DELETE on audit_log raises “audit_log accepta doar inserari”.</div>
+</section>
+
+</div>
+</body>
+</html>

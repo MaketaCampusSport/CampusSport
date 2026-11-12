@@ -1,0 +1,27 @@
+---
+title: Status lifecycles — occupancy (booking) and waitlist
+---
+stateDiagram-v2
+  direction LR
+
+  state "occupancy.status (kind = booking)" as Booking {
+    [*] --> active: POST /bookings
+    active --> cancelled: DELETE /bookings/{id} (cancel_source = user)
+    active --> cancelled: block over it (emergency / maintenance / pe_class / event)
+    active --> cancelled: member takes an external's slot (member_priority)
+    active --> completed: checked in, slot ended (worker)
+    active --> no_show: no check-in by start + 15 min (worker)
+    no_show --> [*]: 3 in a month → account suspended 14 days
+    completed --> [*]
+    cancelled --> [*]: slot freed → waitlist offer
+  }
+
+  state "waitlist.status" as Waitlist {
+    [*] --> waiting: POST /waitlist (priority 1 teacher, 2 student, 3 external)
+    waiting --> offered: slot freed (worker), 10 min or "first wins" under 2 h
+    offered --> accepted: POST /waitlist/{id}/accept → booking created
+    offered --> expired: 10 minutes passed → next candidate
+    offered --> waiting: someone else took it (OFFER_TAKEN)
+    accepted --> [*]
+    expired --> [*]
+  }

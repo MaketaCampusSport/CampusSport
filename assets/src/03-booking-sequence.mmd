@@ -1,0 +1,36 @@
+---
+title: POST /bookings — SDD 7.1 in one transaction
+---
+sequenceDiagram
+  autonumber
+  actor S as Student (PWA)
+  participant G as JWT guard + throttler
+  participant C as BookingsController
+  participant B as BookingsService
+  participant P as PostgreSQL
+  participant E as OccupancyEvents
+  participant Q as Redis (SSE + BullMQ)
+
+  S->>G: POST /api/v1/bookings {resource_id, start: 18:00}
+  G->>G: verify JWT, reload user, 10 bookings/min
+  G->>C: validated BookingCreateDto
+  C->>B: create(user, dto)
+  B->>B: find slot on the grid (18:00–19:00)<br/>else 422 INVALID_SLOT / OUTSIDE_OPENING_HOURS
+  B->>P: BEGIN
+  B->>P: SELECT … FROM users FOR NO KEY UPDATE
+  B->>P: read settings, monthly_quota, active bookings
+  B->>B: checkBookingRules: suspended? window? external access?<br/>quota? active limit? → 403 / 422
+  B->>P: INSERT INTO occupancy (period = [18:00, 19:00))
+  alt no overlap
+    P-->>B: row id
+    B->>P: monthly_quota.used + 1
+    B->>P: COMMIT
+    B->>E: bookingCreated
+    E->>Q: SSE slot-changed "occupied"
+    E->>Q: jobs: confirmation, reminders −24 h / −1 h, no-show check
+    B-->>S: 201 Booking + qr_token + "Gata! Te așteptăm joi la 18:00…"
+  else another request committed first
+    P-->>B: 23P01 no_overlap (or 40P01 deadlock → retry)
+    B->>P: ROLLBACK
+    B-->>S: 409 SLOT_TAKEN + waitlist_offer
+  end

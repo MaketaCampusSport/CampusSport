@@ -1,0 +1,49 @@
+---
+title: Deployment — docker-compose.yml profiles and ports
+---
+flowchart LR
+  subgraph infra["default services"]
+    direction TB
+    pg[("postgres:18<br/>:5432")]
+    redis[("redis:8<br/>:6379")]
+    kc["keycloak 26<br/>:8080<br/>realm campussport"]
+    mail["mailpit<br/>:1025 SMTP · :8025 UI"]
+  end
+
+  subgraph app["profile: app (one image, two entrypoints)"]
+    direction TB
+    api["api<br/>node dist/main.js<br/>:3000"]
+    worker["worker<br/>node dist/worker.js<br/>:9101 metrics"]
+  end
+
+  subgraph mon["profile: monitoring"]
+    direction TB
+    prom["prometheus<br/>:9090 · alerts"]
+    loki["loki<br/>:3100"]
+    alloy["alloy<br/>docker logs → Loki"]
+    graf["grafana<br/>:3001"]
+  end
+
+  api --> pg
+  api --> redis
+  api --> kc
+  worker --> pg
+  worker --> redis
+  worker --> mail
+  prom -. scrape .-> api
+  prom -. scrape .-> worker
+  alloy -. logs .-> api
+  alloy -. logs .-> worker
+  alloy --> loki
+  graf --> prom
+  graf --> loki
+
+  dev["Local development without Docker:<br/>PostgreSQL 18 service + npm run start:dev"]
+  dev -.-> pg
+
+  classDef store fill:#EAF6EE,stroke:#2E8B57,color:#1B2733
+  classDef ops fill:#F2EEF9,stroke:#6B4FA3,color:#1B2733
+  classDef note fill:#FFF9DB,stroke:#C9A227,color:#1B2733
+  class pg,redis store
+  class prom,loki,alloy,graf ops
+  class dev note

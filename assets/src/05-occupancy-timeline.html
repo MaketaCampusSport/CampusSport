@@ -1,0 +1,121 @@
+<!doctype html>
+<!-- size: 1400x560 -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Occupancy timeline example</title>
+<style>
+  :root {
+    --ink: #1B2733; --muted: #5B6B7B; --grid: #E3E8EE; --line: #C9D3DD;
+    --booking: #2F6DB5; --booking-bg: #DCE9F8;
+    --pe: #6B4FA3; --pe-bg: #ECE6F7;
+    --block: #C0392B; --block-bg: #FBE3E0;
+    --maint: #C27C0E; --maint-bg: #FCEFD6;
+    --cancel: #8A97A5; --cancel-bg: #F1F3F5;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 26px 32px; width: 1400px; background: #fff; color: var(--ink); font: 13px/1.3 "Segoe UI", Helvetica, Arial, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 2px; }
+  p.lead { margin: 0 0 18px; color: var(--muted); }
+  .chart { position: relative; margin-left: 170px; height: 360px; border-left: 1px solid var(--line); }
+  .hour { position: absolute; top: 0; bottom: 22px; border-left: 1px solid var(--grid); }
+  .hour span { position: absolute; bottom: -20px; left: -18px; width: 36px; text-align: center; color: var(--muted); font-size: 12px; }
+  .lane { position: absolute; left: -170px; right: 0; border-top: 1px solid var(--line); }
+  .lane .name { position: absolute; left: 0; width: 160px; top: 8px; font-weight: 600; }
+  .lane .name small { display: block; font-weight: 400; color: var(--muted); }
+  .bar { position: absolute; height: 26px; border: 1.5px solid; border-radius: 4px; padding: 4px 7px; white-space: nowrap; overflow: visible; font-size: 12px; }
+  .bar b { font-weight: 600; }
+  .booking { background: var(--booking-bg); border-color: var(--booking); }
+  .pe { background: var(--pe-bg); border-color: var(--pe); }
+  .emergency { background: var(--block-bg); border-color: var(--block); }
+  .maintenance { background: var(--maint-bg); border-color: var(--maint); }
+  .cancelled { background: repeating-linear-gradient(135deg, var(--cancel-bg) 0 6px, #fff 6px 12px); border-color: var(--cancel); border-style: dashed; color: var(--muted); }
+  .rejected { background: #fff; border-color: var(--block); border-style: dashed; color: var(--block); }
+  .label { position: absolute; white-space: nowrap; font-size: 12.5px; }
+  .label.red { color: var(--block); font-weight: 600; }
+  .label.muted { color: var(--muted); }
+  .legend { display: flex; gap: 22px; margin: 26px 0 0 170px; color: var(--muted); }
+  .legend i { display: inline-block; width: 22px; height: 12px; border: 1.5px solid; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+  .note { margin: 12px 0 0 170px; color: var(--muted); }
+  code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Example day in the <code>occupancy</code> table — Thursday 2026-11-12</h1>
+<p class="lead">Bookings and blocks share one table. <code>no_overlap</code> allows at most one <b>active</b> row per resource at any instant; cancelled rows stay as history. Same rows as in <code>09-database-example-rows.png</code>.</p>
+
+<div class="chart" id="chart"></div>
+
+<div class="legend">
+  <span><i class="booking"></i>booking (active)</span>
+  <span><i class="pe"></i>PE class / event</span>
+  <span><i class="maintenance"></i>maintenance</span>
+  <span><i class="emergency"></i>emergency</span>
+  <span><i class="cancelled"></i>cancelled (history)</span>
+  <span><i class="rejected"></i>rejected INSERT (409)</span>
+</div>
+<p class="note">Sala polivalentă uses 90-minute slots, the courts 60-minute slots (resources.slot_minutes). Opening hours 07:00–22:00.</p>
+
+<script>
+  const START = 7, END = 22, WIDTH = 1196 - 170; // px for 07:00–22:00
+  const x = (h) => ((h - START) / (END - START)) * WIDTH;
+  // [from, to, class, label, row, labelInside]
+  const lanes = [
+    { name: 'Teren baschet 2', sub: '60-min slots · leftover', rows: [
+      [10, 11.5, 'pe', '<b>PE class</b> TI-231', 0, true],
+      [18, 19, 'booking', '<b>Ion Popescu</b> · 8 players · checked in 17:55', 0, false],
+      [16, 17, 'cancelled', 'Ana Rusu · cancelled by the user (slot freed)', 1, false],
+      [18, 19, 'rejected', '2nd request for 18:00 → 409 SLOT_TAKEN', 2, false],
+    ]},
+    { name: 'Sala polivalentă', sub: '90-min slots · externals sat only', rows: [
+      [14.5, 16, 'booking', '<b>Maria Ionescu</b> · 12 people', 0, false],
+      [16, 22, 'emergency', '<b>Emergency</b> “Avarie” · period [16:00, ∞) — until further notice', 1, true],
+      [17.5, 19, 'cancelled', 'Ion Popescu · cancel_source emergency · quota refunded', 2, false],
+    ]},
+    { name: 'Teren tenis 1', sub: '60-min slots · leftover', rows: [
+      [7, 9, 'maintenance', '<b>Maintenance</b> “Plasă nouă”', 0, false],
+      [19, 20, 'booking', '<b>Maria Ionescu</b> · accepted waitlist offer', 0, false],
+    ]},
+  ];
+  const chart = document.getElementById('chart');
+  for (let h = START; h <= END; h++) {
+    const d = document.createElement('div');
+    d.className = 'hour';
+    d.style.left = x(h) + 'px';
+    d.innerHTML = `<span>${String(h).padStart(2, '0')}:00</span>`;
+    chart.appendChild(d);
+  }
+  let offset = 0;
+  lanes.forEach((lane) => {
+    const laneHeight = 24 + 38 * (Math.max(...lane.rows.map((r) => r[4])) + 1);
+    const l = document.createElement('div');
+    l.className = 'lane';
+    l.style.top = offset + 'px';
+    const laneTop = offset;
+    l.style.height = laneHeight + 'px';
+    l.innerHTML = `<div class="name">${lane.name}<small>${lane.sub}</small></div>`;
+    chart.appendChild(l);
+    for (const [from, to, kind, label, row, inside] of lane.rows) {
+      const y = laneTop + 12 + row * 38;
+      const b = document.createElement('div');
+      b.className = 'bar ' + kind;
+      b.style.left = x(from) + 'px';
+      b.style.width = Math.max(x(to) - x(from), 8) + 'px';
+      b.style.top = y + 'px';
+      if (inside) b.innerHTML = label;
+      chart.appendChild(b);
+      if (!inside) {
+        const t = document.createElement('div');
+        t.className = 'label' + (kind === 'rejected' ? ' red' : kind === 'cancelled' ? ' muted' : '');
+        t.style.left = x(to) + 8 + 'px';
+        t.style.top = y + 5 + 'px';
+        t.innerHTML = label;
+        chart.appendChild(t);
+      }
+    }
+    offset += laneHeight;
+  });
+  chart.style.height = offset + 22 + 'px';
+</script>
+</body>
+</html>

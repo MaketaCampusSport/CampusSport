@@ -1,0 +1,139 @@
+---
+title: Database — 12 tables, 19 foreign keys (livrabil05/baza-de-date/schema-postgresql.sql)
+---
+erDiagram
+  users {
+    uuid id PK
+    text full_name
+    text email UK
+    text phone "required for externals"
+    text role "student | teacher | external | admin"
+    text status "active | suspended"
+    timestamptz suspended_until
+    text sso_subject UK "NULL only for externals"
+    text totp_secret "admins"
+    uuid calendar_token UK
+    jsonb notification_preferences
+    timestamptz created_at
+  }
+  sports {
+    uuid id PK
+    text name_ro
+    text name_en
+    text icon
+    text_array required_equipment
+  }
+  resources {
+    uuid id PK
+    text name
+    text type
+    text location
+    int capacity "> 0"
+    text_array equipment
+    jsonb opening_hours
+    int slot_minutes ">= 15"
+    text external_access "never | window | leftover"
+    jsonb external_access_windows
+    bool active
+  }
+  resource_sports {
+    uuid resource_id PK, FK
+    uuid sport_id PK, FK
+  }
+  recurrences {
+    uuid id PK
+    text rule "RRULE"
+    uuid resource_id FK
+    text kind
+    date valid_from
+    date valid_to
+  }
+  occupancy {
+    uuid id PK
+    uuid resource_id FK
+    tstzrange period "EXCLUDE no_overlap"
+    text kind "booking | pe_class | event | maintenance | emergency"
+    text status "active | cancelled | completed | no_show"
+    uuid user_id FK "holder (bookings)"
+    uuid created_by FK
+    text reason
+    uuid recurrence_id FK
+    text cancel_source
+    timestamptz checked_in_at
+    uuid qr_nonce
+    int participants_count
+    uuid sport_id FK
+    timestamptz anonymized_at
+  }
+  monthly_quota {
+    uuid user_id PK, FK
+    date month PK "first day of month"
+    int used
+    int refunded "<= used"
+  }
+  waitlist {
+    uuid id PK
+    uuid user_id FK
+    uuid resource_id FK "slot entry"
+    uuid sport_id FK "day + sport"
+    date day
+    tstzrange period
+    smallint priority "1 teacher, 2 student, 3 external"
+    text status "waiting | offered | accepted | expired"
+    timestamptz offer_expires_at
+    uuid offered_resource_id FK
+    tstzrange offered_period
+  }
+  notifications {
+    uuid id PK
+    timestamptz created_at PK "monthly partitions"
+    uuid user_id FK
+    uuid occupancy_id FK
+    uuid block_id FK
+    text type
+    text channel "push | email | sms"
+    timestamptz delivered_at
+    text error
+  }
+  push_subscriptions {
+    uuid id PK
+    uuid user_id FK
+    text endpoint UK
+    jsonb keys
+  }
+  settings {
+    text key PK
+    jsonb value
+    uuid updated_by FK
+    timestamptz updated_at
+  }
+  audit_log {
+    uuid id PK
+    timestamptz at PK "monthly partitions, insert-only"
+    uuid actor_id FK
+    text action
+    text entity
+    uuid entity_id
+    jsonb before
+    jsonb after
+  }
+
+  resources ||--o{ resource_sports : "allows"
+  sports ||--o{ resource_sports : "played on"
+  resources ||--o{ recurrences : "has"
+  resources ||--o{ occupancy : "is occupied by"
+  users |o--o{ occupancy : "holds (user_id)"
+  users |o--o{ occupancy : "created_by"
+  recurrences |o--o{ occupancy : "generates"
+  sports |o--o{ occupancy : "sport_id"
+  users ||--o{ monthly_quota : "uses"
+  users ||--o{ waitlist : "waits"
+  resources |o--o{ waitlist : "resource_id"
+  resources |o--o{ waitlist : "offered_resource_id"
+  sports |o--o{ waitlist : "subscribes"
+  users ||--o{ notifications : "receives"
+  occupancy |o--o{ notifications : "about (occupancy_id)"
+  occupancy |o--o{ notifications : "caused by (block_id)"
+  users ||--o{ push_subscriptions : "registers"
+  users |o--o{ settings : "updated_by"
+  users |o--o{ audit_log : "actor"

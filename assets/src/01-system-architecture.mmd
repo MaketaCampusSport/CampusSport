@@ -1,0 +1,58 @@
+---
+title: CampusSport — system architecture
+---
+flowchart TB
+  subgraph Users["Users"]
+    direction LR
+    M["Students and teachers<br/>university SSO"]
+    E["External users<br/>email + SMS code"]
+    A["Administrators<br/>SSO + TOTP"]
+  end
+
+  PWA["PWA client — browser / phone"]
+
+  subgraph Server["CampusSport server — NestJS 12 on Node.js 24"]
+    direction LR
+    API["API process<br/>REST /api/v1 · SSE stream<br/>Swagger /api/docs"]
+    WK["Worker process<br/>BullMQ processors<br/>scheduled jobs"]
+  end
+
+  subgraph Data["Data"]
+    direction LR
+    PG[("PostgreSQL 18<br/>occupancy + no_overlap<br/>settings · audit_log")]
+    RD[("Redis 8<br/>job queues · pub/sub<br/>OTP codes · sessions")]
+  end
+
+  subgraph External["External services"]
+    direction LR
+    SSO["University SSO<br/>OpenID Connect"]
+    PUSH["Web Push<br/>VAPID"]
+    SMTP["Email<br/>SMTP"]
+    SMS["SMS provider<br/>REST API"]
+  end
+
+  subgraph Ops["Monitoring"]
+    direction LR
+    PROM["Prometheus + alerts"]
+    LOKI["Loki logs"]
+    GRAF["Grafana"]
+  end
+
+  M & E & A --> PWA
+  PWA -- "HTTPS JSON · JWT 15 min" --> API
+  API -. "slot-changed events" .-> PWA
+  API -- "OIDC code + PKCE" --> SSO
+  API --> PG
+  API -- "enqueue jobs · publish" --> RD
+  RD -- "jobs" --> WK
+  WK --> PG
+  WK --> PUSH & SMTP & SMS
+  Server -. "metrics · JSON logs" .-> Ops
+  GRAF --- PROM & LOKI
+
+  classDef store fill:#EAF6EE,stroke:#2E8B57,color:#1B2733
+  classDef ext fill:#FFF6E5,stroke:#C27C0E,color:#1B2733
+  classDef ops fill:#F2EEF9,stroke:#6B4FA3,color:#1B2733
+  class PG,RD store
+  class SSO,PUSH,SMTP,SMS ext
+  class PROM,LOKI,GRAF ops

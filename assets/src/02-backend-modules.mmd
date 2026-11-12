@@ -1,0 +1,70 @@
+---
+title: Backend modules (src/modules) and their dependencies
+---
+flowchart TB
+  subgraph Domain["Domain modules — one per API tag"]
+    direction LR
+    AUTH["auth<br/>SSO · 2FA · externals<br/>/me · /admin/users"]
+    CAT["catalog<br/>sports · resources"]
+    AV["availability<br/>slot grid · SSE"]
+    BK["bookings<br/>create · cancel · check-in · quota"]
+    WL["waitlist<br/>join · offers · accept"]
+    BL["blocks<br/>emergency · maintenance"]
+    NT["notifications<br/>push devices · preferences"]
+    ADM["admin<br/>settings · audit log"]
+  end
+
+  subgraph Support["Supporting modules"]
+    direction LR
+    SET["settings<br/>rules read per request"]
+    QU["quota<br/>monthly counters"]
+    EV["events<br/>after-commit effects"]
+    JOB["jobs<br/>BullMQ producer"]
+    RT["realtime<br/>Redis pub/sub"]
+    AUD["audit<br/>insert-only log"]
+    MSG["messaging<br/>email · SMS"]
+  end
+
+  subgraph Common["common/ and database/"]
+    direction LR
+    GUARD["JWT guard · roles"]
+    ERR["errors · validation"]
+    DB["TypeORM entities<br/>migration from livrabil05"]
+    KV["KV store<br/>Redis / memory"]
+  end
+
+  WORKER["worker/<br/>processors · maintenance"]
+
+  AV --> CAT
+  AV --> QU
+  AV --> SET
+  BK --> QU
+  BK --> SET
+  BK --> EV
+  WL --> BK
+  WL --> JOB
+  BL --> QU
+  BL --> EV
+  BL --> AUD
+  ADM --> SET
+  ADM --> AUD
+  CAT --> AUD
+  AUTH --> AUD
+  AUTH --> EV
+  AUTH --> MSG
+  AUTH --> KV
+  EV --> RT
+  EV --> JOB
+  WORKER --> WL
+  WORKER --> NT
+  WORKER --> MSG
+
+  Domain -.-> Common
+  Support -.-> Common
+
+  classDef support fill:#EAF6EE,stroke:#2E8B57,color:#1B2733
+  classDef common fill:#F4F6F8,stroke:#7A8896,color:#1B2733
+  classDef worker fill:#FFF6E5,stroke:#C27C0E,color:#1B2733
+  class SET,QU,EV,JOB,RT,AUD,MSG support
+  class GUARD,ERR,DB,KV common
+  class WORKER worker

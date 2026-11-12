@@ -1,0 +1,26 @@
+---
+title: POST /admin/blocks — SDD 7.3 with the SRS 9.1 hierarchy
+---
+flowchart TD
+  start(["Admin: emergency / maintenance<br/>resource, reason, start (default now), end (null = until further notice)"])
+  tx["BEGIN<br/>lock active occupancy rows overlapping the period<br/>(SELECT … FOR UPDATE)"]
+  higher{"Any overlapping block of the<br/>same or higher level?<br/>emergency = maintenance = 2<br/>pe_class = event = 1"}
+  conflict["ROLLBACK → 409 BLOCK_CONFLICT"]
+  supersede["Lower-level blocks (PE class, event)<br/>→ status cancelled (superseded_blocks_count)"]
+  cancel["Overlapping bookings → cancelled<br/>cancel_source = kind, reason saved<br/>students' monthly quota refunded (FR-27)"]
+  insert["INSERT block into occupancy<br/>+ audit_log 'block.create'"]
+  race{"23P01 / 40P01?<br/>(a booking slipped in)"}
+  commit["COMMIT"]
+  after["After commit:<br/>SSE 'blocked' to the grid<br/>notify every holder (critical: push, email, SMS fallback)<br/>with 2–3 alternative slots"]
+  result(["201 BlockResult<br/>cancelled_bookings_count · superseded_blocks_count · notified_users_count"])
+
+  start --> tx --> higher
+  higher -- yes --> conflict
+  higher -- no --> supersede --> cancel --> insert --> race
+  race -- "yes (max 3 attempts)" --> tx
+  race -- no --> commit --> after --> result
+
+  classDef bad fill:#FDECEC,stroke:#C0392B,color:#1B2733
+  classDef good fill:#EAF6EE,stroke:#2E8B57,color:#1B2733
+  class conflict bad
+  class result,commit good
