@@ -30,6 +30,22 @@ describe('loadConfig', () => {
     expect(cfg.oidc.roleMap).toEqual({ staff: 'admin' });
   });
 
+  it('builds the database URL from DB_* parts and escapes the password', () => {
+    const cfg = loadConfig({
+      NODE_ENV: 'development',
+      DB_USER: 'postgres',
+      DB_PASSWORD: 'p@ss:word',
+      DB_NAME: 'campussport',
+      DB_PORT: '5433',
+    });
+    expect(cfg.databaseUrl).toBe('postgres://postgres:p%40ss%3Aword@localhost:5433/campussport');
+  });
+
+  it('prefers DATABASE_URL over DB_* parts', () => {
+    const cfg = loadConfig({ NODE_ENV: 'development', DATABASE_URL: 'postgres://u:p@h/db', DB_USER: 'x', DB_NAME: 'y' });
+    expect(cfg.databaseUrl).toBe('postgres://u:p@h/db');
+  });
+
   it('rejects a non-numeric integer', () => {
     expect(() => loadConfig({ NODE_ENV: 'development', PORT: 'abc' })).toThrow(/PORT/);
   });
