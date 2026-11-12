@@ -48,7 +48,7 @@ export class OccupancyEventsService {
       if (at.getTime() > Date.now()) {
         this.jobs.notify(
           { type: 'booking-reminder', userId: booking.userId, occupancyId: booking.id, data: { hours_before: hoursBefore } },
-          { delay: at.getTime() - Date.now(), jobId: `reminder:${booking.id}:${hoursBefore}` },
+          { delay: at.getTime() - Date.now(), jobId: `reminder_${booking.id}_${hoursBefore}` },
         );
       }
     }

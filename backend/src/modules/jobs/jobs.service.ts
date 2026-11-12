@@ -30,17 +30,18 @@ export class JobsService {
   offerExpires(job: OfferExpiredJob, at: Date): void {
     this.add(this.waitlist, 'offer-expired', job, {
       delay: Math.max(0, at.getTime() - Date.now()),
-      jobId: `offer-expired:${job.waitlistId}`,
+      jobId: `offer-expired_${job.waitlistId}`,
     });
   }
 
   noShowCheck(job: NoShowCheckJob, at: Date): void {
     this.add(this.bookings, 'no-show-check', job, {
       delay: Math.max(0, at.getTime() - Date.now()),
-      jobId: `no-show:${job.bookingId}`,
+      jobId: `no-show_${job.bookingId}`,
     });
   }
 
+  /** BullMQ 6 rejects custom job ids containing ":"; ids here use "_" as separator. */
   private add(queue: Queue, name: string, data: object, opts: JobsOptions): void {
     const timeout = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error(`timed out after ${ENQUEUE_TIMEOUT_MS} ms`)), ENQUEUE_TIMEOUT_MS).unref(),

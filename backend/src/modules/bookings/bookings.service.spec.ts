@@ -161,6 +161,13 @@ describe('BookingsService.create', () => {
     });
   });
 
+  it('retries a deadlock between concurrent inserts, then reports the lost race as SLOT_TAKEN', async () => {
+    const { service, state, sql } = setup();
+    state.insertError = new QueryFailedError('INSERT', [], Object.assign(new Error('deadlock detected'), { code: '40P01' }));
+    await expect(service.create(TEST_USERS.student, CREATE, { now: NOW })).rejects.toMatchObject({ code: 'SLOT_TAKEN' });
+    expect(sql(/INSERT INTO occupancy/)).toHaveLength(4);
+  });
+
   it('replace_external is refused while FR-24 is off', async () => {
     const { service } = setup();
     await expect(service.create(TEST_USERS.student, { ...CREATE, replace_external: true }, { now: NOW })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });

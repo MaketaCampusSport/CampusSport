@@ -17,6 +17,7 @@ import { EventsModule } from './modules/events/events.module';
 import { HealthModule } from './modules/health/health.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { MessagingModule } from './modules/messaging/messaging.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { WaitlistModule } from './modules/waitlist/waitlist.module';
@@ -42,6 +43,7 @@ import { WaitlistModule } from './modules/waitlist/waitlist.module';
     WaitlistModule,
     BlocksModule,
     AdminModule,
+    NotificationsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: UserThrottlerGuard }],
 })
