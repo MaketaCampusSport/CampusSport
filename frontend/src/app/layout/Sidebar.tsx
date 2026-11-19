@@ -16,12 +16,11 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
-import type { AdminUser } from '@/api/types';
+import type { User } from '@/api/generated';
 import { cn } from '@/lib/cn';
 import { Logo } from './Logo';
 import { UserMenu } from './UserMenu';
 import { USE_MOCKS } from '@/api/config';
-
 
 interface NavItem {
   to: string;
@@ -47,7 +46,7 @@ const NAV: NavItem[] = [
   { to: '/admin/account', labelKey: 'nav.account', icon: UserCog },
 ];
 
-export function Sidebar({ user }: { user: AdminUser }) {
+export function Sidebar({ user }: { user: User }) {
   const { t } = useTranslation();
   return (
     <aside className="fixed inset-y-0 left-0 z-30 flex w-[264px] flex-col bg-navy px-4 py-6">

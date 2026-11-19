@@ -45,113 +45,6 @@
     "themeDark": "Dark",
     "logout": "Sign out"
   },
-  "user": {
-    "placeholderTitle": "User app",
-    "placeholderBody": "The mobile app (PWA) for students and teachers goes in src/features/user. For now only the admin panel is available.",
-    "openAdmin": "Open the admin panel",
-    "nav": {
-      "label": "Main navigation",
-      "home": "Home",
-      "search": "Search",
-      "bookings": "Bookings",
-      "profile": "Profile"
-    },
-    "home": {
-      "greeting": "Hi, {{name}}",
-      "subtitle": "WHAT SPORT ARE YOU PLAYING TODAY?",
-      "myProfile": "My profile",
-      "quotaAria": "Remaining entries this month",
-      "remainingOfTotal": "of {{total}} entries left",
-      "remainingProgressAria": "{{remaining}} of {{total}} entries left",
-      "chooseSport": "Choose a sport"
-    },
-    "availability": {
-      "stepTitle": "01/03 COURT + TIME",
-      "backAria": "Back to sport selection",
-      "selectDayAria": "Choose day",
-      "chooseCourtAndTime": "Choose court and time",
-      "courtCount_one": "{{count}} court",
-      "courtCount_other": "{{count}} courts",
-      "emptyTitle": "No courts available",
-      "emptyBody": "There are no active resources for {{sport}} on this day.",
-      "showMore": "More times",
-      "showLess": "Show less",
-      "slotsAria": "Time slots for {{name}}",
-      "slot": {
-        "selected": "Selected ✓",
-        "free": "Free",
-        "myBooking": "My booking",
-        "peClass": "PE class",
-        "occupied": "Occupied"
-      },
-      "selectHint": "Select a free time slot to continue",
-      "continue": "Continue"
-    },
-    "confirm": {
-      "stepConfirm": "02/03 CONFIRM",
-      "title": "Confirm",
-      "subtitle": "Review your booking details",
-      "backToSlotsAria": "Back to time selection",
-      "detailsAria": "Booking details",
-      "dateLabel": "Date",
-      "timeLabel": "Time",
-      "participantsLabel": "Participants",
-      "participantsHint": "Optional up to {{max}}",
-      "decreaseParticipantsAria": "Decrease participants",
-      "increaseParticipantsAria": "Increase participants",
-      "policiesAria": "Quota and policies",
-      "quotaUsage": "Uses 1 entry from your quota",
-      "quotaRemaining": "{{remaining}} of {{total}} left",
-      "freeCancelRule": "Free cancellation up to 2 h before",
-      "checkInRule": "QR check-in between -10 and +15 min ({{window}})",
-      "submit": "Confirm booking",
-      "submitting": "Confirming…",
-      "back": "Back",
-      "errors": {
-        "slotTakenTitle": "This slot was just taken",
-        "slotTakenBody": "Join the waitlist and we will notify you if a spot opens up.",
-        "joinWaitlist": "Join waitlist",
-        "joiningWaitlist": "Joining…",
-        "waitlistJoinedTitle": "You're on the waitlist",
-        "waitlistJoinedBody": "We'll notify you as soon as the slot frees up.",
-        "quotaExhaustedTitle": "Monthly quota reached",
-        "quotaExhaustedBody": "You have used all your free entries for this month."
-      },
-      "success": {
-        "badge": "03/03 BOOKING CONFIRMED",
-        "headline": "ALL SET!",
-        "subtitlePrefix": "See you on",
-        "subtitleAt": "at",
-        "subtitleOn": "on",
-        "courtCol": "COURT",
-        "dateCol": "DATE",
-        "timeCol": "TIME",
-        "checkInNote": "Show this code at the entrance · Check-in open",
-        "addToCalendar": "Add to calendar",
-        "addedToCalendar": "Added to calendar (.ics)",
-        "done": "Done",
-        "qrAria": "Booking QR code {{code}}"
-      }
-    }
-  },
-  "login": {
-    "step1": "Step 1 of 2",
-    "step2": "Step 2 of 2",
-    "title": "Admin panel",
-    "codeTitle": "Verification code",
-    "body": "Sign in with your university account.",
-    "codeBody": "Hello, {{name}}. Enter the code from your authenticator app.",
-    "sso": "Sign in with university SSO",
-    "ssoNote": "Administrators also use a second factor (TOTP).",
-    "codeLabel": "6-digit code",
-    "codeHint": "The code changes every 30 seconds.",
-    "codeInvalid": "Incorrect code. Try again.",
-    "verify": "Verify and continue",
-    "otherAccount": "Use another account",
-    "expiredTitle": "Your session expired",
-    "expiredBody": "Admin sessions last 8 hours. Please sign in again.",
-    "demoHint": "Demo mode: any account works, the code is 123456."
-  },
   "channels": {
     "push": "Push notification",
     "email": "Email",
@@ -762,20 +655,14 @@
     "member": "University member",
     "external": "External visitor"
   },
-   "account": {
+  "account": {
     "title": "My account",
-    "subtitle": "Account details and two-step authentication security.",
+    "subtitle": "Account details and two-step sign-in.",
     "sessionTitle": "Session",
     "email": "Email",
-    "expires": "Session expires at {{time}}",
-    "twofaTitle": "Two-step authentication (TOTP)",
-    "twofaBody": "Scan the QR code with an authenticator app, then enter the 6-digit code.",
-    "setup": "Set up authenticator",
-    "secret": "Manual key",
-    "code": "Verification code",
-    "confirm": "Confirm",
-    "cancel": "Cancel",
-    "errors": { "code": "Enter the 6 digits." },
-    "toast": { "enabled": "Two-step authentication was set up." }
+    "sessionLength": "Admin sessions last at most 8 hours.",
+    "twofaTitle": "Two-step sign-in (TOTP)",
+    "twofaBody": "The second factor is set up on the server. Run the command below and scan the printed otpauth:// URI with an authenticator app.",
+    "twofaNote": "Once set up, every SSO sign-in asks for the 6-digit code from the app."
   }
 }

@@ -1,9 +1,9 @@
 import { defineConfig } from '@hey-api/openapi-ts';
 
-// Clientul API se generează din specificația OpenAPI a serverului (SDD 6, NFR-13).
-// Când backend-ul publică `openapi/openapi.yaml`, rulează: npm run api:generate
-// Vezi openapi/README.md pentru pașii de integrare.
+// Tipurile API se generează din contractul serverului (assets/livrabil05/openapi.yaml, SDD 6, NFR-13).
+// După orice schimbare a specificației: npm run api:generate (rezultatul se versionează).
 export default defineConfig({
-  input: './openapi/openapi.yaml',
+  input: '../assets/livrabil05/openapi.yaml',
   output: 'src/api/generated',
+  plugins: ['@hey-api/typescript'],
 });

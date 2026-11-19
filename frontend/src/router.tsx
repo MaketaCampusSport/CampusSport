@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createBrowserRouter, type RouteObject } from 'react-router';
-import { RequireAdmin } from '@/features/admin/auth/RequireAdmin';
+import { HomeRedirect, RequireAdmin, RequireMember } from '@/auth/guards';
 import AvailabilityScreen from '@/features/user/booking/AvailabilityScreen';
 import BookingConfirmScreen from '@/features/user/booking/BookingConfirmScreen';
 import type { SelectedSlotSummary } from '@/features/user/booking/mapAvailability';
@@ -76,15 +76,24 @@ const adminPages: RouteObject[] = [
 ];
 
 export const router = createBrowserRouter([
+  { path: '/', element: <HomeRedirect />, errorElement: <RouteErrorPage /> },
   {
-    path: '/',
-    element: <StudentFlowPage />,
+    path: '/login',
+    HydrateFallback: FullPageSpinner,
     errorElement: <RouteErrorPage />,
+    lazy: async () => ({ Component: (await import('@/features/auth/MemberLoginPage')).default }),
   },
   {
-    path: '/user/*',
-    element: <StudentFlowPage />,
+    path: '/auth/2fa',
+    HydrateFallback: FullPageSpinner,
     errorElement: <RouteErrorPage />,
+    lazy: async () => ({ Component: (await import('@/features/auth/TwoFactorPage')).default }),
+  },
+  {
+    path: '/user',
+    element: <RequireMember />,
+    errorElement: <RouteErrorPage />,
+    children: [{ path: '*?', element: <StudentFlowPage /> }],
   },
   {
     path: '/admin/login',

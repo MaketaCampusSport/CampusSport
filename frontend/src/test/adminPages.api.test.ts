@@ -1,16 +1,15 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { api } from '@/api/endpoints';
-import { http } from '@/api/http';
 import { resetDb } from '@/mocks/db';
 import { server } from '@/mocks/node';
+import { signInAs } from './session';
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 beforeEach(async () => {
   resetDb();
-  await http.post('/auth/sso/login');
-  await api.auth.verifyTotp('123456');
+  await signInAs('admin');
 });
 
 describe('Sporturi (NFR-14)', () => {

@@ -2,27 +2,26 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { client } from '@/api/client';
 import { api } from '@/api/endpoints';
-import { http } from '@/api/http';
 import '@/i18n';
 import { EmergencyBlockDialog } from '@/features/admin/blocks/EmergencyBlockDialog';
 import { resetDb } from '@/mocks/db';
 import { server } from '@/mocks/node';
+import { signInAs } from './session';
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 beforeEach(async () => {
   resetDb();
-  await http.post('/auth/sso/login');
-  await api.auth.verifyTotp('123456');
+  await signInAs('admin');
 });
 
 describe('API simulat – autentificare', () => {
   it('respinge un cod TOTP greșit', async () => {
     resetDb();
-    await http.post('/auth/sso/login');
-    await expect(api.auth.verifyTotp('000000')).rejects.toMatchObject({ status: 401 });
+    await expect(client.auth.verifyTwoFactor('demo', '000000')).rejects.toMatchObject({ status: 401, code: 'OTP_INVALID' });
   });
 });
 

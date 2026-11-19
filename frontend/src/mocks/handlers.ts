@@ -255,41 +255,6 @@ function filteredAudit(params: URLSearchParams) {
 
 /* ───────────── Handlers ───────────── */
 export const handlers = [
-  /* Autentificare */
-  http.get(url('/me'), async () => {
-    await lag();
-    if (db.session === 'none') return unauthorized();
-    return HttpResponse.json({
-      user: ADMIN,
-      twoFactorVerified: db.session === 'ok',
-      expiresAt: db.sessionExpiresAt,
-    });
-  }),
-  http.post(url('/auth/sso/login'), async () => {
-    await lag();
-    db.session = 'pending';
-    return HttpResponse.json({ ok: true });
-  }),
-  http.post(url('/auth/admin/totp'), async ({ request }) => {
-    await lag();
-    if (db.session === 'none') return unauthorized();
-    const { code } = (await request.json()) as { code: string };
-    if (code !== '123456') {
-      return err(401, 'TOTP_INVALID', 'Cod invalid sau expirat.', 'Invalid or expired code.');
-    }
-    db.session = 'ok';
-    db.sessionExpiresAt = addHours(new Date(), 8).toISOString();
-    return HttpResponse.json({
-      user: ADMIN,
-      twoFactorVerified: true,
-      expiresAt: db.sessionExpiresAt,
-    });
-  }),
-  http.post(url('/auth/logout'), async () => {
-    db.session = 'none';
-    return new HttpResponse(null, { status: 204 });
-  }),
-
   /* Catalog & Disponibilitate publică (5.2) */
   http.get(url('/sports'), async () => {
     await lag();

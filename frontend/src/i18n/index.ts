@@ -1,7 +1,18 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import en from './en.json';
+import memberEn from './member.en.json';
+import memberRo from './member.ro.json';
 import ro from './ro.json';
+
+/**
+ * Traducerile: `ro.json`/`en.json` pentru panoul de administrare și textele comune,
+ * `member.*.json` pentru aplicația utilizatorilor și autentificare (chei de nivel 1 diferite).
+ */
+export const translations = {
+  ro: { ...ro, ...memberRo },
+  en: { ...en, ...memberEn },
+};
 
 export const LANGUAGES = ['ro', 'en'] as const;
 export type Language = (typeof LANGUAGES)[number];
@@ -20,7 +31,7 @@ function initialLanguage(): Language {
 }
 
 void i18n.use(initReactI18next).init({
-  resources: { ro: { translation: ro }, en: { translation: en } },
+  resources: { ro: { translation: translations.ro }, en: { translation: translations.en } },
   lng: initialLanguage(),
   fallbackLng: 'ro',
   interpolation: { escapeValue: false },
