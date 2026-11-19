@@ -6,17 +6,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CampusSport is the booking system for a university sports facility. The docs are in Romanian, and the code identifiers are in English.
 
-- `MA-Software Requirements Specifications …pdf` (SRS) and `MA-Software Design Descriptions …pdf` (SDD) hold the requirements (FR-xx, NFR-xx, BR-xx) and the design. Code comments cite them as `SDD 7.1`, `FR-12` and so on.
+- `assets/MA-Software Requirements Specifications …pdf` (SRS) and `assets/MA-Software Design Descriptions …pdf` (SDD) hold the requirements (FR-xx, NFR-xx, BR-xx) and the design. Code comments cite them as `SDD 7.1`, `FR-12` and so on.
 - `assets/livrabil05/` is the source of truth for the server contract:
   - `openapi.yaml` describes 60 operations under `/api/v1`, with `x-min-role` (the minimum role) and `x-srs` (the requirements covered). `openapi.json` is the same spec in JSON, and the conformance test reads it.
   - `baza-de-date/schema-postgresql.sql` is the real DB schema. `datamodeler-import.ddl` is only an Oracle-dialect copy for drawing the ERD.
   - `Tehnologii-backend.md` is the agreed stack and versions. `README.md` lists the open design decisions.
 - `backend/` is the NestJS implementation (API and worker). `backend/README.md` has setup, commands and the list of stubbed routes.
+- `frontend/` is the React PWA: the student/teacher/external app under `/user` and the admin panel under `/admin`. `frontend/GHID-TESTARE.md` is its testing guide.
+- The root `package.json` only runs both packages (`concurrently`). `INSTALL.md` is the setup guide.
 
 When the API or the schema changes, change `assets/livrabil05/` deliberately; the backend follows it. Two tests enforce this:
 
 - `src/spec-conformance.spec.ts` compares the controllers' operationId, method, path and guard with `openapi.json` and `x-min-role`.
 - `src/database/schema-sync.spec.ts` keeps `backend/src/database/sql/0001_initial_schema.sql` byte-identical to the livrabil05 SQL. If you change one, copy it to the other.
+
+## Root commands
+
+```bash
+npm install && npm run setup   # install backend + frontend, db:setup
+npm run dev                    # API :3000 + web :5173 (Vite proxies /api to the API)
+npm run dev:all                # + worker (needs Redis)
+npm run dev:mock               # web only, with the MSW mock server
+npm run typecheck && npm test  # both packages
+```
 
 ## Backend commands (run in `backend/`)
 
@@ -38,6 +50,22 @@ npm run admin:enroll-totp -- <admin email> # prints the otpauth:// URI for 2FA
 
 The e2e database is `TEST_DATABASE_URL`, otherwise `<DB_NAME>_test` derived from `.env`, otherwise Testcontainers. The setup refuses any database whose name doesn't end in `_test`. Docker Compose has profiles `app` (API and worker) and `monitoring` (Prometheus, Grafana, Loki, Alloy), plus Keycloak (users `student1`, `teacher1`, `admin1` / `parola123`) and Mailpit.
 
+## Frontend (run in `frontend/`)
+
+```bash
+npm run dev            # real API through the Vite proxy (.env.development)
+npm run dev:mock       # MSW mock server in the browser (.env.mock); demo TOTP/OTP code 123456
+npm run typecheck && npm test && npm run build
+npm run api:generate   # regenerate src/api/generated/ from assets/livrabil05/openapi.yaml (commit the output)
+```
+
+- `src/api/client.ts` is the only API layer: one method per spec operation, snake_case like the spec, typed with `src/api/generated`. Don't hand-write DTO types; add view-model mappers next to the pages.
+- `src/api/http.ts` keeps the access token in memory; the session is restored on load with `POST /auth/refresh` (HttpOnly cookie, path `/api/v1/auth`). `src/auth/sessionStore.ts` holds the user; `src/auth/guards.tsx` has `RequireAdmin` / `RequireMember`.
+- After SSO the backend redirects members to `return_to` and admins to `/auth/2fa?challenge_id=…` (`features/auth/TwoFactorPage.tsx`).
+- Slot times are shown in the facility time zone (`features/user/lib.ts`, `FACILITY_TZ`); always send the slot's own ISO `start` back to the API.
+- i18n: `src/i18n/ro.json`/`en.json` (admin + common) and `member.ro.json`/`member.en.json` (`user`, `login`, `auth`). `i18n.test.ts` checks parity, that every static key exists, and Romanian plurals (`_one/_few/_other`).
+- MSW handlers: `mocks/authHandlers.ts`, `mocks/memberHandlers.ts`, `mocks/handlers.ts` (admin + catalog), registered in that order. Keep them on the spec's paths and shapes. Tests sign in with `signInAs()` from `src/test/session.ts`.
+
 ## Toolchain quirks
 
 - NestJS 12, `openid-client` 6 and `otplib` 13 are **ESM-only**. The backend is **CommonJS** (`module: nodenext`) and loads them through Node 24's `require(esm)`, like the official Nest 12 CJS template. `openid-client` is loaded lazily with `import()`.
@@ -46,6 +74,8 @@ The e2e database is `TEST_DATABASE_URL`, otherwise `<DB_NAME>_test` derived from
 - TypeScript is pinned to `~6.0` (ts-jest supports `<7`). TS 6 defaults `types` to `[]`, so `tsconfig.json` lists them. Types used in decorated signatures must use `import type` (`isolatedModules` + `emitDecoratorMetadata`).
 - `backend/.gitattributes` forces LF. The repo has `core.autocrlf=true`, so edit scripts that match `\n` can silently miss on files git checked out before that rule existed.
 - BullMQ 6 rejects `:` in custom job ids, so ids use `_`.
+- **Running without Redis (development):** `RedisModule` pings Redis at startup and, outside production, falls back to `MemoryKvStore`, so sign-in works but sessions are lost when the API restarts. `MailService` prints undelivered emails (OTP codes) to the log outside production.
+- **Development sign-in:** `DevAuthController` (`/api/v1/auth/dev/users`, `/auth/dev/login`) issues a real session for a seeded user. It answers 404 unless `NODE_ENV=development` and `DEV_LOGIN` isn't `false`. It's outside the spec, hidden from Swagger, and deliberately not in the conformance test's controller list.
 
 ## Architecture
 
