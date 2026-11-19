@@ -25,3 +25,8 @@ coverage/
 
 # Postman environment with generated tokens (npm run dev:token -- --postman)
 postman/*-local.postman_environment.json
+
+# Frontend Vite mode files hold no secrets (local overrides go in .env.*.local)
+!frontend/.env.development
+!frontend/.env.mock
+!frontend/.env.demo
