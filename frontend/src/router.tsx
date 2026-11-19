@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createBrowserRouter, type RouteObject } from 'react-router';
+import { createBrowserRouter } from 'react-router';
 import { HomeRedirect, RequireAdmin, RequireMember } from '@/auth/guards';
 import AvailabilityScreen from '@/features/user/booking/AvailabilityScreen';
 import BookingConfirmScreen from '@/features/user/booking/BookingConfirmScreen';
@@ -7,6 +7,7 @@ import type { SelectedSlotSummary } from '@/features/user/booking/mapAvailabilit
 import type { ActiveReservation } from '@/features/user/components/QrTicketCard';
 import StartScreen, { DEFAULT_UPCOMING_RESERVATION } from '@/features/user/home/StartScreen';
 import { AdminLayout } from './app/layout/AdminLayout';
+import { adminPages } from './features/admin/routes';
 import { FullPageSpinner, NotFoundPage, RouteErrorPage } from './app/RouteFallbacks';
 
 function StudentFlowPage() {
@@ -58,22 +59,6 @@ function StudentFlowPage() {
     />
   );
 }
-
-const adminPages: RouteObject[] = [
-  { index: true, lazy: async () => ({ Component: (await import('@/features/admin/dashboard/DashboardPage')).default }) },
-  { path: 'resources', lazy: async () => ({ Component: (await import('@/features/admin/resources/ResourcesPage')).default }) },
-  { path: 'blocks', lazy: async () => ({ Component: (await import('@/features/admin/blocks/BlocksPage')).default }) },
-  { path: 'schedule', lazy: async () => ({ Component: (await import('@/features/admin/schedule/SchedulePage')).default }) },
-  { path: 'events', lazy: async () => ({ Component: (await import('@/features/admin/events/EventsPage')).default }) },
-  { path: 'rules', lazy: async () => ({ Component: (await import('@/features/admin/rules/RulesPage')).default }) },
-  { path: 'audit', lazy: async () => ({ Component: (await import('@/features/admin/audit/AuditPage')).default }) },
-  { path: 'announcements', lazy: async () => ({ Component: (await import('@/features/admin/announcements/AnnouncementsPage')).default }) },
-  { path: 'reports', lazy: async () => ({ Component: (await import('@/features/admin/reports/ReportsPage')).default }) },
-  { path: 'sports', lazy: async () => ({ Component: (await import('@/features/admin/sports/SportsPage')).default }) },
-  { path: 'users', lazy: async () => ({ Component: (await import('@/features/admin/users/UsersPage')).default }) },
-  { path: 'checkin', lazy: async () => ({ Component: (await import('@/features/admin/checkin/CheckInPage')).default }) },
-  { path: 'account', lazy: async () => ({ Component: (await import('@/features/admin/account/AccountPage')).default }) },
-];
 
 export const router = createBrowserRouter([
   { path: '/', element: <HomeRedirect />, errorElement: <RouteErrorPage /> },
