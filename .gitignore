@@ -37,3 +37,7 @@ tasks.md
 
 # Ansible: generated secrets per host
 ansible/secrets/
+
+# Ansible: local inventory and installed collections
+ansible/inventory/hosts.yml
+ansible/collections/

@@ -1,0 +1,11 @@
+# Deploy or update the application only (server already prepared by site.yml):
+#   ansible-playbook deploy.yml                                   # pull campussport_repo_version, rebuild, restart
+#   ansible-playbook deploy.yml -e campussport_repo_version=v1.2  # a specific tag/branch/commit
+#   ansible-playbook deploy.yml --tags totp -e '{"campussport_totp_admins": ["admin@example.edu"]}'
+- name: Deploy CampusSport
+  hosts: all
+  become: true
+  roles:
+    - campussport
+    - role: backups
+      when: backups_enabled | bool

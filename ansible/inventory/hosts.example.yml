@@ -1,0 +1,19 @@
+# Copy to inventory/hosts.yml (git-ignored) and fill in your VPS.
+all:
+  hosts:
+    campussport-vps:
+      ansible_host: 203.0.113.10          # VPS public IP
+      ansible_user: root                   # or a sudo user (then: ansible_become: true)
+      # ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+
+      campussport_domain: campussport.example.com       # DNS A record → ansible_host
+      campussport_auth_domain: auth.campussport.example.com   # DNS A record → ansible_host (Keycloak)
+      campussport_acme_email: you@example.com           # Let's Encrypt account e-mail
+
+      # demo = seeded example data + Development sign-in + Keycloak test users
+      # production = NODE_ENV=production, SSO only (create users in Keycloak or point OIDC at your IdP)
+      campussport_mode: demo
+
+      # Private repository: a read-only GitHub deploy key on this machine, and the SSH clone URL.
+      # campussport_repo_url: git@github.com:MaketaCampusSport/CampusSport.git
+      # campussport_deploy_key_file: ~/.ssh/campussport_deploy

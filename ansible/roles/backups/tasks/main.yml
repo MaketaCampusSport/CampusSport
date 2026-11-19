@@ -1,0 +1,19 @@
+- name: Create the backup directory
+  ansible.builtin.file:
+    path: "{{ backups_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Install the backup script
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: /usr/local/bin/campussport-backup
+    mode: "0750"
+
+- name: Back up the databases every night
+  ansible.builtin.cron:
+    name: campussport database backup
+    user: root
+    hour: "{{ backups_cron_hour }}"
+    minute: "{{ backups_cron_minute }}"
+    job: /usr/local/bin/campussport-backup >> /var/log/campussport-backup.log 2>&1
