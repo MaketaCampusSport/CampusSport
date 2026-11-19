@@ -1,5 +1,7 @@
 import { AppException } from '../../common/errors/app.exception';
+import { EXAMPLE_RESOURCES } from '../../database/seeds/example-data';
 import { createTestApp, TEST_USERS, TestApp } from '../../testing/test-app';
+import { AnnouncementsService } from './announcements.service';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 
@@ -23,11 +25,15 @@ describe('NotificationsController', () => {
     getPreferences: jest.fn(),
     updatePreferences: jest.fn(),
   };
+  const announcements = { create: jest.fn() };
 
   beforeAll(async () => {
     t = await createTestApp({
       controllers: [NotificationsController],
-      providers: [{ provide: NotificationsService, useValue: notifications }],
+      providers: [
+        { provide: NotificationsService, useValue: notifications },
+        { provide: AnnouncementsService, useValue: announcements },
+      ],
     });
   });
   afterAll(() => t.close());
@@ -119,20 +125,56 @@ describe('NotificationsController', () => {
   });
 
   describe('POST /admin/announcements', () => {
-    it('501 for admins (stub), 403 for others', async () => {
-      const body = { message_ro: 'Vestiarele sunt închise astăzi până la ora 12:00.' };
+    /** `AnnouncementCreate` example. */
+    const BODY = {
+      resource_id: EXAMPLE_RESOURCES.sportsHall.id,
+      start: '2026-11-12T08:00:00+02:00',
+      end: '2026-11-12T12:00:00+02:00',
+      message_ro: 'Vestiarele sunt închise astăzi până la ora 12:00.',
+      message_en: 'The changing rooms are closed today until 12:00.',
+    };
+
+    it('202 with the number of recipients', async () => {
+      announcements.create.mockResolvedValue({ recipients_count: 23 });
       await t
         .http()
         .post('/api/v1/admin/announcements')
         .set('Authorization', await t.bearer('admin'))
-        .send(body)
-        .expect(501);
+        .send(BODY)
+        .expect(202, { recipients_count: 23 });
+      expect(announcements.create).toHaveBeenCalledWith(TEST_USERS.admin, BODY);
+    });
+
+    it('422 when the service rejects the target (no resource and no interval)', async () => {
+      announcements.create.mockRejectedValue(new AppException('VALIDATION_FAILED'));
+      const res = await t
+        .http()
+        .post('/api/v1/admin/announcements')
+        .set('Authorization', await t.bearer('admin'))
+        .send({ message_ro: BODY.message_ro })
+        .expect(422);
+      expect(res.body.code).toBe('VALIDATION_FAILED');
+    });
+
+    it('422 for a missing message or malformed fields', async () => {
+      const auth = await t.bearer('admin');
+      const post = (body: object) =>
+        t.http().post('/api/v1/admin/announcements').set('Authorization', auth).send(body).expect(422);
+      await post({ resource_id: BODY.resource_id });
+      await post({ ...BODY, message_ro: '  ' });
+      await post({ ...BODY, resource_id: 'sala' });
+      await post({ ...BODY, start: 'mâine' });
+      expect(announcements.create).not.toHaveBeenCalled();
+    });
+
+    it('403 for students, 401 anonymously', async () => {
       await t
         .http()
         .post('/api/v1/admin/announcements')
         .set('Authorization', await t.bearer('student'))
-        .send(body)
+        .send(BODY)
         .expect(403);
+      await t.http().post('/api/v1/admin/announcements').send(BODY).expect(401);
     });
   });
 });

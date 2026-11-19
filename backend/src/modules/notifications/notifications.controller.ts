@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put } from '@nestjs/common';
 import {
+  ApiAcceptedResponse,
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiNoContentResponse,
@@ -9,10 +10,12 @@ import {
 } from '@nestjs/swagger';
 import type { AuthUser } from '../../common/auth/auth.types';
 import { CurrentUser, Roles } from '../../common/auth/decorators';
-import { notImplemented } from '../../common/errors/app.exception';
 import { UuidParamPipe } from '../../common/http/uuid.pipe';
 import type { NotificationPreferencesValue } from '../../database/entities';
+import { AnnouncementsService } from './announcements.service';
 import {
+  AnnouncementCreateDto,
+  AnnouncementResultResponse,
   NotificationPreferencesDto,
   PushSubscriptionInputDto,
   PushSubscriptionResponse,
@@ -23,7 +26,10 @@ import { NotificationsService } from './notifications.service';
 @ApiBearerAuth('bearerAuth')
 @Controller()
 export class NotificationsController {
-  constructor(private readonly notifications: NotificationsService) {}
+  constructor(
+    private readonly notifications: NotificationsService,
+    private readonly announcements: AnnouncementsService,
+  ) {}
 
   @Post('me/push-subscriptions')
   @ApiOperation({
@@ -65,11 +71,16 @@ export class NotificationsController {
 
   @Roles('admin')
   @Post('admin/announcements')
+  @HttpCode(202)
   @ApiOperation({
     operationId: 'createAnnouncement',
-    summary: 'Anunț către utilizatori — neimplementat (501)',
+    summary: 'Anunț către utilizatorii unei resurse sau ai unui interval',
   })
-  announce(): never {
-    notImplemented();
+  @ApiAcceptedResponse({ type: AnnouncementResultResponse, description: 'Anunț pus în coadă.' })
+  announce(
+    @CurrentUser() actor: AuthUser,
+    @Body() dto: AnnouncementCreateDto,
+  ): Promise<AnnouncementResultResponse> {
+    return this.announcements.create(actor, dto);
   }
 }

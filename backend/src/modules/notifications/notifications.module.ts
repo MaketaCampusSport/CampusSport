@@ -1,13 +1,14 @@
 import { Module } from '@nestjs/common';
+import { AnnouncementsService } from './announcements.service';
 import { NotificationDeliveryService } from './notification-delivery.service';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { PushService } from './push.service';
 
-/** API: devices and preferences. */
+/** API: devices, preferences and announcements. */
 @Module({
   controllers: [NotificationsController],
-  providers: [NotificationsService],
+  providers: [NotificationsService, AnnouncementsService],
 })
 export class NotificationsModule {}
 
