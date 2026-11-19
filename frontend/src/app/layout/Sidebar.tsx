@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  CalendarCheck,
   CalendarDays,
   LayoutGrid,
   Landmark,
@@ -29,9 +30,10 @@ interface NavItem {
   end?: boolean;
 }
 
-/** Ordinea din machetă: Panoul zilei, Resurse, Orar EF, Evenimente, Blocări, Anunțuri, Rapoarte, Reguli, Jurnal audit. */
+/** Ordinea din machetă: Panoul zilei, Rezervări, Resurse, Orar EF, Evenimente, Blocări, Anunțuri, Rapoarte, Reguli, Jurnal audit. */
 const NAV: NavItem[] = [
   { to: '/admin', labelKey: 'nav.dashboard', icon: LayoutGrid, end: true },
+  { to: '/admin/bookings', labelKey: 'nav.bookings', icon: CalendarCheck },
   { to: '/admin/resources', labelKey: 'nav.resources', icon: Landmark },
   { to: '/admin/sports', labelKey: 'nav.sports', icon: Trophy },
   { to: '/admin/schedule', labelKey: 'nav.schedule', icon: CalendarDays },

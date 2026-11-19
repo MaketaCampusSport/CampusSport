@@ -3,6 +3,8 @@ import { render, screen } from '@testing-library/react';
 import axe from 'axe-core';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import '@/i18n';
+import AdminBookingsPage from '@/features/admin/bookings/AdminBookingsPage';
+import BlocksPage from '@/features/admin/blocks/BlocksPage';
 import SportsPage from '@/features/admin/sports/SportsPage';
 import UsersPage from '@/features/admin/users/UsersPage';
 import { resetDb } from '@/mocks/db';
@@ -35,6 +37,21 @@ describe('Accesibilitate (NFR-07) – structură', () => {
   it('pagina Utilizatori nu are încălcări axe', async () => {
     const { container } = wrap(<UsersPage />);
     await screen.findByText('Andrei Popescu');
+    const results = await axe.run(container, OPTIONS);
+    expect(results.violations).toEqual([]);
+  });
+
+  it('pagina Rezervări (admin) nu are încălcări axe', async () => {
+    const { container } = wrap(<AdminBookingsPage />);
+    await screen.findByRole('heading', { name: 'Rezervări' });
+    await screen.findByRole('table').catch(() => screen.findByText('Nicio rezervare'));
+    const results = await axe.run(container, OPTIONS);
+    expect(results.violations).toEqual([]);
+  });
+
+  it('pagina Blocări nu are încălcări axe', async () => {
+    const { container } = wrap(<BlocksPage />);
+    await screen.findByRole('table');
     const results = await axe.run(container, OPTIONS);
     expect(results.violations).toEqual([]);
   });

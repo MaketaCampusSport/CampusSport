@@ -4,6 +4,7 @@ import type { RouteObject } from 'react-router';
 export const adminPages: RouteObject[] = [
   { index: true, lazy: async () => ({ Component: (await import('@/features/admin/dashboard/DashboardPage')).default }) },
   { path: 'resources', lazy: async () => ({ Component: (await import('@/features/admin/resources/ResourcesPage')).default }) },
+  { path: 'bookings', lazy: async () => ({ Component: (await import('@/features/admin/bookings/AdminBookingsPage')).default }) },
   { path: 'blocks', lazy: async () => ({ Component: (await import('@/features/admin/blocks/BlocksPage')).default }) },
   { path: 'schedule', lazy: async () => ({ Component: (await import('@/features/admin/schedule/SchedulePage')).default }) },
   { path: 'events', lazy: async () => ({ Component: (await import('@/features/admin/events/EventsPage')).default }) },
