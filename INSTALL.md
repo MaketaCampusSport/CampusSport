@@ -67,7 +67,7 @@ npm run db:setup
 This command:
 
 - creates the database if it doesn't exist;
-- applies the schema from `livrabil05/baza-de-date/schema-postgresql.sql`;
+- applies the schema from `assets/livrabil05/baza-de-date/schema-postgresql.sql`;
 - loads the example data from the API specification: 4 sports, 5 resources and 4 users.
 
 | Example user | Role |
@@ -144,7 +144,7 @@ These need Redis.
 ```bash
 cd backend
 npm test             # unit and controller tests
-npm run spec:check   # the API matches livrabil05/openapi.json
+npm run spec:check   # the API matches assets/livrabil05/openapi.json
 npm run test:e2e     # the whole app against PostgreSQL, using the database <DB_NAME>_test
 npm run lint && npm run typecheck
 ```

@@ -7,13 +7,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 CampusSport is the booking system for a university sports facility. The docs are in Romanian, and the code identifiers are in English.
 
 - `MA-Software Requirements Specifications …pdf` (SRS) and `MA-Software Design Descriptions …pdf` (SDD) hold the requirements (FR-xx, NFR-xx, BR-xx) and the design. Code comments cite them as `SDD 7.1`, `FR-12` and so on.
-- `livrabil05/` is the source of truth for the server contract:
+- `assets/livrabil05/` is the source of truth for the server contract:
   - `openapi.yaml` describes 60 operations under `/api/v1`, with `x-min-role` (the minimum role) and `x-srs` (the requirements covered). `openapi.json` is the same spec in JSON, and the conformance test reads it.
   - `baza-de-date/schema-postgresql.sql` is the real DB schema. `datamodeler-import.ddl` is only an Oracle-dialect copy for drawing the ERD.
   - `Tehnologii-backend.md` is the agreed stack and versions. `README.md` lists the open design decisions.
 - `backend/` is the NestJS implementation (API and worker). `backend/README.md` has setup, commands and the list of stubbed routes.
 
-When the API or the schema changes, change `livrabil05/` deliberately; the backend follows it. Two tests enforce this:
+When the API or the schema changes, change `assets/livrabil05/` deliberately; the backend follows it. Two tests enforce this:
 
 - `src/spec-conformance.spec.ts` compares the controllers' operationId, method, path and guard with `openapi.json` and `x-min-role`.
 - `src/database/schema-sync.spec.ts` keeps `backend/src/database/sql/0001_initial_schema.sql` byte-identical to the livrabil05 SQL. If you change one, copy it to the other.

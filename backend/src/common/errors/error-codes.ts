@@ -1,7 +1,7 @@
 import { HttpStatus } from '@nestjs/common';
 
 /**
- * Stable error codes from `ErrorCode` in livrabil05/openapi.yaml, plus two codes the spec does not list:
+ * Stable error codes from `ErrorCode` in assets/livrabil05/openapi.yaml, plus two codes the spec does not list:
  * NOT_IMPLEMENTED (temporary, for stubbed routes) and INTERNAL_ERROR (unexpected failures).
  */
 export const ERROR_CODES = [

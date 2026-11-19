@@ -14,7 +14,7 @@ Every image comes as **SVG** (sharp at any zoom, best for Markdown and the web) 
 | [`08-deployment`](08-deployment.svg) | The `docker-compose.yml` services, profiles (`app`, `monitoring`) and ports. |
 | [`09-database-example-rows.png`](09-database-example-rows.png) | Example rows of `users`, `sports`, `resources`, `occupancy`, `monthly_quota`, `waitlist`, `settings`, `audit_log`, using the seed data and the same day as image 05. |
 
-The livrabil05 ER diagrams exported from Oracle SQL Developer Data Modeler are in [`../livrabil05/baza-de-date/`](../livrabil05/baza-de-date/) (`Logical.png`, `Relational_1.png`).
+The livrabil05 ER diagrams exported from Oracle SQL Developer Data Modeler are in [`livrabil05/baza-de-date/`](livrabil05/baza-de-date/) (`Logical.png`, `Relational_1.png`).
 
 ## Regenerating
 

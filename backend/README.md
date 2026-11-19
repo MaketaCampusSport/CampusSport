@@ -1,6 +1,6 @@
 # CampusSport backend
 
-The NestJS server for CampusSport. It implements the API contract in [`../livrabil05/openapi.yaml`](../livrabil05/openapi.yaml) on the schema in [`../livrabil05/baza-de-date/schema-postgresql.sql`](../livrabil05/baza-de-date/schema-postgresql.sql), using the stack from [`../livrabil05/Tehnologii-backend.md`](../livrabil05/Tehnologii-backend.md).
+The NestJS server for CampusSport. It implements the API contract in [`../assets/livrabil05/openapi.yaml`](../assets/livrabil05/openapi.yaml) on the schema in [`../assets/livrabil05/baza-de-date/schema-postgresql.sql`](../assets/livrabil05/baza-de-date/schema-postgresql.sql), using the stack from [`../assets/livrabil05/Tehnologii-backend.md`](../assets/livrabil05/Tehnologii-backend.md).
 
 One codebase runs as two processes:
 
@@ -34,7 +34,7 @@ The seed adds the sports, resources and users from the spec's examples. Ion Pope
 
 | Command | What it does |
 |---|---|
-| `npm test` | Unit and controller tests, including the conformance check against `livrabil05/openapi.json` |
+| `npm test` | Unit and controller tests, including the conformance check against `assets/livrabil05/openapi.json` |
 | `npm test -- <path or pattern>` | Runs one file, or use `-t "<name>"` for one test |
 | `npm run test:cov` | Coverage (CI requires ≥ 70% lines, NFR-13) |
 | `npm run test:e2e` | Whole app against a real PostgreSQL (see below) |

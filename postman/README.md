@@ -2,7 +2,7 @@
 
 | File | What it is |
 |---|---|
-| `CampusSport.postman_collection.json` | All 60 operations of `livrabil05/openapi.yaml`, in 9 folders (one per API tag). |
+| `CampusSport.postman_collection.json` | All 60 operations of `assets/livrabil05/openapi.yaml`, in 9 folders (one per API tag). |
 | `CampusSport.postman_environment.json` | Environment template: `baseUrl` and empty tokens. |
 | `CampusSport-local.postman_environment.json` | Created by `npm run dev:token -- --postman`, with real tokens. Ignored by Git. |
 | `generate-collection.mjs` | Rebuilds the collection from the spec: `node postman/generate-collection.mjs`. |

@@ -136,7 +136,7 @@ Joburile periodice sunt înregistrate la pornirea worker-ului (`SchedulerService
 
 ## 6. Datele
 
-- **Schema** vine exclusiv din `livrabil05/baza-de-date/schema-postgresql.sql`. Migrarea o aplică neschimbată, TypeORM rulează cu `synchronize: false`, iar un test verifică faptul că, în `backend/src/database/sql/`, copia este identică.
+- **Schema** vine exclusiv din `assets/livrabil05/baza-de-date/schema-postgresql.sql`. Migrarea o aplică neschimbată, TypeORM rulează cu `synchronize: false`, iar un test verifică faptul că, în `backend/src/database/sql/`, copia este identică.
 - **Entitățile** (`database/entities/`) au proprietăți în camelCase și coloane în snake_case, de exemplu `fullName` ↔ `full_name`.
 - **`occupancy`** este tabelul central: rezervările și toate tipurile de blocări stau împreună, sub aceeași constrângere `no_overlap`. Coloana `period` (`tstzrange`) apare în API ca `start` / `end`.
 - **Starea temporară** (coduri OTP, sesiuni de reîmprospătare, starea SSO, provocările 2FA) stă în Redis, cu durată de viață, nu în tabele.

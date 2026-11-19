@@ -1,5 +1,5 @@
 /**
- * Short-lived state kept in Redis (livrabil05/baza-de-date/README.md: OTP codes, refresh tokens and
+ * Short-lived state kept in Redis (assets/livrabil05/baza-de-date/README.md: OTP codes, refresh tokens and
  * import previews have no tables). Abstracted so services are unit-testable without Redis.
  */
 export interface KvStore {
