@@ -1,0 +1,15 @@
+# Dependențe
+/node_modules
+
+# Fișiere de mediu și secrete
+.env
+.env.local
+.env.*.local
+
+# Fișiere de sistem și editor
+.DS_Store
+Thumbs.db
+.vscode/
+# Build
+/dist
+*.tsbuildinfo

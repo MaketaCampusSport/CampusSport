@@ -1,0 +1,752 @@
+{
+  "common": {
+    "back": "Înapoi",
+    "cancelAction": "Renunță",
+    "close": "Închide",
+    "edit": "Editează",
+    "loading": "Se încarcă…",
+    "retry": "Încearcă din nou",
+    "save": "Salvează"
+  },
+  "errors": {
+    "generic": "Ceva nu a mers. Încearcă din nou.",
+    "loadTitle": "Nu am putut încărca datele",
+    "loadBody": "Verifică conexiunea și încearcă din nou.",
+    "network": "Nu se poate contacta serverul.",
+    "notFoundTitle": "Pagina nu există",
+    "notFoundBody": "Adresa nu duce nicăieri în CampusSport.",
+    "backToDashboard": "Înapoi la panou"
+  },
+  "nav": {
+    "adminLabel": "Administrare",
+    "label": "Navigare principală",
+    "skip": "Sari la conținut",
+    "dashboard": "Panou",
+    "resources": "Resurse",
+    "schedule": "Orar EF",
+    "events": "Evenimente",
+    "blocks": "Blocări",
+    "announcements": "Anunțuri",
+    "reports": "Rapoarte",
+    "rules": "Reguli",
+    "audit": "Jurnal audit",
+    "sports": "Sporturi",
+    "users": "Utilizatori",
+    "checkin": "Check-in",
+    "account": "Contul meu"
+  },
+  "menu": {
+    "open": "Meniul contului",
+    "role": "Administrator",
+    "language": "Limbă",
+    "theme": "Aspect",
+    "themeSystem": "Sistem",
+    "themeLight": "Luminos",
+    "themeDark": "Întunecat",
+    "logout": "Deconectare"
+  },
+  "user": {
+    "placeholderTitle": "Aplicația pentru utilizatori",
+    "placeholderBody": "Aplicația mobilă (PWA) pentru studenți și profesori se adaugă în src/features/user. Momentan este disponibil panoul de administrare.",
+    "openAdmin": "Deschide panoul de administrare",
+    "nav": {
+      "label": "Navigare principală",
+      "home": "Acasă",
+      "search": "Caută",
+      "bookings": "Rezervări",
+      "profile": "Profil"
+    },
+    "home": {
+      "greeting": "Salut, {{name}}",
+      "subtitle": "CE SPORT JOCI AZI?",
+      "myProfile": "Profilul meu",
+      "quotaAria": "Intrări rămase în luna curentă",
+      "remainingOfTotal": "din {{total}} intrări rămase",
+      "remainingProgressAria": "{{remaining}} din {{total}} intrări rămase",
+      "chooseSport": "Alege sportul"
+    },
+    "availability": {
+      "stepTitle": "01/03 TEREN + ORĂ",
+      "backAria": "Înapoi la alegerea sportului",
+      "selectDayAria": "Alege ziua",
+      "chooseCourtAndTime": "Alege terenul și ora",
+      "courtCount_one": "{{count}} teren",
+      "courtCount_few": "{{count}} terenuri",
+      "courtCount_other": "{{count}} de terenuri",
+      "emptyTitle": "Niciun teren disponibil",
+      "emptyBody": "Nu există resurse active pentru {{sport}} în această zi.",
+      "showMore": "Mai multe ore",
+      "showLess": "Restrânge",
+      "slotsAria": "Sloturi orare pentru {{name}}",
+      "slot": {
+        "selected": "Selectat ✓",
+        "free": "Liber",
+        "myBooking": "Rezervarea mea",
+        "peClass": "Curs EF",
+        "occupied": "Ocupat"
+      },
+      "selectHint": "Selectează o oră liberă pentru a continua",
+      "continue": "Continuă"
+    },
+    "confirm": {
+      "stepConfirm": "02/03 CONFIRMĂ",
+      "title": "Confirmă",
+      "subtitle": "Verifică detaliile rezervării",
+      "backToSlotsAria": "Înapoi la alegerea orei",
+      "detailsAria": "Detalii rezervare",
+      "dateLabel": "Data",
+      "timeLabel": "Ora",
+      "participantsLabel": "Participanți",
+      "participantsHint": "Opțional până la {{max}}",
+      "decreaseParticipantsAria": "Scade numărul de participanți",
+      "increaseParticipantsAria": "Crește numărul de participanți",
+      "policiesAria": "Cotă și reguli",
+      "quotaUsage": "Folosești 1 intrare din cotă",
+      "quotaRemaining": "{{remaining}} din {{total}} rămân",
+      "freeCancelRule": "Anulare gratuită până la 2 h înainte",
+      "checkInRule": "Check-in cu QR între -10 și +15 min ({{window}})",
+      "submit": "Confirmă rezervarea",
+      "submitting": "Se confirmă…",
+      "back": "Înapoi",
+      "errors": {
+        "slotTakenTitle": "Acest interval tocmai a fost ocupat",
+        "slotTakenBody": "Poți intra pe lista de așteptare și te anunțăm imediat dacă se eliberează.",
+        "joinWaitlist": "Intră pe lista de așteptare",
+        "joiningWaitlist": "Se înscrie…",
+        "waitlistJoinedTitle": "Ești pe lista de așteptare",
+        "waitlistJoinedBody": "Vei primi o notificare dacă locul devine disponibil.",
+        "quotaExhaustedTitle": "Cota lunară a fost epuizată",
+        "quotaExhaustedBody": "Ai folosit toate intrările gratuite din această lună."
+      },
+      "success": {
+        "badge": "03/03 REZERVARE CONFIRMATĂ",
+        "headline": "GATA!",
+        "subtitlePrefix": "Te așteptăm",
+        "subtitleAt": "la",
+        "subtitleOn": "pe",
+        "courtCol": "TEREN",
+        "dateCol": "DATA",
+        "timeCol": "ORA",
+        "checkInNote": "Arată codul la intrare · Check-in permis între",
+        "addToCalendar": "Adaugă în calendar",
+        "addedToCalendar": "Adăugat în calendar (.ics)",
+        "done": "Gata",
+        "qrAria": "Cod QR rezervare {{code}}"
+      }
+    }
+  },
+  "login": {
+    "step1": "Pasul 1 din 2",
+    "step2": "Pasul 2 din 2",
+    "title": "Panou de administrare",
+    "codeTitle": "Cod de verificare",
+    "body": "Autentifică-te cu contul universității.",
+    "codeBody": "Bună, {{name}}. Introdu codul din aplicația de autentificare.",
+    "sso": "Autentificare cu SSO universitar",
+    "ssoNote": "Administratorii folosesc și un al doilea factor (TOTP).",
+    "codeLabel": "Cod din 6 cifre",
+    "codeHint": "Codul se schimbă la 30 de secunde.",
+    "codeInvalid": "Cod incorect. Încearcă din nou.",
+    "verify": "Verifică și intră",
+    "otherAccount": "Folosește alt cont",
+    "expiredTitle": "Sesiunea a expirat",
+    "expiredBody": "Sesiunile de administrare durează 8 ore. Autentifică-te din nou.",
+    "demoHint": "Mod demo: orice cont este acceptat, codul este 123456."
+  },
+  "channels": {
+    "push": "Notificare push",
+    "email": "E-mail",
+    "sms": "SMS"
+  },
+  "equipment": {
+    "panouri": "Panouri",
+    "fileu": "Fileu",
+    "mingi": "Mingi",
+    "rachete": "Rachete",
+    "vestiar": "Vestiar",
+    "tribuna": "Tribună",
+    "porti": "Porți"
+  },
+  "weekdays": {
+    "long": {
+      "1": "Luni",
+      "2": "Marți",
+      "3": "Miercuri",
+      "4": "Joi",
+      "5": "Vineri",
+      "6": "Sâmbătă",
+      "7": "Duminică"
+    },
+    "short": {
+      "1": "Lu",
+      "2": "Ma",
+      "3": "Mi",
+      "4": "Jo",
+      "5": "Vi",
+      "6": "Sâ",
+      "7": "Du"
+    }
+  },
+  "dashboard": {
+    "title": "Panou",
+    "prevDay": "Ziua anterioară",
+    "nextDay": "Ziua următoare",
+    "today": "Azi",
+    "export": "Exportă",
+    "kpi": {
+      "bookings": "Rezervări",
+      "checkIns": "Check-in-uri",
+      "noShows": "Neprezentări",
+      "occupancy": "Ocupare"
+    },
+    "legend": "Legendă",
+    "gridLabel": "Ocuparea resurselor pe ore",
+    "resource": "Resursă",
+    "state": {
+      "free": "Liber",
+      "booked": "Rezervat",
+      "pe_class": "Curs EF",
+      "event": "Eveniment",
+      "blocked": "Blocat",
+      "closed": "Închis"
+    },
+    "blockedKind": {
+      "emergency": "urgență",
+      "maintenance": "mentenanță",
+      "cleaning": "curățenie"
+    },
+    "blockedLabel": "Blocat ({{kind}})",
+    "block": "Blochează",
+    "blockNow": "Blochează {{name}} de urgență",
+    "emergency": {
+      "title": "{{name}} este blocată de urgență ({{count}} rezervări anulate)",
+      "loading": "Se pregătește raportul de trimitere…",
+      "progress": "Anunțați {{delivered}} din {{total}} utilizatori…",
+      "done": "Toți utilizatorii au fost anunțați în {{seconds}} s (push {{push}}, e-mail {{email}}, SMS {{sms}})."
+    }
+  },
+  "resources": {
+    "title": "Resurse",
+    "subtitle": "{{active}} active, {{inactive}} inactive",
+    "new": "Resursă nouă",
+    "newTitle": "Resursă nouă",
+    "editTitle": "Editează: {{name}}",
+    "emptyTitle": "Nu există resurse",
+    "emptyBody": "Adaugă prima resursă sportivă.",
+    "col": {
+      "resource": "Resursă",
+      "sports": "Sporturi",
+      "capacity": "Cap.",
+      "external": "Externi",
+      "status": "Stare"
+    },
+    "status": {
+      "active": "Activă",
+      "inactive": "Inactivă",
+      "blocked": "Blocată"
+    },
+    "fields": {
+      "name": "Denumire",
+      "capacity": "Capacitate",
+      "sports": "Sporturi permise",
+      "equipment": "Dotări",
+      "hours": "Program",
+      "opensAt": "Deschidere",
+      "closesAt": "Închidere",
+      "slot": "Durata intervalului",
+      "external": "Acces extern"
+    },
+    "external": {
+      "never": "Fără acces extern",
+      "window": "Doar în fereastra orară",
+      "leftover": "Locurile rămase libere"
+    },
+    "externalShort": {
+      "never": "Fără",
+      "window": "Fereastră",
+      "leftover": "Locuri libere"
+    },
+    "errors": {
+      "nameRequired": "Introdu o denumire.",
+      "capacityInvalid": "Capacitatea trebuie să fie un număr întreg între 1 și 1000.",
+      "sportRequired": "Alege cel puțin un sport.",
+      "hoursInvalid": "Ora de închidere trebuie să fie după deschidere.",
+      "slotTooLong": "Intervalul este mai lung decât programul.",
+      "windowDays": "Alege cel puțin o zi pentru fereastra externă.",
+      "windowHours": "Finalul ferestrei trebuie să fie după început.",
+      "needsEquipment": "{{sport}} necesită: {{equipment}}."
+    },
+    "deactivate": "Dezactivează",
+    "activate": "Reactivează",
+    "create": "Creează resursa",
+    "blockNow": "Blochează de urgență",
+    "confirm": {
+      "title": "Dezactivezi resursa?",
+      "body": "Resursa nu va mai apărea în aplicația utilizatorilor. Rezervările viitoare rămân neschimbate.",
+      "people_one": "{{count}} persoană",
+      "people_few": "{{count}} persoane",
+      "people_other": "{{count}} de persoane",
+      "willBecome": "va deveni inactivă"
+    },
+    "toast": {
+      "saved": "{{name}} a fost salvată",
+      "created": "{{name}} a fost creată",
+      "activated": "{{name}} este din nou activă",
+      "deactivated": "{{name}} a fost dezactivată"
+    }
+  },
+  "blocks": {
+    "title": "Blocări",
+    "subtitle": "Blocări de urgență și planificate pentru resursele sportive.",
+    "new": "Blocare planificată",
+    "tabs": {
+      "active": "Active",
+      "planned": "Planificate",
+      "history": "Istoric"
+    },
+    "empty": {
+      "active": "Nicio blocare activă",
+      "planned": "Nicio blocare planificată",
+      "history": "Istoricul este gol",
+      "body": "Blocările apar aici imediat ce sunt create."
+    },
+    "col": {
+      "resource": "Resursă",
+      "kind": "Tip",
+      "interval": "Interval",
+      "affected": "Anulate",
+      "actions": "Acțiuni"
+    },
+    "kinds": {
+      "emergency": "Urgență",
+      "maintenance": "Mentenanță",
+      "cleaning": "Curățenie"
+    },
+    "recurrence": {
+      "none": "Nu se repetă",
+      "daily": "Zilnic",
+      "weekly": "Săptămânal"
+    },
+    "reasons": {
+      "burst": "Țeavă spartă",
+      "board": "Panou deteriorat",
+      "power": "Pană de curent",
+      "cleaning": "Curățenie urgentă",
+      "weather": "Vreme severă",
+      "other": "Alt motiv…"
+    },
+    "fields": {
+      "resource": "Resursă",
+      "kind": "Tip",
+      "reason": "Motiv",
+      "reasonPlaceholder": "Descrie motivul",
+      "interval": "Interval",
+      "startsAt": "Început",
+      "endsAt": "Sfârșit",
+      "recurrence": "Repetare"
+    },
+    "errors": {
+      "endAfterStart": "Sfârșitul trebuie să fie după început.",
+      "reasonRequired": "Descrie motivul.",
+      "channelRequired": "Alege cel puțin un canal.",
+      "resourceRequired": "Alege o resursă."
+    },
+    "untilFurther": "până la noi ordine",
+    "viewReport": "Raport",
+    "release": "Deblochează",
+    "cancelPlanned": "Anulează",
+    "releaseConfirm": {
+      "title": "Deblochezi {{name}}?",
+      "body": "Resursa devine din nou rezervabilă imediat. Rezervările deja anulate nu se restabilesc."
+    },
+    "emergency": {
+      "title": "Blochează {{name}} de urgență",
+      "subtitle": "Rezervările din interval se anulează, iar utilizatorii sunt anunțați imediat.",
+      "confirm": "Blochează acum",
+      "untilFurther": "Până la noi ordine",
+      "fixed": "Interval fix",
+      "channels": "Anunță utilizatorii prin",
+      "smsNote": "SMS-ul se trimite doar pentru rezervările din următoarele 24 de ore.",
+      "willCancel_one": "Se anulează {{count}} rezervare",
+      "willCancel_few": "Se anulează {{count}} rezervări",
+      "willCancel_other": "Se anulează {{count}} de rezervări",
+      "refundNote": "Cota lunară a utilizatorilor se restituie automat."
+    },
+    "planned": {
+      "title": "Blocare planificată",
+      "editTitle": "Editează blocarea",
+      "subtitle": "Mentenanță sau curățenie, cu repetare opțională.",
+      "confirm": "Planifică blocarea",
+      "channels": "Anunță utilizatorii afectați prin",
+      "willCancel_one": "Va anula {{count}} rezervare existentă",
+      "willCancel_few": "Va anula {{count}} rezervări existente",
+      "willCancel_other": "Va anula {{count}} de rezervări existente"
+    },
+    "toast": {
+      "blocked": "{{name}} a fost blocată",
+      "cancelled_one": "{{count}} rezervare anulată",
+      "cancelled_few": "{{count}} rezervări anulate",
+      "cancelled_other": "{{count}} de rezervări anulate",
+      "released": "{{name}} a fost deblocată",
+      "planned": "Blocare planificată pentru {{name}}",
+      "updated": "Blocarea pentru {{name}} a fost actualizată"
+    },
+    "delivery": {
+      "eyebrow": "Raport de trimitere",
+      "since": "De la {{at}}",
+      "complete": "Trimis complet",
+      "sending": "Se trimit mesajele…",
+      "progress": "{{delivered}} din {{total}} anunțați",
+      "stats": {
+        "cancelled": "Rezervări anulate",
+        "quotasRefunded": "Cote restituite",
+        "push": "Push",
+        "email": "E-mail",
+        "sms": "SMS",
+        "duration": "Durată"
+      }
+    }
+  },
+  "schedule": {
+    "title": "Orar Educație Fizică",
+    "subtitle": "Orele de EF blochează automat sălile în intervalele lor.",
+    "steps": {
+      "upload": "Încarcă orarul",
+      "check": "Verifică conflictele",
+      "done": "Gata"
+    },
+    "modeFile": "Din fișier",
+    "modeManual": "Adaugă manual",
+    "drop": "Trage fișierul aici",
+    "dropHint": "Excel sau CSV, maximum 5 MB",
+    "choose": "Alege fișierul",
+    "errors": {
+      "type": "Format neacceptat. Folosește .xlsx, .xls sau .csv.",
+      "size": "Fișierul depășește 5 MB.",
+      "course": "Introdu denumirea cursului.",
+      "days": "Alege cel puțin o zi.",
+      "time": "Ora de sfârșit trebuie să fie după început.",
+      "range": "Data de final trebuie să fie după data de început."
+    },
+    "formatTitle": "Formatul fișierului",
+    "formatBody": "Un rând pe oră, cu aceste coloane, în această ordine:",
+    "columns": {
+      "resource": "Resursă",
+      "course": "Curs",
+      "day": "Ziua",
+      "from": "De la",
+      "to": "Până la"
+    },
+    "validFrom": "Valabil din",
+    "validTo": "Valabil până în",
+    "checkConflicts": "Verifică conflictele",
+    "summary": {
+      "recurringClasses": "Cursuri recurente",
+      "weeks": "Săptămâni acoperite",
+      "blocksGenerated": "Blocări generate"
+    },
+    "conflicts": {
+      "title_one": "{{count}} rezervare în conflict",
+      "title_few": "{{count}} rezervări în conflict",
+      "title_other": "{{count}} de rezervări în conflict",
+      "body": "Rezervările de mai jos se anulează la confirmare, iar utilizatorii sunt anunțați.",
+      "none": "Nu există conflicte cu rezervările existente.",
+      "col": {
+        "user": "Utilizator",
+        "resource": "Resursă",
+        "when": "Când",
+        "course": "Curs"
+      }
+    },
+    "userKind": {
+      "student": "student",
+      "teacher": "profesor",
+      "external": "extern"
+    },
+    "confirm": "Confirmă importul",
+    "confirmWithConflicts_one": "Confirmă și anulează {{count}} rezervare",
+    "confirmWithConflicts_few": "Confirmă și anulează {{count}} rezervări",
+    "confirmWithConflicts_other": "Confirmă și anulează {{count}} de rezervări",
+    "done": {
+      "title": "Orarul a fost importat",
+      "blocksCreated": "Blocări create",
+      "cancelledBookings": "Rezervări anulate",
+      "notifiedUsers": "Utilizatori anunțați",
+      "again": "Importă alt orar"
+    }
+  },
+  "events": {
+    "title": "Evenimente",
+    "subtitle": "Evenimentele universitare rezervă resursele și anulează rezervările în conflict.",
+    "new": "Eveniment nou",
+    "create": "Creează evenimentul",
+    "emptyTitle": "Niciun eveniment",
+    "emptyBody": "Creează primul eveniment universitar.",
+    "dialogSubtitle": "Alege resursele și intervalul; vezi în avans conflictele.",
+    "fields": {
+      "name": "Denumire",
+      "resources": "Resurse",
+      "date": "Data",
+      "from": "De la",
+      "to": "Până la",
+      "recurrence": "Repetare"
+    },
+    "recurrence": {
+      "none": "Nu se repetă",
+      "weekly": "Săptămânal",
+      "monthly": "Lunar"
+    },
+    "errors": {
+      "name": "Introdu denumirea.",
+      "resources": "Alege cel puțin o resursă.",
+      "date": "Alege data.",
+      "time": "Ora de sfârșit trebuie să fie după început."
+    },
+    "cancelled_one": "{{count}} rezervare anulată",
+    "cancelled_few": "{{count}} rezervări anulate",
+    "cancelled_other": "{{count}} de rezervări anulate",
+    "conflicts_one": "{{count}} rezervare în conflict",
+    "conflicts_few": "{{count}} rezervări în conflict",
+    "conflicts_other": "{{count}} de rezervări în conflict",
+    "conflictsBody": "Se vor anula la crearea evenimentului, iar utilizatorii sunt anunțați.",
+    "noConflicts": "Nu există conflicte.",
+    "toast": {
+      "created": "Evenimentul „{{name}}” a fost creat",
+      "cancelled_one": "{{count}} rezervare anulată",
+      "cancelled_few": "{{count}} rezervări anulate",
+      "cancelled_other": "{{count}} de rezervări anulate"
+    }
+  },
+  "announcements": {
+    "title": "Anunțuri",
+    "subtitle": "Trimite mesaje utilizatorilor, pe canalele alese.",
+    "category": {
+      "urgent": "Urgent",
+      "general": "General",
+      "maintenance": "Mentenanță"
+    },
+    "fields": {
+      "category": "Categorie",
+      "title": "Titlu",
+      "message": "Mesaj",
+      "audience": "Destinatari",
+      "resource": "Resursă",
+      "date": "Data",
+      "from": "De la",
+      "to": "Până la",
+      "allDay": "Toată ziua",
+      "channels": "Canale"
+    },
+    "audience": {
+      "all_with_bookings": "Toți cu rezervări active",
+      "resource": "Cei care au rezervat o resursă",
+      "interval": "Cei care au rezervat într-un interval",
+      "waitlist": "Cei de pe lista de așteptare"
+    },
+    "errors": {
+      "titleRequired": "Introdu un titlu.",
+      "messageRequired": "Scrie mesajul.",
+      "channelRequired": "Alege cel puțin un canal.",
+      "resourceRequired": "Alege o resursă.",
+      "dateRequired": "Alege data.",
+      "timeInvalid": "Intervalul orar nu este valid."
+    },
+    "reach_one": "Ajunge la {{count}} utilizator",
+    "reach_few": "Ajunge la {{count}} utilizatori",
+    "reach_other": "Ajunge la {{count}} de utilizatori",
+    "reachUnknown": "Completează formularul pentru a vedea câți utilizatori primesc mesajul.",
+    "send": "Trimite",
+    "history": "Anunțuri trimise",
+    "emptyTitle": "Niciun anunț trimis",
+    "recipients_one": "{{count}} destinatar",
+    "recipients_few": "{{count}} destinatari",
+    "recipients_other": "{{count}} de destinatari",
+    "toast": {
+      "sent": "Anunțul a fost trimis",
+      "recipients_one": "{{count}} destinatar",
+      "recipients_few": "{{count}} destinatari",
+      "recipients_other": "{{count}} de destinatari"
+    }
+  },
+  "reports": {
+    "title": "Rapoarte",
+    "subtitle": "Ocupare, rezervări și neprezentări pe lună.",
+    "prevMonth": "Luna anterioară",
+    "nextMonth": "Luna următoare",
+    "vsPrevious": "față de luna anterioară",
+    "kpi": {
+      "occupancy": "Ocupare medie",
+      "bookings": "Rezervări",
+      "noShow": "Rată de neprezentare",
+      "atLimit": "Studenți la limita de cotă"
+    },
+    "hourly": "Ocupare pe ore",
+    "hourlyAlt": "Grafic cu bare: ocuparea medie pe fiecare oră",
+    "hour": "Ora",
+    "perResource": "Ocupare pe resurse",
+    "members": "{{members}} membri activi, {{external}} utilizatori externi"
+  },
+  "rules": {
+    "title": "Reguli",
+    "subtitle": "Regulile de rezervare se aplică imediat, fără redeploy.",
+    "groups": {
+      "quota": "Cote",
+      "window": "Fereastra de rezervare",
+      "cancel": "Anulare și check-in",
+      "noshow": "Neprezentări și lista de așteptare"
+    },
+    "fields": {
+      "quotaMonthly": "Cota lunară de rezervări",
+      "maxActiveFuture": "Rezervări viitoare active",
+      "windowStudentDays": "Fereastra pentru studenți",
+      "windowTeacherDays": "Fereastra pentru profesori",
+      "windowExternalHours": "Fereastra pentru externi",
+      "cancelBeforeHours": "Anulare gratuită cu cel puțin",
+      "checkinBeforeMin": "Check-in deschis înainte cu",
+      "checkinAfterMin": "Check-in permis după start",
+      "noShowLimit": "Neprezentări până la suspendare",
+      "suspensionDays": "Durata suspendării",
+      "waitlistOfferMinutes": "Timp de acceptare a locului",
+      "quotaPerSport": "Cotă separată pentru fiecare sport"
+    },
+    "units": {
+      "quotaMonthly": "rezervări / lună",
+      "maxActiveFuture": "rezervări",
+      "windowStudentDays": "zile în avans",
+      "windowTeacherDays": "zile în avans",
+      "windowExternalHours": "ore în avans",
+      "cancelBeforeHours": "ore înainte",
+      "checkinBeforeMin": "minute",
+      "checkinAfterMin": "minute",
+      "noShowLimit": "neprezentări",
+      "suspensionDays": "zile",
+      "waitlistOfferMinutes": "minute"
+    },
+    "range": "Între {{min}} și {{max}}",
+    "errors": {
+      "range": "Introdu un număr întreg între {{min}} și {{max}}."
+    },
+    "reset": "Renunță la modificări",
+    "note": "Modificările sunt înregistrate în jurnalul de audit.",
+    "toast": {
+      "saved": "Regulile au fost salvate"
+    }
+  },
+  "audit": {
+    "title": "Jurnal de audit",
+    "subtitle": "Acțiunile administratorilor, doar pentru citire.",
+    "export": "Exportă CSV",
+    "search": "Caută în jurnal",
+    "actor": "Administrator",
+    "allActors": "Toți administratorii",
+    "period": "Perioadă",
+    "periods": {
+      "24h": "Ultimele 24 de ore",
+      "7d": "Ultimele 7 zile",
+      "30d": "Ultimele 30 de zile",
+      "12m": "Ultimele 12 luni"
+    },
+    "col": {
+      "when": "Când",
+      "who": "Cine",
+      "action": "Acțiune",
+      "object": "Obiect"
+    },
+    "actions": {
+      "emergency_block": "Blocare de urgență",
+      "planned_block": "Blocare planificată",
+      "block_updated": "Blocare modificată",
+      "unblock": "Deblocare",
+      "announcement_sent": "Anunț trimis",
+      "schedule_import": "Import orar",
+      "rule_changed": "Regulă modificată",
+      "account_suspended": "Cont suspendat",
+      "resource_created": "Resursă creată",
+      "resource_updated": "Resursă modificată",
+      "resource_deactivated": "Resursă dezactivată",
+      "resource_activated": "Resursă reactivată",
+      "event_created": "Eveniment creat",
+      "sport_created": "Sport creat",
+      "sport_updated": "Sport modificat",
+      "sport_deleted": "Sport șters",
+      "account_reactivated": "Cont reactivat",
+      "twofa_enabled": "2FA configurat"
+    },
+    "emptyTitle": "Nicio înregistrare",
+    "emptyBody": "Schimbă filtrele sau perioada.",
+    "pageInfo": "Pagina {{page}} din {{pages}} · {{total}} înregistrări",
+    "prev": "Pagina anterioară",
+    "next": "Pagina următoare"
+    
+  },
+  "sports": {
+    "title": "Sporturi și dotări",
+    "subtitle": "Adaugă sau modifică sporturile și dotările necesare, fără modificări de cod.",
+    "new": "Sport nou",
+    "newTitle": "Sport nou",
+    "editTitle": "Editează sportul",
+    "emptyTitle": "Niciun sport definit",
+    "emptyBody": "Adaugă primul sport, ca studenții să îl poată alege.",
+    "col": { "nameRo": "Denumire (RO)", "nameEn": "Denumire (EN)", "equipment": "Dotări necesare", "actions": "Acțiuni" },
+    "noEquipment": "Fără cerințe",
+    "fields": { "nameRo": "Denumire în română", "nameEn": "Denumire în engleză", "equipment": "Dotări necesare" },
+    "hint": { "equipment": "Doar resursele care au toate aceste dotări apar la alegerea sportului." },
+    "errors": { "required": "Câmp obligatoriu." },
+    "deleteTitle": "Ștergi sportul „{{name}}”?",
+    "deleteBody": "Sportul dispare din aplicație. Nu poate fi șters dacă o resursă îl folosește.",
+    "delete": "Șterge",
+    "toast": { "saved": "Sportul „{{name}}” a fost salvat.", "deleted": "Sportul a fost șters." }
+  },
+  "users": {
+    "title": "Utilizatori",
+    "subtitle": "Caută conturi și suspendă temporar utilizatorii (de ex. după no-show-uri repetate).",
+    "search": "Caută după nume sau email",
+    "filters": { "role": "Rol", "status": "Stare", "allRoles": "Toate rolurile", "allStatuses": "Toate stările" },
+    "roles": { "student": "Student", "teacher": "Profesor", "external": "Extern" },
+    "status": { "active": "Activ", "suspended": "Suspendat" },
+    "col": { "user": "Utilizator", "role": "Rol", "status": "Stare", "noShows": "No-show luna aceasta", "actions": "Acțiuni" },
+    "until": "până la {{date}}",
+    "emptyTitle": "Niciun utilizator găsit",
+    "emptyBody": "Încearcă alte filtre sau alt text de căutare.",
+    "suspend": "Suspendă",
+    "reactivate": "Reactivează",
+    "suspendTitle": "Suspendă contul lui {{name}}",
+    "suspendBody": "Utilizatorul nu va putea face rezervări pe perioada suspendării.",
+    "fields": { "days": "Durată (zile)", "reason": "Motiv" },
+    "errors": { "days": "Introdu un număr între 1 și 365.", "reason": "Motivul este obligatoriu." },
+    "toast": { "suspended": "Contul lui {{name}} a fost suspendat.", "reactivated": "Contul lui {{name}} a fost reactivat." }
+  },
+  "checkin": {
+    "title": "Check-in la intrare",
+    "subtitle": "Scanează codul QR al rezervării sau introdu codul manual.",
+    "startCamera": "Pornește camera",
+    "stopCamera": "Oprește camera",
+    "cameraError": "Camera nu a putut fi pornită. Permite accesul la cameră sau folosește codul manual.",
+    "manualLabel": "Cod rezervare",
+    "manualHint": "Doar în demo: DEMO-OK, DEMO-DUPLICAT, DEMO-EXPIRAT.",
+    "verify": "Verifică",
+    "resultTitle": "Rezultat",
+    "idle": "Rezultatul verificării apare aici.",
+    "ok": "Acces permis",
+    "already": "Deja confirmat",
+    "failed": "Acces refuzat",
+    "member": "Membru al universității",
+    "external": "Persoană externă"
+  },
+  "account": {
+    "title": "Contul meu",
+    "subtitle": "Datele contului și securitatea autentificării în doi pași.",
+    "sessionTitle": "Sesiune",
+    "email": "Email",
+    "expires": "Sesiunea expiră la {{time}}",
+    "twofaTitle": "Autentificare în doi pași (TOTP)",
+    "twofaBody": "Scanează codul QR cu o aplicație de autentificare, apoi introdu codul de 6 cifre.",
+    "setup": "Configurează autentificatorul",
+    "secret": "Cheie manuală",
+    "code": "Cod de verificare",
+    "confirm": "Confirmă",
+    "cancel": "Renunță",
+    "errors": { "code": "Introdu cele 6 cifre." },
+    "toast": { "enabled": "Autentificarea în doi pași a fost configurată." }
+  }
+}
