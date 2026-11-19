@@ -17,6 +17,7 @@ export interface SmsMessage {
 /** Email over SMTP (nodemailer). */
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger('Mail');
   private readonly transporter: Transporter;
 
   constructor(@Inject(APP_CONFIG) private readonly config: AppConfig) {
@@ -24,7 +25,16 @@ export class MailService {
   }
 
   async send(message: EmailMessage): Promise<void> {
-    await this.transporter.sendMail({ from: this.config.mail.from, ...message });
+    try {
+      await this.transporter.sendMail({ from: this.config.mail.from, ...message });
+    } catch (err) {
+      // Without Mailpit in development, the message (e.g. an OTP code) would be lost; print it instead.
+      if (this.config.env !== 'production')
+        this.logger.warn(
+          `[dev] SMTP failed (${(err as Error).message}); email to ${message.to}: ${message.subject}\n${message.text}`,
+        );
+      throw err;
+    }
   }
 }
 
