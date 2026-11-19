@@ -60,7 +60,9 @@ function operations(doc: Spec): Map<string, string> {
 
 /** assets/livrabil05/openapi.json is the contract; the implementation must expose exactly its operations. */
 describe('API conformance with assets/livrabil05/openapi.json', () => {
-  const spec: Spec = JSON.parse(readFileSync(join(__dirname, '../../assets/livrabil05/openapi.json'), 'utf8'));
+  const spec: Spec = JSON.parse(
+    readFileSync(join(__dirname, '../../assets/livrabil05/openapi.json'), 'utf8'),
+  );
   let app: INestApplication;
   let generated: Spec;
 
