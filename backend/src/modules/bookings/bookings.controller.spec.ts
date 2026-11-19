@@ -2,7 +2,6 @@ import { AppException } from '../../common/errors/app.exception';
 import { EXAMPLE_BOOKING } from '../../database/seeds/example-data';
 import { createTestApp, TEST_USERS, TestApp } from '../../testing/test-app';
 import {
-  AdminBookingsController,
   BookingsController,
   MyBookingsController,
   PublicBookingLinksController,
@@ -38,16 +37,12 @@ describe('Bookings controllers', () => {
     checkIn: jest.fn(),
     listMine: jest.fn(),
     myQuota: jest.fn(),
+    calendar: jest.fn(),
   };
 
   beforeAll(async () => {
     t = await createTestApp({
-      controllers: [
-        BookingsController,
-        PublicBookingLinksController,
-        MyBookingsController,
-        AdminBookingsController,
-      ],
+      controllers: [BookingsController, PublicBookingLinksController, MyBookingsController],
       providers: [{ provide: BookingsService, useValue: bookings }],
     });
   });
@@ -272,14 +267,38 @@ describe('Bookings controllers', () => {
     });
   });
 
-  describe('stubbed booking routes (501)', () => {
-    it('GET /bookings/{id}/calendar.ics', async () => {
-      await t
+  describe('GET /bookings/{id}/calendar.ics', () => {
+    const ICS = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'END:VCALENDAR', ''].join('\r\n');
+
+    it('200 text/calendar download for the holder', async () => {
+      bookings.calendar.mockResolvedValue(ICS);
+      const res = await t
         .http()
         .get(`/api/v1/bookings/${ID}/calendar.ics`)
         .set('Authorization', await t.bearer('student'))
-        .expect(501);
+        .expect(200)
+        .expect('Content-Type', 'text/calendar; charset=utf-8')
+        .expect('Content-Disposition', `attachment; filename="campussport-${ID}.ics"`);
+      expect(res.text).toBe(ICS);
+      expect(bookings.calendar).toHaveBeenCalledWith(TEST_USERS.student, ID);
     });
+
+    it('404 for someone else’s booking or a malformed id, 401 anonymously', async () => {
+      const auth = await t.bearer('teacher');
+      bookings.calendar.mockRejectedValueOnce(new AppException('NOT_FOUND'));
+      const res = await t
+        .http()
+        .get(`/api/v1/bookings/${ID}/calendar.ics`)
+        .set('Authorization', auth)
+        .expect(404);
+      expect(res.body.code).toBe('NOT_FOUND');
+      await t.http().get('/api/v1/bookings/123/calendar.ics').set('Authorization', auth).expect(404);
+      expect(bookings.calendar).toHaveBeenCalledTimes(1);
+      await t.http().get(`/api/v1/bookings/${ID}/calendar.ics`).expect(401);
+    });
+  });
+
+  describe('stubbed booking routes (501)', () => {
     it('POST /bookings/{id}/invitations', async () => {
       await t
         .http()
@@ -300,27 +319,6 @@ describe('Bookings controllers', () => {
         .get('/api/v1/me/calendar-feed')
         .set('Authorization', await t.bearer('student'))
         .expect(501);
-    });
-    it('admin routes need the admin role', async () => {
-      const admin = await t.bearer('admin');
-      await t.http().get('/api/v1/admin/bookings').set('Authorization', admin).expect(501);
-      await t
-        .http()
-        .patch(`/api/v1/admin/bookings/${ID}`)
-        .set('Authorization', admin)
-        .send({ start: CREATE.start, reason: 'x' })
-        .expect(501);
-      await t
-        .http()
-        .post(`/api/v1/admin/bookings/${ID}/cancel`)
-        .set('Authorization', admin)
-        .send({ reason: 'Teren indisponibil' })
-        .expect(501);
-      await t
-        .http()
-        .get('/api/v1/admin/bookings')
-        .set('Authorization', await t.bearer('student'))
-        .expect(403);
     });
   });
 

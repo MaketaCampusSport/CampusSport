@@ -21,6 +21,7 @@ import { QuotaService } from '../quota/quota.service';
 import { Rules, SettingsService } from '../settings/settings.service';
 import { BOOKING_SELECT, BookingRow, toBookingResponse } from './booking.presenter';
 import { checkBookingRules, quotaView } from './booking-rules';
+import { bookingCalendar } from './ical';
 import {
   BookingCreateDto,
   BookingResponse,
@@ -243,6 +244,48 @@ export class BookingsService {
       query,
       rows.map((r) => toBookingResponse(r, this.zone)),
       Number(count[0].n),
+    );
+  }
+
+  // ---------- iCal (FR-17) ----------
+
+  /**
+   * One-event iCalendar file, for the holder only (anyone else gets 404). The summary names the booked
+   * sport, or the resource's only sport when the booking has none.
+   */
+  async calendar(user: AuthUser, id: string, now = new Date()): Promise<string> {
+    const [row]: {
+      id: string;
+      user_id: string | null;
+      status: string;
+      start: Date;
+      end: Date;
+      resource_name: string;
+      location: string | null;
+      sport_name: string | null;
+    }[] = await this.dataSource.query(
+      `SELECT o.id, o.user_id, o.status, lower(o.period) AS start, upper(o.period) AS "end",
+              r.name AS resource_name, r.location,
+              COALESCE(s.name_ro, (SELECT min(sp.name_ro) FROM resource_sports rs JOIN sports sp ON sp.id = rs.sport_id
+                                   WHERE rs.resource_id = r.id HAVING count(*) = 1)) AS sport_name
+       FROM occupancy o
+       JOIN resources r ON r.id = o.resource_id
+       LEFT JOIN sports s ON s.id = o.sport_id
+       WHERE o.id = $1 AND o.kind = 'booking'`,
+      [id],
+    );
+    if (!row || row.user_id !== user.id) throw new AppException('NOT_FOUND');
+    return bookingCalendar(
+      {
+        id: row.id,
+        start: row.start,
+        end: row.end,
+        status: row.status,
+        resourceName: row.resource_name,
+        location: row.location,
+        sportName: row.sport_name,
+      },
+      now,
     );
   }
 

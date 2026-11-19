@@ -354,6 +354,168 @@ describe('CampusSport API (e2e, real PostgreSQL)', () => {
     await t.http().put('/api/v1/admin/settings').set('Authorization', admin).send(DEFAULT_RULES).expect(200);
   });
 
+  it('admin cancel: always refunds, notifies with the reason, audits; then 409; listed by the filters', async () => {
+    const day = weekday(1);
+    const booking = await t
+      .http()
+      .post('/api/v1/bookings')
+      .set('Authorization', student)
+      .send({ resource_id: COURT, start: at(day, 13) })
+      .expect(201);
+    const month = `${day.toFormat('yyyy-MM')}-01`;
+    const quota = async () =>
+      (
+        await t.db.query(`SELECT refunded FROM monthly_quota WHERE user_id = $1 AND month = $2`, [
+          U.student.id,
+          month,
+        ])
+      ).rows[0].refunded as number;
+    const refundedBefore = await quota();
+    const url = `/api/v1/admin/bookings/${booking.body.id}/cancel`;
+    await t.http().post(url).set('Authorization', student).send({ reason: 'x' }).expect(403);
+
+    const res = await t
+      .http()
+      .post(url)
+      .set('Authorization', admin)
+      .send({ reason: 'Teren indisponibil' })
+      .expect(200);
+    expect(res.body).toEqual({
+      quota_refunded: true,
+      booking: expect.objectContaining({
+        id: booking.body.id,
+        status: 'cancelled',
+        cancel_source: 'admin',
+        cancel_reason: 'Teren indisponibil',
+      }),
+    });
+    expect(await quota()).toBe(refundedBefore + 1);
+    const notice = t.jobs.find(
+      (j) => j.name === 'booking-cancelled' && j.data.occupancyId === booking.body.id,
+    );
+    expect(notice?.data).toMatchObject({
+      userId: U.student.id,
+      critical: true,
+      data: { cancel_source: 'admin', reason: 'Teren indisponibil' },
+    });
+    expect(
+      t.jobs.some((j) => j.name === 'slot-freed' && j.data.start === new Date(at(day, 13)).toISOString()),
+    ).toBe(true);
+    const audit = await t.db.query(`SELECT actor_id, action, after FROM audit_log WHERE entity_id = $1`, [
+      booking.body.id,
+    ]);
+    expect(audit.rows).toEqual([
+      expect.objectContaining({
+        actor_id: U.admin.id,
+        action: 'booking.cancel',
+        after: expect.objectContaining({ reason: 'Teren indisponibil', quota_refunded: true }),
+      }),
+    ]);
+
+    const again = await t.http().post(url).set('Authorization', admin).send({ reason: 'x' }).expect(409);
+    expect(again.body.code).toBe('BOOKING_NOT_ACTIVE');
+    await t
+      .http()
+      .post('/api/v1/admin/bookings/00000000-0000-4000-8000-000000000000/cancel')
+      .set('Authorization', admin)
+      .send({ reason: 'x' })
+      .expect(404);
+
+    const list = await t
+      .http()
+      .get(`/api/v1/admin/bookings?resource=${COURT}&date=${day.toISODate()}&status=cancelled`)
+      .set('Authorization', admin)
+      .expect(200);
+    expect(list.body.items.map((b: { id: string }) => b.id)).toContain(booking.body.id);
+    expect(list.body.items.every((b: { status: string }) => b.status === 'cancelled')).toBe(true);
+    expect(list.body.total).toBe(list.body.items.length);
+  });
+
+  describe('dashboard and monthly report (March 2025, rows inserted directly)', () => {
+    const DAY = '2025-03-10'; // a Monday
+    const ts = (hhmm: string) => `${DAY}T${hhmm}:00+02:00`;
+    let profId: string;
+
+    beforeAll(async () => {
+      [profId] = await teachers(1);
+      // created_by stays NULL: DELETE /me (last test) anonymizes user_id but not created_by.
+      const insert = (resource: string, from: string, to: string, user: string, status: string, extra = '') =>
+        t.db.query(
+          `INSERT INTO occupancy (resource_id, period, kind, user_id, qr_nonce, status, cancel_source, checked_in_at)
+           VALUES ($1, tstzrange($2, $3, '[)'), 'booking', $4, gen_random_uuid(), $5,
+                   ${status === 'cancelled' ? `'user'` : 'NULL'}, ${extra || 'NULL'})`,
+          [resource, ts(from), ts(to), user, status],
+        );
+      await insert(COURT, '18:00', '19:00', profId, 'completed', `'${ts('17:55')}'`);
+      await insert(COURT, '19:00', '20:00', U.student.id, 'no_show');
+      await insert(HALL, '10:00', '11:30', U.student.id, 'active');
+      await insert(HALL, '13:00', '14:30', U.external.id, 'completed');
+      await insert(HALL, '07:00', '08:30', U.student.id, 'cancelled');
+      await t.db.query(
+        `INSERT INTO monthly_quota (user_id, month, used, refunded) VALUES ($1, '2025-03-01', 4, 0), ($2, '2025-03-01', 5, 2)`,
+        [U.student.id, profId],
+      );
+    });
+
+    it('GET /admin/dashboard: every active resource, check-ins and no-shows of the day', async () => {
+      const res = await t
+        .http()
+        .get(`/api/v1/admin/dashboard?date=${DAY}`)
+        .set('Authorization', admin)
+        .expect(200);
+      const { rows } = await t.db.query(`SELECT count(*)::int AS n FROM resources WHERE active`);
+      expect(res.body).toMatchObject({ date: DAY, check_ins_count: 1, no_shows_count: 1 });
+      expect(res.body.resources).toHaveLength(rows[0].n);
+      const court = res.body.resources.find((r: { resource_id: string }) => r.resource_id === COURT);
+      expect(court.slots).toHaveLength(15);
+      const hall = res.body.resources.find((r: { resource_id: string }) => r.resource_id === HALL);
+      expect(hall.slots.find((s: { start: string }) => s.start === ts('10:00'))).toMatchObject({
+        status: 'occupied',
+        holder_name: U.student.full_name,
+      });
+
+      const today = await t.http().get('/api/v1/admin/dashboard').set('Authorization', admin).expect(200);
+      expect(today.body.date).toBe(DateTime.now().setZone(TZ).toISODate());
+      await t.http().get('/api/v1/admin/dashboard').set('Authorization', student).expect(403);
+    });
+
+    it('GET /admin/reports: occupancy rates, no-shows, categories, users at the limit; CSV export', async () => {
+      const res = await t
+        .http()
+        .get('/api/v1/admin/reports?month=2025-03')
+        .set('Authorization', admin)
+        .expect(200);
+      expect(res.body).toMatchObject({
+        month: '2025-03',
+        no_shows_count: 1,
+        bookings_by_category: { members: 3, externals: 1 },
+        users_reaching_limit_count: 1,
+      });
+      const rate = (id: string) =>
+        res.body.occupancy.find((r: { resource_id: string }) => r.resource_id === id);
+      // March 2025: 21 weekdays (07–22) and 5 Saturdays (09–18).
+      expect(rate(COURT)).toMatchObject({ rate: 0.0056 }); // 2 of 21 × 15 + 5 × 9 = 360 slots
+      expect(rate(COURT).by_hour).toEqual(expect.arrayContaining([{ hour: 18, rate: 0.0476 }]));
+      expect(rate(HALL)).toMatchObject({ rate: 0.0083 }); // 2 of 21 × 10 + 5 × 6 = 240 slots
+
+      const csv = await t
+        .http()
+        .get('/api/v1/admin/reports?month=2025-03&format=csv')
+        .set('Authorization', admin)
+        .expect(200)
+        .expect('Content-Type', /^text\/csv/);
+      expect(csv.text).toContain(`\r\n2025-03,occupancy_rate,${COURT},Teren baschet 2,,0.0056\r\n`);
+      expect(csv.text).toContain('\r\n2025-03,bookings_externals,,,,1\r\n');
+
+      await t
+        .http()
+        .get('/api/v1/admin/reports?month=2025-03&format=pdf')
+        .set('Authorization', admin)
+        .expect(501);
+      await t.http().get('/api/v1/admin/reports?month=2025-3').set('Authorization', admin).expect(422);
+    });
+  });
+
   it('DELETE /me: future bookings cancelled, history anonymized, account gone', async () => {
     const extAuth = t.bearer(U.external.id, 'external');
     const soon = DateTime.now().setZone(TZ).plus({ hours: 3 }).startOf('hour');

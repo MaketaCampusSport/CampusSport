@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { QuotaModule } from '../quota/quota.module';
+import { AdminBookingsService } from './admin-bookings.service';
 import {
   AdminBookingsController,
   BookingsController,
@@ -17,7 +18,7 @@ import { QrService } from './qr.service';
     MyBookingsController,
     AdminBookingsController,
   ],
-  providers: [BookingsService, QrService],
+  providers: [BookingsService, AdminBookingsService, QrService],
   exports: [BookingsService],
 })
 export class BookingsModule {}
