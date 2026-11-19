@@ -1,0 +1,239 @@
+{
+  "user": {
+    "nav": {
+      "label": "Navigare principală",
+      "home": "Acasă",
+      "search": "Caută",
+      "bookings": "Rezervări",
+      "profile": "Profil"
+    },
+    "home": {
+      "greeting": "Salut, {{name}}",
+      "subtitle": "CE SPORT JOCI AZI?",
+      "myProfile": "Profilul meu",
+      "quotaAria": "Intrări rămase în luna curentă",
+      "remainingOfTotal": "din {{total}} intrări rămase",
+      "remainingProgressAria": "{{remaining}} din {{total}} intrări rămase",
+      "chooseSport": "Alege sportul",
+      "lastMinuteOnly": "Cota e epuizată: poți rezerva doar sloturi rămase libere în ultimele 24 h.",
+      "noUpcomingTitle": "Nicio rezervare viitoare",
+      "noUpcomingBody": "Alege un sport de mai sus și rezervă un teren."
+    },
+    "availability": {
+      "stepTitle": "01/03 TEREN + ORĂ",
+      "backAria": "Înapoi la alegerea sportului",
+      "selectDayAria": "Alege ziua",
+      "chooseCourtAndTime": "Alege terenul și ora",
+      "courtCount_one": "{{count}} teren",
+      "courtCount_few": "{{count}} terenuri",
+      "courtCount_other": "{{count}} de terenuri",
+      "emptyTitle": "Niciun teren disponibil",
+      "emptyBody": "Nu există resurse active pentru {{sport}} în această zi.",
+      "showMore": "Mai multe ore",
+      "showLess": "Restrânge",
+      "slotsAria": "Sloturi orare pentru {{name}}",
+      "slot": {
+        "selected": "Selectat ✓",
+        "free": "Liber",
+        "myBooking": "Rezervarea mea",
+        "peClass": "Curs EF",
+        "occupied": "Ocupat",
+        "waitlist": "Listă de așteptare"
+      },
+      "selectHint": "Selectează o oră liberă pentru a continua",
+      "continue": "Continuă",
+      "sportAria": "Alege sportul",
+      "closed": "Închis în această zi.",
+      "alreadyOnWaitlist": "Ești deja pe lista de așteptare pentru acest slot."
+    },
+    "confirm": {
+      "stepConfirm": "02/03 CONFIRMĂ",
+      "title": "Confirmă",
+      "subtitle": "Verifică detaliile rezervării",
+      "backToSlotsAria": "Înapoi la alegerea orei",
+      "detailsAria": "Detalii rezervare",
+      "dateLabel": "Data",
+      "timeLabel": "Ora",
+      "participantsLabel": "Participanți",
+      "participantsHint": "Opțional până la {{max}}",
+      "decreaseParticipantsAria": "Scade numărul de participanți",
+      "increaseParticipantsAria": "Crește numărul de participanți",
+      "policiesAria": "Cotă și reguli",
+      "quotaUsage": "Folosești 1 intrare din cotă",
+      "quotaRemaining": "{{remaining}} din {{total}} rămân",
+      "freeCancelRule": "Anulare gratuită până la {{hours}} h înainte",
+      "checkInRule": "Check-in cu QR între -10 și +15 min ({{window}})",
+      "submit": "Confirmă rezervarea",
+      "submitting": "Se confirmă…",
+      "back": "Înapoi",
+      "errors": {
+        "slotTakenTitle": "Acest interval tocmai a fost ocupat",
+        "slotTakenBody": "Poți intra pe lista de așteptare și te anunțăm imediat dacă se eliberează.",
+        "joinWaitlist": "Intră pe lista de așteptare",
+        "joiningWaitlist": "Se înscrie…",
+        "waitlistJoinedTitle": "Ești pe lista de așteptare",
+        "waitlistJoinedBody": "Vei primi o notificare dacă locul devine disponibil.",
+        "quotaExhaustedTitle": "Cota lunară a fost epuizată",
+        "quotaExhaustedBody": "Ai folosit toate intrările gratuite din această lună."
+      },
+      "success": {
+        "badge": "03/03 REZERVARE CONFIRMATĂ",
+        "headline": "GATA!",
+        "subtitlePrefix": "Te așteptăm",
+        "subtitleAt": "la",
+        "subtitleOn": "pe",
+        "courtCol": "TEREN",
+        "dateCol": "DATA",
+        "timeCol": "ORA",
+        "checkInNote": "Arată codul la intrare · Check-in permis între",
+        "addToCalendar": "Adaugă în calendar",
+        "addedToCalendar": "Adăugat în calendar (.ics)",
+        "done": "Gata",
+        "calendarFailed": "Calendarul nu a putut fi descărcat"
+      }
+    },
+    "qr": {
+      "title": "Codul tău de acces",
+      "aria": "Cod QR rezervare {{code}}",
+      "unavailable": "Codul QR nu poate fi încărcat acum.",
+      "window": "Check-in: {{window}}",
+      "hint": "Arată codul QR personalului de la intrare (-10/+15 min față de ora rezervării).",
+      "next": "Următoarea rezervare",
+      "openAria": "Deschide codul QR pentru {{name}}"
+    },
+    "bookings": {
+      "eyebrow": "Programul meu",
+      "title": "Rezervări",
+      "upcoming": "Viitoare",
+      "history": "Istoric",
+      "status": {
+        "active": "Activă",
+        "completed": "Încheiată",
+        "cancelled": "Anulată",
+        "no_show": "Neprezentare"
+      },
+      "empty": {
+        "upcoming": "Nu ai rezervări viitoare",
+        "history": "Încă nu ai istoric",
+        "hint": "Caută un teren liber din fila Caută."
+      },
+      "cancelReason": "Motiv: {{reason}}",
+      "checkedIn": "Check-in făcut ✓",
+      "showQr": "Cod QR",
+      "calendar": "Calendar (.ics)",
+      "cancel": "Anulează",
+      "cancelTitle": "Anulezi rezervarea?",
+      "cancelBody": "Intrarea se restituie dacă anulezi cu cel puțin 2 ore înainte.",
+      "cancelConfirm": "Da, anulează",
+      "cancelledRefunded": "Rezervare anulată. Intrarea a fost restituită.",
+      "cancelledNoRefund": "Rezervare anulată. Intrarea nu se mai restituie."
+    },
+    "waitlist": {
+      "title": "Liste de așteptare",
+      "anySlot": "Orice slot compatibil",
+      "offerExpires": "Oferta expiră la {{time}}",
+      "accept": "Acceptă locul",
+      "leave": "Renunță",
+      "accepted": "Locul este al tău! Rezervarea a fost creată.",
+      "status": {
+        "waiting": "În așteptare",
+        "offered": "Loc oferit",
+        "accepted": "Acceptat",
+        "expired": "Expirat"
+      }
+    },
+    "profile": {
+      "eyebrow": "Contul meu",
+      "title": "Profil",
+      "quotaTitle": "Cota lunii",
+      "quotaBody": "{{remaining}} din {{limit}} intrări rămase ({{refunded}} restituite).",
+      "notificationsTitle": "Notificări",
+      "notificationsBody": "Unde primești confirmări, anulări și oferte de pe lista de așteptare.",
+      "channel": {
+        "push": "Notificări push",
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "messageLanguage": "Limba mesajelor",
+      "prefsSaved": "Preferințele au fost salvate.",
+      "appTitle": "Aplicație",
+      "dataTitle": "Datele mele",
+      "exportUnavailable": "Exportul datelor personale (GDPR) nu este încă disponibil pe server.",
+      "delete": "Șterge contul",
+      "deleteTitle": "Ștergi contul?",
+      "deleteBody": "Rezervările viitoare se anulează, iar datele personale se anonimizează. Acțiunea nu poate fi anulată.",
+      "deleteConfirm": "Șterge definitiv",
+      "deleted": "Contul a fost șters."
+    }
+  },
+  "login": {
+    "step1": "Pasul 1 din 2",
+    "step2": "Pasul 2 din 2",
+    "title": "Panou de administrare",
+    "codeTitle": "Cod de verificare",
+    "body": "Autentifică-te cu contul universității.",
+    "codeBody": "Bună, {{name}}. Introdu codul din aplicația de autentificare.",
+    "sso": "Autentificare cu SSO universitar",
+    "ssoNote": "Administratorii folosesc și un al doilea factor (TOTP).",
+    "codeLabel": "Cod din 6 cifre",
+    "codeHint": "Codul se schimbă la 30 de secunde.",
+    "codeInvalid": "Cod incorect. Încearcă din nou.",
+    "verify": "Verifică și intră",
+    "otherAccount": "Folosește alt cont",
+    "expiredTitle": "Sesiunea a expirat",
+    "expiredBody": "Sesiunile de administrare durează 8 ore. Autentifică-te din nou.",
+    "demoHint": "Mod demo: alege un cont de mai jos sau folosește SSO; codul TOTP este 123456.",
+    "notAdminTitle": "Cont fără drepturi de administrator",
+    "notAdminBody": "Ești autentificat ca {{name}}. Intră cu un cont de administrator."
+  },
+  "auth": {
+    "roles": {
+      "student": "Student",
+      "teacher": "Profesor",
+      "external": "Extern",
+      "admin": "Admin"
+    },
+    "dev": {
+      "title": "Autentificare de dezvoltare",
+      "body": "Doar local: intră ca un utilizator din datele de exemplu, fără SSO sau 2FA.",
+      "disabled": "Serverul nu permite autentificarea de dezvoltare (NODE_ENV=development și DEV_LOGIN=true).",
+      "unreachable": "Serverul nu răspunde. Pornește-l cu „npm run dev” din rădăcina proiectului."
+    },
+    "twoFactor": {
+      "body": "Introdu codul din aplicația de autentificare pentru a termina conectarea.",
+      "notEnrolledTitle": "Al doilea factor nu este configurat",
+      "notEnrolledBody": "Contul tău de administrator nu are încă TOTP. Cere configurarea lui (npm run admin:enroll-totp -- <email>) și încearcă din nou.",
+      "missingTitle": "Link incomplet",
+      "missingBody": "Pagina se deschide după autentificarea SSO. Începe din nou de la ecranul de conectare.",
+      "backToLogin": "Înapoi la autentificare"
+    },
+    "member": {
+      "title": "Intră în CampusSport",
+      "body": "Rezervă terenuri și săli la baza sportivă a universității.",
+      "modeLabel": "Tipul contului",
+      "modeMember": "Student / profesor",
+      "modeExternal": "Extern",
+      "sso": "Continuă cu contul universității",
+      "ssoNote": "Folosește autentificarea unică (SSO) a universității.",
+      "expiredTitle": "Sesiunea a expirat",
+      "expiredBody": "Autentifică-te din nou pentru a continua.",
+      "demoHint": "Mod demo: „SSO” te conectează ca student. Codurile OTP pentru externi sunt 123456.",
+      "adminLink": "Ești administrator? Intră în panoul de administrare"
+    },
+    "external": {
+      "email": "Email",
+      "sendCode": "Trimite codul",
+      "noAccount": "Nu ai cont? Înregistrează-te",
+      "haveAccount": "Ai deja cont? Intră cu emailul",
+      "fullName": "Nume complet",
+      "phone": "Telefon",
+      "phoneHint": "Format internațional, ex. +37360000001",
+      "register": "Creează contul",
+      "codeSent": "Am trimis un cod la {{email}}. Este valabil 10 minute.",
+      "codesSentBoth": "Am trimis un cod la {{email}} și unul prin SMS. Sunt valabile 10 minute.",
+      "emailCode": "Codul din email",
+      "phoneCode": "Codul din SMS",
+      "changeEmail": "Folosește alt email"
+    }
+  }
+}

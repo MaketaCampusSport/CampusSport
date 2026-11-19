@@ -1,6 +1,6 @@
 # CampusSport backend
 
-The NestJS server for CampusSport. It implements the API contract in [`../livrabil05/openapi.yaml`](../livrabil05/openapi.yaml) on the schema in [`../livrabil05/baza-de-date/schema-postgresql.sql`](../livrabil05/baza-de-date/schema-postgresql.sql), using the stack from [`../livrabil05/Tehnologii-backend.md`](../livrabil05/Tehnologii-backend.md).
+The NestJS server for CampusSport. It implements the API contract in [`../assets/livrabil05/openapi.yaml`](../assets/livrabil05/openapi.yaml) on the schema in [`../assets/livrabil05/baza-de-date/schema-postgresql.sql`](../assets/livrabil05/baza-de-date/schema-postgresql.sql), using the stack from [`../assets/livrabil05/Tehnologii-backend.md`](../assets/livrabil05/Tehnologii-backend.md).
 
 One codebase runs as two processes:
 
@@ -34,7 +34,7 @@ The seed adds the sports, resources and users from the spec's examples. Ion Pope
 
 | Command | What it does |
 |---|---|
-| `npm test` | Unit and controller tests, including the conformance check against `livrabil05/openapi.json` |
+| `npm test` | Unit and controller tests, including the conformance check against `assets/livrabil05/openapi.json` |
 | `npm test -- <path or pattern>` | Runs one file, or use `-t "<name>"` for one test |
 | `npm run test:cov` | Coverage (CI requires ≥ 70% lines, NFR-13) |
 | `npm run test:e2e` | Whole app against a real PostgreSQL (see below) |
@@ -72,13 +72,12 @@ All 60 operations of the spec exist, and `npm run spec:check` verifies paths, me
 These return `501 NOT_IMPLEMENTED`, a temporary code that isn't in the spec:
 
 - `GET /me/export`
-- iCal: `/bookings/{id}/calendar.ics`, `/me/calendar-feed`, `/calendar/{token}.ics`
+- iCal subscription: `/me/calendar-feed`, `/calendar/{token}.ics` (the single-booking `/bookings/{id}/calendar.ics` works)
 - Team invitations: `POST /bookings/{id}/invitations`, `GET /invitations/{token}`
-- Admin booking management: `GET /admin/bookings`, `PATCH /admin/bookings/{id}`, `POST /admin/bookings/{id}/cancel`
+- Rescheduling by an admin: `PATCH /admin/bookings/{id}`
 - PE schedule: `/admin/schedule/*`
 - `POST /admin/events`
-- `POST /admin/announcements`
-- `GET /admin/dashboard` and `GET /admin/reports`
+- The PDF export of `GET /admin/reports` (`format=pdf`); `json` and `csv` work
 - Recurring blocks (`recurrence` in `POST /admin/blocks`)
 
 Open decisions from livrabil05 and how this code handles them:
@@ -89,3 +88,4 @@ Open decisions from livrabil05 and how this code handles them:
 | Cancellation less than 2 h before the start | Allowed. The slot is freed and the entry stays consumed. |
 | Per-sport quota (SRS 9.7) | `monthly_quota_per_sport` must stay empty; the schema keys the quota by user and month only. |
 | SMS provider | Not chosen yet; the log driver only prints messages. |
+| Occupancy rate in `GET /admin/reports` | Booked slot time ÷ opening slot time of the month, per active resource and per clock hour. A slot is booked when a booking that wasn't cancelled (`active`, `completed`, `no_show`) overlaps it; blocked slots count as not booked. `users_reaching_limit_count` compares `used − refunded` with the current `monthly_quota`. |

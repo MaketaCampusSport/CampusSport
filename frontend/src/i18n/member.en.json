@@ -1,0 +1,238 @@
+{
+  "user": {
+    "nav": {
+      "label": "Main navigation",
+      "home": "Home",
+      "search": "Search",
+      "bookings": "Bookings",
+      "profile": "Profile"
+    },
+    "home": {
+      "greeting": "Hi, {{name}}",
+      "subtitle": "WHAT SPORT ARE YOU PLAYING TODAY?",
+      "myProfile": "My profile",
+      "quotaAria": "Remaining entries this month",
+      "remainingOfTotal": "of {{total}} entries left",
+      "remainingProgressAria": "{{remaining}} of {{total}} entries left",
+      "chooseSport": "Choose a sport",
+      "lastMinuteOnly": "Quota used up: you can only book slots still free in the last 24 h.",
+      "noUpcomingTitle": "No upcoming bookings",
+      "noUpcomingBody": "Pick a sport above and book a court."
+    },
+    "availability": {
+      "stepTitle": "01/03 COURT + TIME",
+      "backAria": "Back to sport selection",
+      "selectDayAria": "Choose day",
+      "chooseCourtAndTime": "Choose court and time",
+      "courtCount_one": "{{count}} court",
+      "courtCount_other": "{{count}} courts",
+      "emptyTitle": "No courts available",
+      "emptyBody": "There are no active resources for {{sport}} on this day.",
+      "showMore": "More times",
+      "showLess": "Show less",
+      "slotsAria": "Time slots for {{name}}",
+      "slot": {
+        "selected": "Selected ✓",
+        "free": "Free",
+        "myBooking": "My booking",
+        "peClass": "PE class",
+        "occupied": "Occupied",
+        "waitlist": "Waitlist"
+      },
+      "selectHint": "Select a free time slot to continue",
+      "continue": "Continue",
+      "sportAria": "Choose the sport",
+      "closed": "Closed on this day.",
+      "alreadyOnWaitlist": "You are already on the waitlist for this slot."
+    },
+    "confirm": {
+      "stepConfirm": "02/03 CONFIRM",
+      "title": "Confirm",
+      "subtitle": "Review your booking details",
+      "backToSlotsAria": "Back to time selection",
+      "detailsAria": "Booking details",
+      "dateLabel": "Date",
+      "timeLabel": "Time",
+      "participantsLabel": "Participants",
+      "participantsHint": "Optional up to {{max}}",
+      "decreaseParticipantsAria": "Decrease participants",
+      "increaseParticipantsAria": "Increase participants",
+      "policiesAria": "Quota and policies",
+      "quotaUsage": "Uses 1 entry from your quota",
+      "quotaRemaining": "{{remaining}} of {{total}} left",
+      "freeCancelRule": "Free cancellation up to {{hours}} h before",
+      "checkInRule": "QR check-in between -10 and +15 min ({{window}})",
+      "submit": "Confirm booking",
+      "submitting": "Confirming…",
+      "back": "Back",
+      "errors": {
+        "slotTakenTitle": "This slot was just taken",
+        "slotTakenBody": "Join the waitlist and we will notify you if a spot opens up.",
+        "joinWaitlist": "Join waitlist",
+        "joiningWaitlist": "Joining…",
+        "waitlistJoinedTitle": "You're on the waitlist",
+        "waitlistJoinedBody": "We'll notify you as soon as the slot frees up.",
+        "quotaExhaustedTitle": "Monthly quota reached",
+        "quotaExhaustedBody": "You have used all your free entries for this month."
+      },
+      "success": {
+        "badge": "03/03 BOOKING CONFIRMED",
+        "headline": "ALL SET!",
+        "subtitlePrefix": "See you on",
+        "subtitleAt": "at",
+        "subtitleOn": "on",
+        "courtCol": "COURT",
+        "dateCol": "DATE",
+        "timeCol": "TIME",
+        "checkInNote": "Show this code at the entrance · Check-in open",
+        "addToCalendar": "Add to calendar",
+        "addedToCalendar": "Added to calendar (.ics)",
+        "done": "Done",
+        "calendarFailed": "The calendar file could not be downloaded"
+      }
+    },
+    "qr": {
+      "title": "Your access code",
+      "aria": "Booking QR code {{code}}",
+      "unavailable": "The QR code cannot be loaded right now.",
+      "window": "Check-in: {{window}}",
+      "hint": "Show the QR code to the staff at the entrance (-10/+15 min around the booking time).",
+      "next": "Next booking",
+      "openAria": "Open the QR code for {{name}}"
+    },
+    "bookings": {
+      "eyebrow": "My schedule",
+      "title": "Bookings",
+      "upcoming": "Upcoming",
+      "history": "History",
+      "status": {
+        "active": "Active",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "no_show": "No-show"
+      },
+      "empty": {
+        "upcoming": "No upcoming bookings",
+        "history": "No history yet",
+        "hint": "Find a free court in the Search tab."
+      },
+      "cancelReason": "Reason: {{reason}}",
+      "checkedIn": "Checked in ✓",
+      "showQr": "QR code",
+      "calendar": "Calendar (.ics)",
+      "cancel": "Cancel",
+      "cancelTitle": "Cancel this booking?",
+      "cancelBody": "The entry is refunded if you cancel at least 2 hours before.",
+      "cancelConfirm": "Yes, cancel",
+      "cancelledRefunded": "Booking cancelled. The entry was refunded.",
+      "cancelledNoRefund": "Booking cancelled. The entry is no longer refundable."
+    },
+    "waitlist": {
+      "title": "Waitlists",
+      "anySlot": "Any matching slot",
+      "offerExpires": "The offer expires at {{time}}",
+      "accept": "Take the slot",
+      "leave": "Leave",
+      "accepted": "The slot is yours! The booking was created.",
+      "status": {
+        "waiting": "Waiting",
+        "offered": "Slot offered",
+        "accepted": "Accepted",
+        "expired": "Expired"
+      }
+    },
+    "profile": {
+      "eyebrow": "My account",
+      "title": "Profile",
+      "quotaTitle": "This month's quota",
+      "quotaBody": "{{remaining}} of {{limit}} entries left ({{refunded}} refunded).",
+      "notificationsTitle": "Notifications",
+      "notificationsBody": "Where you get confirmations, cancellations and waitlist offers.",
+      "channel": {
+        "push": "Push notifications",
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "messageLanguage": "Message language",
+      "prefsSaved": "Preferences saved.",
+      "appTitle": "App",
+      "dataTitle": "My data",
+      "exportUnavailable": "Personal data export (GDPR) is not available on the server yet.",
+      "delete": "Delete account",
+      "deleteTitle": "Delete your account?",
+      "deleteBody": "Upcoming bookings are cancelled and personal data is anonymised. This cannot be undone.",
+      "deleteConfirm": "Delete permanently",
+      "deleted": "Your account was deleted."
+    }
+  },
+  "login": {
+    "step1": "Step 1 of 2",
+    "step2": "Step 2 of 2",
+    "title": "Admin panel",
+    "codeTitle": "Verification code",
+    "body": "Sign in with your university account.",
+    "codeBody": "Hello, {{name}}. Enter the code from your authenticator app.",
+    "sso": "Sign in with university SSO",
+    "ssoNote": "Administrators also use a second factor (TOTP).",
+    "codeLabel": "6-digit code",
+    "codeHint": "The code changes every 30 seconds.",
+    "codeInvalid": "Incorrect code. Try again.",
+    "verify": "Verify and continue",
+    "otherAccount": "Use another account",
+    "expiredTitle": "Your session expired",
+    "expiredBody": "Admin sessions last 8 hours. Please sign in again.",
+    "demoHint": "Demo mode: pick an account below or use SSO; the TOTP code is 123456.",
+    "notAdminTitle": "Account without admin rights",
+    "notAdminBody": "You are signed in as {{name}}. Sign in with an administrator account."
+  },
+  "auth": {
+    "roles": {
+      "student": "Student",
+      "teacher": "Teacher",
+      "external": "External",
+      "admin": "Admin"
+    },
+    "dev": {
+      "title": "Development sign-in",
+      "body": "Local only: sign in as a seeded user, without SSO or 2FA.",
+      "disabled": "The server does not allow development sign-in (NODE_ENV=development and DEV_LOGIN=true).",
+      "unreachable": "The server is not answering. Start it with “npm run dev” from the project root."
+    },
+    "twoFactor": {
+      "body": "Enter the code from your authenticator app to finish signing in.",
+      "notEnrolledTitle": "Second factor not set up",
+      "notEnrolledBody": "Your administrator account has no TOTP yet. Ask for it to be set up (npm run admin:enroll-totp -- <email>) and try again.",
+      "missingTitle": "Incomplete link",
+      "missingBody": "This page opens after SSO sign-in. Start again from the sign-in screen.",
+      "backToLogin": "Back to sign-in"
+    },
+    "member": {
+      "title": "Sign in to CampusSport",
+      "body": "Book courts and halls at the university sports facility.",
+      "modeLabel": "Account type",
+      "modeMember": "Student / teacher",
+      "modeExternal": "External",
+      "sso": "Continue with university account",
+      "ssoNote": "Uses the university single sign-on (SSO).",
+      "expiredTitle": "Session expired",
+      "expiredBody": "Sign in again to continue.",
+      "demoHint": "Demo mode: “SSO” signs you in as a student. OTP codes for externals are 123456.",
+      "adminLink": "Administrator? Open the admin panel"
+    },
+    "external": {
+      "email": "Email",
+      "sendCode": "Send code",
+      "noAccount": "No account? Register",
+      "haveAccount": "Already registered? Sign in with email",
+      "fullName": "Full name",
+      "phone": "Phone",
+      "phoneHint": "International format, e.g. +37360000001",
+      "register": "Create account",
+      "codeSent": "We sent a code to {{email}}. It is valid for 10 minutes.",
+      "codesSentBoth": "We sent a code to {{email}} and one by SMS. They are valid for 10 minutes.",
+      "emailCode": "Code from email",
+      "phoneCode": "Code from SMS",
+      "changeEmail": "Use another email"
+    }
+  }
+}

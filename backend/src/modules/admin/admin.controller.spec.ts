@@ -1,9 +1,11 @@
 import { AppException } from '../../common/errors/app.exception';
-import { EXAMPLE_USERS } from '../../database/seeds/example-data';
+import { EXAMPLE_RESOURCES, EXAMPLE_USERS } from '../../database/seeds/example-data';
 import { createTestApp, TEST_USERS, TestApp } from '../../testing/test-app';
 import { DEFAULT_RULES } from '../settings/settings.service';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
+import { DashboardService } from './dashboard.service';
+import { ReportsService } from './reports.service';
 
 const SETTINGS = {
   ...DEFAULT_RULES,
@@ -14,11 +16,17 @@ const SETTINGS = {
 describe('AdminController', () => {
   let t: TestApp;
   const admin = { getSettings: jest.fn(), updateSettings: jest.fn(), auditLog: jest.fn() };
+  const dashboards = { dashboard: jest.fn() };
+  const reports = { monthlyReport: jest.fn() };
 
   beforeAll(async () => {
     t = await createTestApp({
       controllers: [AdminController],
-      providers: [{ provide: AdminService, useValue: admin }],
+      providers: [
+        { provide: AdminService, useValue: admin },
+        { provide: DashboardService, useValue: dashboards },
+        { provide: ReportsService, useValue: reports },
+      ],
     });
   });
   afterAll(() => t.close());
@@ -131,15 +139,152 @@ describe('AdminController', () => {
     });
   });
 
-  describe('stubs', () => {
-    it('GET /admin/dashboard and /admin/reports -> 501', async () => {
-      const auth = await t.bearer('admin');
-      await t.http().get('/api/v1/admin/dashboard?date=2026-11-05').set('Authorization', auth).expect(501);
+  describe('GET /admin/dashboard', () => {
+    /** `Dashboard` example. */
+    const DASHBOARD = {
+      date: '2026-11-05',
+      resources: [
+        {
+          resource_id: EXAMPLE_RESOURCES.basketballCourt.id,
+          resource_name: 'Teren baschet 2',
+          slots: [
+            {
+              start: '2026-11-05T18:00:00+02:00',
+              end: '2026-11-05T19:00:00+02:00',
+              status: 'occupied',
+              bookable: false,
+              booking_id: 'e3a94f60-1b2c-4d7e-8f05-6c2b9a0d4e11',
+              holder_name: 'Ion Popescu',
+            },
+          ],
+        },
+      ],
+      check_ins_count: 41,
+      no_shows_count: 3,
+    };
+
+    it('200 Dashboard for the requested day', async () => {
+      dashboards.dashboard.mockResolvedValue(DASHBOARD);
+      const res = await t
+        .http()
+        .get('/api/v1/admin/dashboard?date=2026-11-05')
+        .set('Authorization', await t.bearer('admin'))
+        .expect(200);
+      expect(res.body).toEqual(DASHBOARD);
+      expect(dashboards.dashboard).toHaveBeenCalledWith(TEST_USERS.admin, '2026-11-05');
+    });
+
+    it('defaults to today (no date passed on)', async () => {
+      dashboards.dashboard.mockResolvedValue(DASHBOARD);
       await t
         .http()
+        .get('/api/v1/admin/dashboard')
+        .set('Authorization', await t.bearer('admin'))
+        .expect(200);
+      expect(dashboards.dashboard).toHaveBeenCalledWith(TEST_USERS.admin, undefined);
+    });
+
+    it('422 for a malformed date', async () => {
+      const auth = await t.bearer('admin');
+      await t.http().get('/api/v1/admin/dashboard?date=2026-13-40').set('Authorization', auth).expect(422);
+      await t.http().get('/api/v1/admin/dashboard?date=azi').set('Authorization', auth).expect(422);
+      expect(dashboards.dashboard).not.toHaveBeenCalled();
+    });
+
+    it('403 for students, 401 anonymously', async () => {
+      await t
+        .http()
+        .get('/api/v1/admin/dashboard')
+        .set('Authorization', await t.bearer('student'))
+        .expect(403);
+      await t.http().get('/api/v1/admin/dashboard').expect(401);
+    });
+  });
+
+  describe('GET /admin/reports', () => {
+    /** `MonthlyReport` example. */
+    const REPORT = {
+      month: '2026-10',
+      occupancy: [
+        {
+          resource_id: EXAMPLE_RESOURCES.basketballCourt.id,
+          resource_name: 'Teren baschet 2',
+          rate: 0.72,
+          by_hour: [{ hour: 18, rate: 0.95 }],
+        },
+      ],
+      no_shows_count: 37,
+      bookings_by_category: { members: 812, externals: 64 },
+      users_reaching_limit_count: 58,
+    };
+
+    it('200 MonthlyReport as JSON by default', async () => {
+      reports.monthlyReport.mockResolvedValue(REPORT);
+      const res = await t
+        .http()
+        .get('/api/v1/admin/reports?month=2026-10')
+        .set('Authorization', await t.bearer('admin'))
+        .expect(200)
+        .expect('Content-Type', /application\/json/);
+      expect(res.body).toEqual(REPORT);
+      expect(reports.monthlyReport).toHaveBeenCalledWith('2026-10');
+    });
+
+    it('format=csv downloads a flat text/csv table', async () => {
+      reports.monthlyReport.mockResolvedValue(REPORT);
+      const res = await t
+        .http()
         .get('/api/v1/admin/reports?month=2026-10&format=csv')
-        .set('Authorization', auth)
+        .set('Authorization', await t.bearer('admin'))
+        .expect(200)
+        .expect('Content-Type', /^text\/csv; charset=utf-8/)
+        .expect('Content-Disposition', 'attachment; filename="campussport-raport-2026-10.csv"');
+      expect(res.text.startsWith('﻿')).toBe(true);
+      const lines = res.text.slice(1).trimEnd().split('\r\n');
+      expect(lines[0]).toBe('month,metric,resource_id,resource_name,hour,value');
+      expect(lines).toContain(
+        `2026-10,occupancy_rate_by_hour,${EXAMPLE_RESOURCES.basketballCourt.id},Teren baschet 2,18,0.95`,
+      );
+      expect(lines).toContain('2026-10,users_reaching_limit_count,,,,58');
+    });
+
+    it('format=pdf is not implemented yet (501)', async () => {
+      await t
+        .http()
+        .get('/api/v1/admin/reports?month=2026-10&format=pdf')
+        .set('Authorization', await t.bearer('admin'))
         .expect(501);
+      expect(reports.monthlyReport).not.toHaveBeenCalled();
+    });
+
+    it('422 for a missing or malformed month or an unknown format', async () => {
+      const auth = await t.bearer('admin');
+      await t.http().get('/api/v1/admin/reports').set('Authorization', auth).expect(422);
+      const res = await t
+        .http()
+        .get('/api/v1/admin/reports?month=2026-13')
+        .set('Authorization', auth)
+        .expect(422);
+      expect(res.body).toMatchObject({
+        code: 'VALIDATION_FAILED',
+        details: { fields: { month: expect.any(Array) } },
+      });
+      await t.http().get('/api/v1/admin/reports?month=2026-1').set('Authorization', auth).expect(422);
+      await t
+        .http()
+        .get('/api/v1/admin/reports?month=2026-10&format=xlsx')
+        .set('Authorization', auth)
+        .expect(422);
+      expect(reports.monthlyReport).not.toHaveBeenCalled();
+    });
+
+    it('403 for teachers, 401 anonymously', async () => {
+      await t
+        .http()
+        .get('/api/v1/admin/reports?month=2026-10')
+        .set('Authorization', await t.bearer('teacher'))
+        .expect(403);
+      await t.http().get('/api/v1/admin/reports?month=2026-10').expect(401);
     });
   });
 });

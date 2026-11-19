@@ -5,6 +5,7 @@ import {
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiProduces,
   ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
@@ -15,7 +16,9 @@ import { CurrentUser, Public, Roles } from '../../common/auth/decorators';
 import { notImplemented } from '../../common/errors/app.exception';
 import { UuidParamPipe } from '../../common/http/uuid.pipe';
 import { API_PREFIX } from '../../app.setup';
+import { AdminBookingsService } from './admin-bookings.service';
 import { BookingsService } from './bookings.service';
+import { AdminBookingsQueryDto, AdminCancelDto } from './dto/admin-booking.dto';
 import {
   BookingCreateDto,
   BookingPage,
@@ -91,12 +94,18 @@ export class BookingsController {
   }
 
   @Get(':id/calendar.ics')
-  @ApiOperation({
-    operationId: 'downloadBookingCalendar',
-    summary: 'Fișier iCal pentru o rezervare — neimplementat (501)',
-  })
-  calendar(@Param('id', UuidParamPipe) _id: string): never {
-    notImplemented();
+  @ApiOperation({ operationId: 'downloadBookingCalendar', summary: 'Fișier iCal pentru o rezervare' })
+  @ApiProduces('text/calendar')
+  @ApiOkResponse({ description: 'Eveniment iCal.', schema: { type: 'string' } })
+  async calendar(
+    @CurrentUser() user: AuthUser,
+    @Param('id', UuidParamPipe) id: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<string> {
+    const ics = await this.bookings.calendar(user, id);
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="campussport-${id}.ics"`);
+    return ics;
   }
 
   @Post(':id/invitations')
@@ -167,13 +176,13 @@ export class MyBookingsController {
 @Roles('admin')
 @Controller('admin/bookings')
 export class AdminBookingsController {
+  constructor(private readonly adminBookings: AdminBookingsService) {}
+
   @Get()
-  @ApiOperation({
-    operationId: 'listBookings',
-    summary: 'Toate rezervările, cu filtre — neimplementat (501)',
-  })
-  list(): never {
-    notImplemented();
+  @ApiOperation({ operationId: 'listBookings', summary: 'Toate rezervările, cu filtre' })
+  @ApiOkResponse({ type: BookingPage })
+  list(@Query() query: AdminBookingsQueryDto) {
+    return this.adminBookings.list(query);
   }
 
   @Patch(':id')
@@ -186,11 +195,15 @@ export class AdminBookingsController {
   }
 
   @Post(':id/cancel')
-  @ApiOperation({
-    operationId: 'adminCancelBooking',
-    summary: 'Anulare de către administrator — neimplementat (501)',
-  })
-  cancel(@Param('id', UuidParamPipe) _id: string): never {
-    notImplemented();
+  @HttpCode(200)
+  @ApiOperation({ operationId: 'adminCancelBooking', summary: 'Anulare de către administrator' })
+  @ApiOkResponse({ type: CancellationResultResponse })
+  @ApiConflictResponse({ description: 'Rezervarea nu mai este activă (`BOOKING_NOT_ACTIVE`).' })
+  cancel(
+    @CurrentUser() actor: AuthUser,
+    @Param('id', UuidParamPipe) id: string,
+    @Body() dto: AdminCancelDto,
+  ): Promise<CancellationResultResponse> {
+    return this.adminBookings.cancel(actor, id, dto.reason);
   }
 }

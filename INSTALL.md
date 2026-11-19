@@ -1,6 +1,27 @@
 # Installing and running CampusSport
 
-This guide sets up the backend (`backend/`) on a development machine and lets you call the API from Swagger or Postman. The main path below uses local installs without Docker. Docker is optional and covered near the end.
+This guide sets up the backend (`backend/`) and the web app (`frontend/`) on a development machine. The main path below uses local installs without Docker. Docker is optional and covered near the end.
+
+## Quick start
+
+With Node.js 24 and PostgreSQL 18 installed, and `backend/.env` configured (section 3):
+
+```bash
+npm install          # repo root: installs the script runner (concurrently)
+npm run setup        # installs backend + frontend, creates and seeds the database
+npm run dev          # API on :3000 and the web app on :5173, in one terminal
+```
+
+Open http://localhost:5173 and use **Development sign-in** to enter as one of the example users (section 8). Redis and Keycloak are not needed for this.
+
+| Root script | What it does |
+|---|---|
+| `npm run dev` | API (`backend`, watch mode) and web app (`frontend`, Vite) together |
+| `npm run dev:all` | The same plus the worker (needs Redis) |
+| `npm run dev:api` / `npm run dev:web` | Only one of them |
+| `npm run dev:mock` | Only the web app, with the built-in mock server (no backend) |
+| `npm run setup` | `install:all` + `db:setup` |
+| `npm run build` / `typecheck` / `test` | Run in both packages |
 
 ## 1. Requirements
 
@@ -24,8 +45,10 @@ psql -V    # 18.x (on Windows: "C:\Program Files\PostgreSQL\18\bin\psql" -V)
 | Without Redis | Needs Redis |
 |---|---|
 | Catalog, availability, bookings, waitlist, blocks, settings, audit log | The worker: notifications, waitlist offers, no-show handling |
-| `/health` answers `degraded` | Sign-in through SSO and by external one-time codes |
-| | Refreshing sessions |
+| Sign-in, sessions and one-time codes, kept in API memory (lost on restart) | Sharing sessions between several API instances |
+| `/health` answers `degraded` | |
+
+Without Redis the API logs `Redis is not reachable: using an in-memory KvStore` once at startup. This fallback exists only outside production.
 
 To install Redis on Windows, pick one:
 
@@ -36,8 +59,9 @@ To install Redis on Windows, pick one:
 
 ```bash
 git clone https://github.com/MaketaCampusSport/CampusSport.git
-cd CampusSport/backend
-npm install
+cd CampusSport
+npm install          # root script runner
+npm run install:all  # backend/ and frontend/
 ```
 
 ## 3. Configure
@@ -61,13 +85,14 @@ Instead of the five `DB_*` lines you can set a single `DATABASE_URL=postgres://u
 ## 4. Create the database
 
 ```bash
-npm run db:setup
+cd backend
+npm run db:setup     # or, from the root: npm run setup
 ```
 
 This command:
 
 - creates the database if it doesn't exist;
-- applies the schema from `livrabil05/baza-de-date/schema-postgresql.sql`;
+- applies the schema from `assets/livrabil05/baza-de-date/schema-postgresql.sql`;
 - loads the example data from the API specification: 4 sports, 5 resources and 4 users.
 
 | Example user | Role |
@@ -79,15 +104,22 @@ This command:
 
 You can run it again at any time: it only adds what is missing and resets the example rows.
 
-## 5. Start the API
+## 5. Start the API and the web app
+
+From the repo root, `npm run dev` starts both. To start only the API:
 
 ```bash
+cd backend
 npm run start:dev
 ```
 
 - API: http://localhost:3000/api/v1
 - Swagger UI: http://localhost:3000/api/docs
 - Health: http://localhost:3000/health returns `{"status":"ok"}`, or `"degraded"` without Redis
+
+- Web app: http://localhost:5173 (students, teachers and externals at `/user`, administrators at `/admin`)
+
+The web app's dev server forwards `/api` to the API (`VITE_API_PROXY_TARGET` in `frontend/.env.development`), so the browser talks to one origin and the HttpOnly refresh cookie works. To change it locally, put overrides in `frontend/.env.development.local`.
 
 For a production-like start without watch mode, run `npm run build`, then `npm start`.
 
@@ -131,22 +163,29 @@ This command is for development only and refuses to run in production.
 
 `postman/README.md` explains the collection.
 
-## 8. Sign-in flows (optional)
+## 8. Sign-in
 
-These need Redis.
+**Development sign-in (no SSO, no Redis).** When `NODE_ENV=development` and `DEV_LOGIN` is not `false` (see `backend/.env.example`), the API exposes `GET /api/v1/auth/dev/users` and `POST /api/v1/auth/dev/login {"email": …}`. The login pages of the web app (`/login` and `/admin/login`) show a **Development sign-in** panel that uses them. They issue a real session (refresh cookie + access token), so reloading the page keeps you signed in. In any other environment the routes answer 404. They are not part of the API contract and are hidden from Swagger.
+
+**Real flows** (optional; without Redis their state is kept in API memory):
 
 - **SSO with Keycloak** (needs Docker): run `docker compose up -d keycloak` in `backend/`. Then open http://localhost:3000/api/v1/auth/sso/login and sign in as `student1`, `teacher1` or `admin1` (password `parola123`).
 - **Administrator 2FA:** run `npm run admin:enroll-totp -- <admin email>`, then scan the printed `otpauth://` URI with an authenticator app.
-- **External users:** call `POST /api/v1/auth/external/register`. In development the SMS code is printed in the API log. The email code goes to SMTP on `localhost:1025`; `docker compose up -d mailpit` shows it at http://localhost:8025.
+- **External users:** use the **External** tab on http://localhost:5173/login, or call `POST /api/v1/auth/external/register`. In development the SMS code is printed in the API log. The email code goes to SMTP on `localhost:1025`; `docker compose up -d mailpit` shows it at http://localhost:8025. Without Mailpit, the API prints the email (with the code) in its log.
+- After SSO, the API redirects members to `PWA_URL` + `return_to`, and administrators to `PWA_URL/auth/2fa` for the TOTP code.
 
 ## 9. Tests
 
 ```bash
 cd backend
 npm test             # unit and controller tests
-npm run spec:check   # the API matches livrabil05/openapi.json
+npm run spec:check   # the API matches assets/livrabil05/openapi.json
 npm run test:e2e     # the whole app against PostgreSQL, using the database <DB_NAME>_test
 npm run lint && npm run typecheck
+
+cd ../frontend
+npm test             # Vitest, against the mock server
+npm run typecheck
 ```
 
 `test:e2e` creates `<DB_NAME>_test` next to your database and **drops and recreates its schema** on every run. It refuses any database whose name doesn't end in `_test`.
@@ -168,6 +207,7 @@ Docker Compose reads `backend/.env`, and a `$` inside a value (for example in a 
 | Port | Service |
 |---|---|
 | 3000 | API |
+| 5173 | Web app (Vite dev server) |
 | 9101 | Worker metrics |
 | 5432 | PostgreSQL |
 | 6379 | Redis |
@@ -180,7 +220,10 @@ Docker Compose reads `backend/.env`, and a `$` inside a value (for example in a 
 | Symptom | Cause and fix |
 |---|---|
 | `password authentication failed` on `db:setup` | Check `DB_USER` / `DB_PASSWORD` in `backend/.env`. |
-| `/health` shows `"redis":"down"`, repeated Redis warnings in the log | Redis isn't running. The API still works; start Redis for sign-in and the worker. |
+| `/health` shows `"redis":"down"`, Redis warnings in the log | Redis isn't running. The API still works, with sessions in memory; start Redis for the worker. |
+| The web app says "The server is not answering" on sign-in | The API isn't running on :3000. Start both with `npm run dev` from the root. |
+| Development sign-in panel says the server does not allow it | Set `NODE_ENV=development` and `DEV_LOGIN=true` in `backend/.env`, then restart the API. |
+| Signed out after restarting the API | Without Redis, sessions live in API memory. Sign in again. |
 | SSO routes answer 500 | The identity provider isn't reachable. Start Keycloak, or set the `OIDC_*` variables. |
 | Requests answer `501 NOT_IMPLEMENTED` | The route exists but isn't implemented yet; the list is in `backend/README.md`. |
 | `401 UNAUTHENTICATED` in Postman | Tokens expire after 12 h. Run `npm run dev:token -- --postman` again and re-import the environment. |

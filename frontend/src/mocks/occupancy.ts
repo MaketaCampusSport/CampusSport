@@ -1,189 +1,103 @@
-import { addDays, addHours, differenceInCalendarDays, startOfDay } from 'date-fns';
-import type { Block, BlockStatus, CellState, DashboardCell, Resource } from '@/api/types';
-import { db, HOURS, POPULARITY, type DbBlock } from './db';
+import { addMinutes } from 'date-fns';
+import type { Block, BlockKind, CheckInResult, ResourceAvailability, Slot, User } from '@/api/client';
+import { blockOverlaps, db, iso, overlaps, slotsForDay, type MockBooking, type MockResource } from './db';
 
-export function hash(str: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
+/** Ordinea din SRS 9.1, de la cea mai puternică: aceasta e culoarea slotului când se suprapun mai multe. */
+const PRIORITY: BlockKind[] = ['emergency', 'maintenance', 'pe_class', 'event'];
+
+/** Nivelul din backend (`BLOCK_LEVEL`): o blocare nu poate acoperi una de nivel egal sau mai mare. */
+export const BLOCK_LEVEL: Record<BlockKind, number> = { emergency: 2, maintenance: 2, pe_class: 1, event: 1 };
+
+export function blocksOverlapping(resourceId: string, start: Date, end: Date | null): Block[] {
+  return db.blocks.filter((b) => b.resource_id === resourceId && blockOverlaps(b, start, end));
 }
 
-export function rng(seed: number): () => number {
-  let a = seed;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+function strongest(list: Block[]): Block | undefined {
+  return [...list].sort((a, b) => PRIORITY.indexOf(a.kind) - PRIORITY.indexOf(b.kind))[0];
 }
 
-export const PEOPLE = [
-  'Andrei Popescu', 'Mihai Ionescu', 'Diana Rusu', 'Ion Moraru', 'Elena Stan', 'Radu Marin',
-  'Ioana Dumitru', 'Alex Vasilescu', 'Teodora Pavel', 'Vlad Munteanu', 'Cristina Toma', 'Bogdan Lazăr',
-];
-
-const CURVE = [0.25, 0.4, 0.35, 0.5, 0.6, 0.45, 0.55, 0.75, 0.9, 1, 0.95, 0.8, 0.55, 0.35];
-
-export function dateKey(d: Date): string {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-
-export function isoWeekday(d: Date): number {
-  return d.getDay() === 0 ? 7 : d.getDay();
-}
-
-export function cellKey(resourceId: string, day: Date, hour: number): string {
-  return `${resourceId}|${dateKey(day)}|${hour}`;
-}
-
-function blockWindowCovers(b: DbBlock, start: Date, end: Date): boolean {
-  const bStart = new Date(b.startsAt);
-  const bEnd = b.endsAt ? new Date(b.endsAt) : null;
-  const released = b.releasedAt ? new Date(b.releasedAt) : null;
-  if (released && start >= released) return false;
-
-  if (b.recurrence === 'none') {
-    const effEnd = released && bEnd ? (released < bEnd ? released : bEnd) : (released ?? bEnd);
-    return bStart < end && (effEnd === null || effEnd > start);
-  }
-  if (!bEnd) return false;
-  const day = startOfDay(start);
-  if (day < startOfDay(bStart)) return false;
-  if (b.recurrence === 'weekly' && isoWeekday(day) !== isoWeekday(bStart)) return false;
-  const ws = new Date(day);
-  ws.setHours(bStart.getHours(), bStart.getMinutes(), 0, 0);
-  const we = new Date(day);
-  we.setHours(bEnd.getHours(), bEnd.getMinutes(), 0, 0);
-  return ws < end && we > start;
-}
-
-function findBlock(resourceId: string, start: Date, end: Date, excludeId?: string): DbBlock | undefined {
-  return db.blocks.find(
-    (b) => b.resourceId === resourceId && b.id !== excludeId && blockWindowCovers(b, start, end),
+/** Rezervările care ocupă slotul (anulatele nu mai ocupă nimic). */
+export function bookingsOverlapping(resourceId: string, start: Date, end: Date | null, activeOnly = false): MockBooking[] {
+  return db.bookings.filter(
+    (b) =>
+      b.resource_id === resourceId &&
+      (activeOnly ? b.status === 'active' : b.status !== 'cancelled') &&
+      overlaps(new Date(b.start), new Date(b.end), start, end),
   );
 }
 
-export interface DayOptions {
-  excludeBlockId?: string;
-}
-
-/** Starea fiecărei ore dintr-o zi, pentru o resursă. Prioritatea (SRS 9.1): blocare > curs EF > eveniment > rezervare. */
-export function cellsForDay(resource: Resource, day: Date, opts: DayOptions = {}): DashboardCell[] {
-  const openH = Number(resource.opensAt.split(':')[0]);
-  const closeH = Number(resource.closesAt.split(':')[0]);
-  const weekday = isoWeekday(day);
-  const dk = dateKey(day);
-
-  return HOURS.map((hour): DashboardCell => {
-    if (hour < openH || hour >= closeH) return { hour, state: 'closed' };
-
-    const start = new Date(day);
-    start.setHours(hour, 0, 0, 0);
-    const end = addHours(start, 1);
-
-    const block = findBlock(resource.id, start, end, opts.excludeBlockId);
-    if (block) return { hour, state: 'blocked', label: block.reason };
-
-    const ef = db.efClasses.find((c) => c.resourceId === resource.id && c.weekday === weekday && hour >= c.from && hour < c.to);
-    if (ef) return { hour, state: 'pe_class', label: ef.course };
-
-    const ev = db.events.find((e) => e.resourceIds.includes(resource.id) && new Date(e.startsAt) < end && new Date(e.endsAt) > start);
-    if (ev) return { hour, state: 'event', label: ev.name };
-
-    if (!db.cancelled.has(cellKey(resource.id, day, hour))) {
-      const r = rng(hash(`${resource.id}|${dk}|${hour}`));
-      const weekendBoost = weekday >= 6 ? 1.1 : 1;
-      const p = (POPULARITY[resource.id] ?? 0.4) * (CURVE[hour - 8] ?? 0.4) * weekendBoost;
-      if (r() < p) return { hour, state: 'booked', label: PEOPLE[Math.floor(r() * PEOPLE.length)] };
+/**
+ * Grila unei resurse pentru o zi (GET /availability, GET /admin/dashboard).
+ * `holder_name` apare doar pentru admin, iar `booking_id` pentru admin și pentru titular.
+ */
+export function availabilityFor(r: MockResource, day: Date, viewer: User | null, now = new Date()): ResourceAvailability {
+  const admin = viewer?.role === 'admin';
+  const slots = slotsForDay(r, day).map(({ start, end }): Slot => {
+    const base = { start: iso(start), end: iso(end) };
+    const block = strongest(blocksOverlapping(r.id, start, end));
+    if (block) return { ...base, status: 'blocked', bookable: false, block_kind: block.kind };
+    const booking = bookingsOverlapping(r.id, start, end)[0];
+    if (booking) {
+      const mine = !!viewer && booking.user_id === viewer.id;
+      return {
+        ...base,
+        status: mine ? 'mine' : 'occupied',
+        bookable: false,
+        ...(viewer && !admin && !mine && start > now ? { waitlist_available: true } : {}),
+        ...(mine || admin ? { booking_id: booking.id } : {}),
+        ...(admin ? { holder_name: booking.holder_name } : {}),
+      };
     }
-    return { hour, state: 'free' };
+    return { ...base, status: 'free', bookable: r.active && start > now };
   });
+  return { resource_id: r.id, resource_name: r.name, slots };
 }
 
-/** Câte rezervări active se suprapun cu intervalul (folosit pentru „N rezervări vor fi anulate”). */
-export function countAffected(resource: Resource, from: Date, to: Date | null, excludeBlockId?: string): number {
-  const limit = addDays(from, 30);
-  const end = to && to < limit ? to : limit;
-  let count = 0;
-  const days = differenceInCalendarDays(end, from);
-  for (let i = 0; i <= days; i++) {
-    const day = startOfDay(addDays(from, i));
-    for (const cell of cellsForDay(resource, day, { excludeBlockId })) {
-      if (cell.state !== 'booked') continue;
-      const cs = new Date(day);
-      cs.setHours(cell.hour, 0, 0, 0);
-      if (addHours(cs, 1) > from && cs < end) count++;
-    }
+/** Pașii 2–3 din SDD 7.3: anulează rezervările active suprapuse și restituie cota (în mock: doar starea). */
+export function cancelOverlapping(resourceId: string, start: Date, end: Date | null, source: MockBooking['cancel_source'], reason: string): MockBooking[] {
+  const cancelled = bookingsOverlapping(resourceId, start, end, true).filter((b) => new Date(b.end) > new Date());
+  for (const b of cancelled) {
+    b.status = 'cancelled';
+    b.cancel_source = source;
+    b.cancel_reason = reason;
   }
-  return count;
+  return cancelled;
 }
 
-/** Marchează ca anulate rezervările din interval, ca să nu „reapară” după deblocare. */
-export function cancelBookings(resource: Resource, from: Date, to: Date | null, excludeBlockId?: string): number {
-  const limit = addDays(from, 30);
-  const end = to && to < limit ? to : limit;
-  let count = 0;
-  const days = differenceInCalendarDays(end, from);
-  for (let i = 0; i <= days; i++) {
-    const day = startOfDay(addDays(from, i));
-    for (const cell of cellsForDay(resource, day, { excludeBlockId })) {
-      if (cell.state !== 'booked') continue;
-      const cs = new Date(day);
-      cs.setHours(cell.hour, 0, 0, 0);
-      if (addHours(cs, 1) > from && cs < end) {
-        db.cancelled.add(cellKey(resource.id, day, cell.hour));
-        count++;
-      }
-    }
+export type CheckInOutcome =
+  | { ok: true; result: CheckInResult }
+  | { ok: false; status: number; code: string; message_ro: string; message_en: string };
+
+/**
+ * Check-in la intrare cu tokenul QR `<booking_id>.<nonce>.<semnătură>` (FR-15, POST /bookings/{id}/check-in).
+ * Exportat pentru handler-ul rutei /bookings (mocks/memberHandlers.ts).
+ */
+export function staffCheckIn(bookingId: string, qrToken: string | undefined, now = new Date()): CheckInOutcome {
+  const booking = db.bookings.find((b) => b.id === bookingId);
+  if (!booking) return { ok: false, status: 404, code: 'NOT_FOUND', message_ro: 'Rezervarea nu există.', message_en: 'Booking not found.' };
+  if (!qrToken || qrToken !== booking.qr_token) {
+    return { ok: false, status: 422, code: 'QR_INVALID', message_ro: 'Cod QR invalid.', message_en: 'Invalid QR code.' };
   }
-  return count;
-}
-
-export function blockStatus(b: DbBlock, now = new Date()): BlockStatus {
-  const start = new Date(b.startsAt);
-  const end = b.endsAt ? new Date(b.endsAt) : null;
-  const released = b.releasedAt ? new Date(b.releasedAt) : null;
-  if (b.recurrence !== 'none') {
-    if (released) return 'history';
-    return blockWindowCovers(b, now, new Date(now.getTime() + 1)) ? 'active' : 'planned';
+  if (booking.checked_in_at) {
+    return { ok: false, status: 409, code: 'ALREADY_CHECKED_IN', message_ro: 'Check-in deja făcut.', message_en: 'Already checked in.' };
   }
-  if (released && released <= now) return 'history';
-  if (end && end <= now) return 'history';
-  if (start > now) return 'planned';
-  return 'active';
-}
-
-export function toBlockDto(b: DbBlock): Block {
-  const resource = db.resources.find((r) => r.id === b.resourceId);
+  if (booking.status !== 'active') {
+    return { ok: false, status: 409, code: 'BOOKING_NOT_ACTIVE', message_ro: 'Rezervarea nu mai este activă.', message_en: 'The booking is no longer active.' };
+  }
+  const start = new Date(booking.start);
+  const { checkin_minutes_before: before, checkin_minutes_after: after } = db.settings;
+  if (now < addMinutes(start, -before) || now > addMinutes(start, after)) {
+    return {
+      ok: false,
+      status: 422,
+      code: 'CHECKIN_WINDOW_CLOSED',
+      message_ro: `Check-in-ul este permis între −${before} și +${after} minute față de început.`,
+      message_en: `Check-in is allowed from −${before} to +${after} minutes around the start time.`,
+    };
+  }
+  booking.checked_in_at = iso(now);
   return {
-    id: b.id,
-    resourceId: b.resourceId,
-    resourceName: resource?.name ?? b.resourceId,
-    resourcePhotoUrl: resource?.photoUrl ?? '',
-    kind: b.kind,
-    reason: b.reason,
-    startsAt: b.startsAt,
-    endsAt: b.endsAt,
-    recurrence: b.recurrence,
-    affectedCount: b.affectedCount,
-    status: blockStatus(b),
-    createdBy: b.createdBy,
-    hasDelivery: b.hasDelivery,
-    releasedAt: b.releasedAt,
+    ok: true,
+    result: { booking_id: booking.id, checked_in_at: booking.checked_in_at, holder_name: booking.holder_name, category: booking.category },
   };
 }
-
-/** Resursa se află acum sub o blocare? (pentru coloana „Stare” și butonul din panou) */
-export function currentBlock(resourceId: string, now = new Date()): DbBlock | undefined {
-  return db.blocks.find(
-    (b) => b.resourceId === resourceId && blockStatus(b, now) === 'active' && blockWindowCovers(b, now, new Date(now.getTime() + 1)),
-  );
-}
-
-export const STATE_ORDER: CellState[] = ['free', 'booked', 'pe_class', 'event', 'blocked', 'closed'];

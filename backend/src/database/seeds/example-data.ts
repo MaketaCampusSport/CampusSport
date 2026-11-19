@@ -1,6 +1,6 @@
 /**
  * Example data shared by the dev seed and the unit tests.
- * IDs, names and values come from the `example:` fields in livrabil05/openapi.yaml where the spec has them.
+ * IDs, names and values come from the `example:` fields in assets/livrabil05/openapi.yaml where the spec has them.
  */
 import type { WeeklyHours } from '../entities';
 import type { ExternalAccess, Role } from '../enums';

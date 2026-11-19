@@ -71,7 +71,7 @@ Sufixele fișierelor: `.module.ts`, `.controller.ts`, `.service.ts`, `.dto.ts`, 
 
 ## 7. Baza de date și SQL
 
-- **Schema nu se modifică din cod.** Orice schimbare pornește de la `livrabil05/baza-de-date/schema-postgresql.sql` și ajunge într-o migrare nouă.
+- **Schema nu se modifică din cod.** Orice schimbare pornește de la `assets/livrabil05/baza-de-date/schema-postgresql.sql` și ajunge într-o migrare nouă.
 - **Parametri, nu concatenare.** Valorile intră în SQL doar ca `$1`, `$2`...
 - **O operație logică = o tranzacție.** Ce trebuie să reușească sau să eșueze împreună (de exemplu rezervarea și consumul cotei, sau blocarea și jurnalul de audit) se face în același `dataSource.transaction(...)`, transmițând `em` mai departe.
 - **Concurența o rezolvă baza de date.** Suprapunerile se previn prin `no_overlap`, nu prin verificări în cod. Când e nevoie de ordine, se blochează explicit rândul (`FOR UPDATE`, `FOR NO KEY UPDATE`).

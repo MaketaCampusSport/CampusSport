@@ -1,128 +1,157 @@
-import { addDays, addHours, addWeeks, startOfDay, subDays, subHours, subMinutes } from 'date-fns';
-import type {
-  Announcement,
-  AuditAction,
-  AuditEntry,
-  BlockKind,
-  BlockRecurrence,
-  EventRecurrence,
-  ManagedUser,
-  Resource,
-  RuleSettings,
-  SchedulePreview,
-  Sport,
-  UserKind,
-} from '@/api/types';
+import { addDays, addMinutes, formatISO, startOfDay, subDays, subHours, subMinutes } from 'date-fns';
+import type { AuditEntry, Block, Booking, ResourceInput, Settings, Sport, User, WeeklyHours } from '@/api/client';
+
+/**
+ * Datele serverului simulat (MSW), în forma contractului (assets/livrabil05/openapi.yaml): snake_case.
+ * `db.bookings` este partajat cu handler-ele pentru membri (mocks/memberHandlers.ts).
+ */
 
 export const ADMIN = { id: 'u-admin-1', fullName: 'Maria Ionescu', email: 'maria.ionescu@univ.example', role: 'admin' as const };
 export const OTHER_ADMIN = { id: 'u-admin-2', fullName: 'Dan Rusu', email: 'dan.rusu@univ.example' };
 
-export const HOURS = Array.from({ length: 14 }, (_, i) => 8 + i);
+/** Data-oră ISO 8601 cu decalajul local (ex. `2026-11-19T18:00:00+02:00`), ca serverul. */
+export const iso = (d: Date): string => formatISO(d);
 
-export interface DbBlock {
+/** Resursă completă (în contract toate câmpurile `ResourceInput` sunt opționale). */
+export type MockResource = Required<Omit<ResourceInput, 'photo_url' | 'external_access_windows'>> & {
   id: string;
-  resourceId: string;
-  kind: BlockKind;
-  reason: string;
-  startsAt: string;
-  endsAt: string | null;
-  recurrence: BlockRecurrence;
-  affectedCount: number;
-  createdBy: string;
-  releasedAt: string | null;
-  hasDelivery: boolean;
+  photo_url: string | null;
+  external_access_windows?: WeeklyHours;
+};
+
+/** Rezervare cu datele pe care serverul le are în plus (titular, categorie, token QR). */
+export interface MockBooking extends Booking {
+  user_id: string;
+  holder_name: string;
+  category: 'member' | 'external';
+  qr_token: string;
 }
 
-export interface DbEvent {
-  id: string;
-  name: string;
-  resourceIds: string[];
-  startsAt: string;
-  endsAt: string;
-  recurrence: EventRecurrence;
-  cancelledCount: number;
-}
-
-export interface EfClass {
-  resourceId: string;
-  weekday: number; // 1..7
-  from: number; // ora de început
-  to: number;
-  course: string;
-}
-
-export interface Delivery {
-  blockId: string;
+export interface MockDelivery {
   startedAtMs: number;
-  total: number;
+  notified: number;
 }
 
-export const SPORTS: Sport[] = [
-  { id: 's-fotbal', nameRo: 'Fotbal', nameEn: 'Football', requiredEquipment: ['porti'] },
-  { id: 's-baschet', nameRo: 'Baschet', nameEn: 'Basketball', requiredEquipment: ['panouri'] },
-  { id: 's-tenis', nameRo: 'Tenis', nameEn: 'Tennis', requiredEquipment: ['fileu'] },
-  { id: 's-volei', nameRo: 'Volei', nameEn: 'Volleyball', requiredEquipment: ['fileu'] },
-  { id: 's-fitness', nameRo: 'Fitness', nameEn: 'Fitness', requiredEquipment: [] },
-  { id: 's-inot', nameRo: 'Înot', nameEn: 'Swimming', requiredEquipment: [] },
-];
+export interface Db {
+  session: 'none' | 'pending' | 'ok';
+  sports: Sport[];
+  resources: MockResource[];
+  /** Rândurile din `occupancy` care nu sunt rezervări (blocări, ore EF, evenimente). */
+  blocks: Block[];
+  bookings: MockBooking[];
+  deliveries: Map<string, MockDelivery>;
+  audit: AuditEntry[];
+  users: User[];
+  settings: Settings;
+  seq: number;
+}
+
+export const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+
+export function weekly(open: string, close: string, days: readonly (keyof WeeklyHours)[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']): WeeklyHours {
+  return Object.fromEntries(days.map((d) => [d, [{ open, close }]])) as WeeklyHours;
+}
 
 const img = (n: string) => `/images/resources/${n}.jpg`;
 
-function res(p: Partial<Resource> & Pick<Resource, 'id' | 'name' | 'photoUrl' | 'capacity' | 'sportIds'>): Resource {
+function seedSports(): Sport[] {
+  return [
+    { id: 's-fotbal', name_ro: 'Fotbal', name_en: 'Football', icon: 'football', required_equipment: ['porti'] },
+    { id: 's-baschet', name_ro: 'Baschet', name_en: 'Basketball', icon: 'basketball', required_equipment: ['panouri'] },
+    { id: 's-tenis', name_ro: 'Tenis', name_en: 'Tennis', icon: 'tennis', required_equipment: ['fileu'] },
+    { id: 's-volei', name_ro: 'Volei', name_en: 'Volleyball', icon: 'volleyball', required_equipment: ['fileu'] },
+    { id: 's-fitness', name_ro: 'Fitness', name_en: 'Fitness', icon: 'fitness', required_equipment: [] },
+    { id: 's-inot', name_ro: 'Înot', name_en: 'Swimming', icon: 'pool', required_equipment: [] },
+  ];
+}
+
+function res(p: Partial<MockResource> & Pick<MockResource, 'id' | 'name' | 'capacity' | 'sport_ids'>): MockResource {
   return {
-    location: 'Complexul sportiv',
+    type: 'teren',
+    location: 'Complexul sportiv, str. Universității 1',
+    photo_url: null,
     equipment: [],
-    opensAt: '08:00',
-    closesAt: '22:00',
-    slotMinutes: 60,
-    externalAccess: 'leftover',
-    externalWindow: null,
+    opening_hours: weekly('08:00', '22:00'),
+    slot_minutes: 60,
+    external_access: 'leftover',
     active: true,
-    blocked: false,
-    blockedLabel: null,
     ...p,
   };
 }
 
-export const POPULARITY: Record<string, number> = {
-  'r-football-1': 0.8,
-  'r-football-2': 0.6,
-  'r-court-2': 0.55,
-  'r-tennis': 0.42,
-  'r-fitness': 0.7,
-  'r-pool': 0.35,
-  'r-multi': 0.4,
-  'r-court-4': 0.3,
-};
-
-export interface Db {
-  session: 'none' | 'pending' | 'ok';
-  sessionExpiresAt: string;
-  resources: Resource[];
-  blocks: DbBlock[];
-  events: DbEvent[];
-  efClasses: EfClass[];
-  cancelled: Set<string>;
-  deliveries: Map<string, Delivery>;
-  imports: Map<string, { preview: SchedulePreview; classes: EfClass[]; cancelKeys: string[] }>;
-  announcements: Announcement[];
-  audit: AuditEntry[];
-  users: ManagedUser[];
-  settings: RuleSettings;
-  seq: number;
+function seedResources(): MockResource[] {
+  return [
+    res({ id: 'r-football-1', name: 'Teren fotbal 1', photo_url: img('football'), capacity: 22, sport_ids: ['s-fotbal'], equipment: ['porti', 'vestiar'] }),
+    res({ id: 'r-football-2', name: 'Teren fotbal 2', photo_url: img('football'), capacity: 22, sport_ids: ['s-fotbal'], equipment: ['porti', 'vestiar'], external_access: 'never' }),
+    res({ id: 'r-court-2', name: 'Terenul 2', photo_url: img('basketball'), capacity: 10, sport_ids: ['s-baschet', 's-volei'], equipment: ['panouri', 'fileu', 'mingi', 'vestiar'] }),
+    res({
+      id: 'r-tennis', name: 'Teren tenis', photo_url: img('tennis'), capacity: 4, sport_ids: ['s-tenis'], equipment: ['fileu', 'rachete'],
+      external_access: 'window', external_access_windows: weekly('16:00', '20:00', ['mon', 'tue', 'wed', 'thu', 'fri']),
+    }),
+    res({ id: 'r-fitness', name: 'Sala fitness', type: 'sală', photo_url: img('fitness'), capacity: 30, sport_ids: ['s-fitness'], equipment: ['vestiar'] }),
+    res({ id: 'r-pool', name: 'Bazin', type: 'bazin', photo_url: img('pool'), capacity: 24, sport_ids: ['s-inot'], equipment: ['vestiar'], external_access: 'never' }),
+    res({ id: 'r-multi', name: 'Sala polivalentă', type: 'sală', photo_url: img('multipurpose'), capacity: 120, sport_ids: ['s-baschet', 's-volei'], equipment: ['panouri', 'fileu', 'tribuna', 'vestiar'], external_access: 'never' }),
+    res({ id: 'r-court-4', name: 'Teren 4 (exterior)', photo_url: img('outdoor'), capacity: 10, sport_ids: ['s-baschet'], equipment: ['panouri', 'mingi'], opening_hours: weekly('08:00', '20:00'), active: false }),
+  ];
 }
 
-function seedResources(): Resource[] {
+function seedUsers(now: Date): User[] {
+  const u = (id: string, full_name: string, email: string, role: User['role'], extra: Partial<User> = {}): User => ({
+    id, full_name, email, role, status: 'active', phone: role === 'external' ? '+37360000000' : null, suspended_until: null,
+    created_at: iso(subDays(now, 120)), ...extra,
+  });
   return [
-    res({ id: 'r-football-1', name: 'Teren fotbal 1', photoUrl: img('football'), capacity: 22, sportIds: ['s-fotbal'], equipment: ['porti', 'vestiar'], externalAccess: 'leftover' }),
-    res({ id: 'r-football-2', name: 'Teren fotbal 2', photoUrl: img('football'), capacity: 22, sportIds: ['s-fotbal'], equipment: ['porti', 'vestiar'], externalAccess: 'never' }),
-    res({ id: 'r-court-2', name: 'Terenul 2', photoUrl: img('basketball'), capacity: 10, sportIds: ['s-baschet', 's-volei'], equipment: ['panouri', 'fileu', 'mingi', 'vestiar'], externalAccess: 'leftover' }),
-    res({ id: 'r-tennis', name: 'Teren tenis', photoUrl: img('tennis'), capacity: 4, sportIds: ['s-tenis'], equipment: ['fileu', 'rachete'], externalAccess: 'window', externalWindow: { days: [1, 2, 3, 4, 5], from: '16:00', to: '20:00' } }),
-    res({ id: 'r-fitness', name: 'Sala fitness', photoUrl: img('fitness'), capacity: 30, sportIds: ['s-fitness'], equipment: ['vestiar'], externalAccess: 'leftover' }),
-    res({ id: 'r-pool', name: 'Bazin', photoUrl: img('pool'), capacity: 24, sportIds: ['s-inot'], equipment: ['vestiar'], externalAccess: 'never' }),
-    res({ id: 'r-multi', name: 'Sala polivalentă', photoUrl: img('multipurpose'), capacity: 120, sportIds: ['s-baschet', 's-volei'], equipment: ['panouri', 'fileu', 'tribuna', 'vestiar'], externalAccess: 'never' }),
-    res({ id: 'r-court-4', name: 'Teren 4 (exterior)', photoUrl: img('outdoor'), capacity: 10, sportIds: ['s-baschet'], equipment: ['panouri', 'mingi'], opensAt: '08:00', closesAt: '20:00', active: false }),
+    u(ADMIN.id, ADMIN.fullName, ADMIN.email, 'admin'),
+    u(OTHER_ADMIN.id, OTHER_ADMIN.fullName, OTHER_ADMIN.email, 'admin'),
+    u('u-student-1', 'Andrei Popescu', 'andrei.popescu@student.univ.example', 'student'),
+    u('u-teacher-1', 'Elena Munteanu', 'elena.munteanu@univ.example', 'teacher'),
+    u('u-external-1', 'Ana Rusu', 'ana.rusu@example.com', 'external', { phone: '+37360000001' }),
+    u('u-2', 'Ioana Marin', 'ioana.marin@student.univ.example', 'student'),
+    u('u-3', 'Vlad Dumitru', 'vlad.dumitru@student.univ.example', 'student', { status: 'suspended', suspended_until: iso(addDays(now, 9)) }),
+    u('u-4', 'Mihai Ionescu', 'mihai.ionescu@student.univ.example', 'student'),
+    u('u-5', 'Radu Georgescu', 'radu.georgescu@mail.example', 'external', { phone: '+37360000005' }),
+    u('u-6', 'Cristina Neagu', 'cristina.neagu@mail.example', 'external', { phone: '+37360000006' }),
+    u('u-7', 'Diana Rusu', 'diana.rusu@student.univ.example', 'student'),
+    u('u-8', 'Bogdan Lazăr', 'bogdan.lazar@univ.example', 'teacher'),
   ];
+}
+
+export function hash(str: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+export function rng(seed: number): () => number {
+  let a = seed;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** `2026-11-19` în ora locală. */
+export function dateKey(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+export function parseDay(key: string | null | undefined): Date {
+  if (!key) return startOfDay(new Date());
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+}
+
+function at(day: Date, h: number, m = 0): Date {
+  const x = new Date(day);
+  x.setHours(h, m, 0, 0);
+  return x;
 }
 
 function nextWeekday(from: Date, isoDay: number): Date {
@@ -131,133 +160,178 @@ function nextWeekday(from: Date, isoDay: number): Date {
   return addDays(d, diff);
 }
 
-function seedUsers(): ManagedUser[] {
-  const rows: [string, string, string, UserKind, number, string | null][] = [
-    ['u-1', 'Andrei Popescu', 'andrei.popescu@univ.example', 'student', 0, null],
-    ['u-2', 'Ioana Marin', 'ioana.marin@univ.example', 'student', 2, null],
-    ['u-3', 'Vlad Dumitru', 'vlad.dumitru@univ.example', 'student', 3, addDays(new Date(), 9).toISOString()],
-    ['u-4', 'Elena Stan', 'elena.stan@univ.example', 'teacher', 0, null],
-    ['u-5', 'Radu Georgescu', 'radu.georgescu@mail.example', 'external', 1, null],
-    ['u-6', 'Cristina Neagu', 'cristina.neagu@mail.example', 'external', 0, null],
-  ];
-  return rows.map(
-    ([id, fullName, email, role, noShowsThisMonth, suspendedUntil]): ManagedUser => ({
-      id,
-      fullName,
-      email,
-      phone: '+40 700 000 000',
-      role,
-      status: suspendedUntil ? 'suspended' : 'active',
-      suspendedUntil,
-      noShowsThisMonth,
-    }),
-  );
+/** Intervalele unei resurse într-o zi, după program și durata slotului. */
+export function slotsForDay(r: MockResource, day: Date): { start: Date; end: Date }[] {
+  const ranges = r.opening_hours[DAY_KEYS[day.getDay()] as keyof WeeklyHours] ?? [];
+  const out: { start: Date; end: Date }[] = [];
+  for (const range of ranges) {
+    const [oh = 0, om = 0] = range.open.split(':').map(Number);
+    const [ch = 0, cm = 0] = range.close.split(':').map(Number);
+    const close = at(day, ch, cm);
+    for (let s = at(day, oh, om); addMinutes(s, r.slot_minutes) <= close; s = addMinutes(s, r.slot_minutes)) {
+      out.push({ start: s, end: addMinutes(s, r.slot_minutes) });
+    }
+  }
+  return out;
 }
 
+export function overlaps(aStart: Date, aEnd: Date | null, bStart: Date, bEnd: Date | null): boolean {
+  return (bEnd === null || aStart < bEnd) && (aEnd === null || bStart < aEnd);
+}
+
+export function blockOverlaps(b: Block, start: Date, end: Date | null): boolean {
+  return overlaps(new Date(b.start), b.end ? new Date(b.end) : null, start, end);
+}
+
+const POPULARITY: Record<string, number> = {
+  'r-football-1': 0.8, 'r-football-2': 0.6, 'r-court-2': 0.55, 'r-tennis': 0.42,
+  'r-fitness': 0.7, 'r-pool': 0.35, 'r-multi': 0.4, 'r-court-4': 0.3,
+};
+const CURVE = [0.25, 0.4, 0.35, 0.5, 0.6, 0.45, 0.55, 0.75, 0.9, 1, 0.95, 0.8, 0.55, 0.35];
 
 export function createDb(now = new Date()): Db {
   const today = startOfDay(now);
-  const at = (d: Date, h: number, m = 0) => {
-    const x = new Date(d);
-    x.setHours(h, m, 0, 0);
-    return x;
-  };
-  const iso = (d: Date) => d.toISOString();
-
   const monday = nextWeekday(now, 1);
   const wednesday = nextWeekday(now, 3);
   const saturday = nextWeekday(now, 6);
+  const users = seedUsers(now);
+  const resources = seedResources();
 
-  const blocks: DbBlock[] = [
-    // Activă acum: curățenie în sala de fitness.
-    { id: 'b-1', resourceId: 'r-fitness', kind: 'cleaning', reason: 'Curățenie generală', startsAt: iso(subMinutes(now, 30)), endsAt: iso(addHours(now, 1)), recurrence: 'none', affectedCount: 0, createdBy: ADMIN.fullName, releasedAt: null, hasDelivery: false },
-    // Planificate
-    { id: 'b-2', resourceId: 'r-fitness', kind: 'cleaning', reason: 'Curățenie generală', startsAt: iso(at(today, 22)), endsAt: iso(at(today, 23)), recurrence: 'none', affectedCount: 0, createdBy: ADMIN.fullName, releasedAt: null, hasDelivery: false },
-    { id: 'b-3', resourceId: 'r-tennis', kind: 'maintenance', reason: 'Înlocuire fileu', startsAt: iso(at(monday, 8)), endsAt: iso(at(monday, 12)), recurrence: 'none', affectedCount: 4, createdBy: OTHER_ADMIN.fullName, releasedAt: null, hasDelivery: true },
-    { id: 'b-4', resourceId: 'r-football-2', kind: 'maintenance', reason: 'Marcaj teren', startsAt: iso(at(wednesday, 7)), endsAt: iso(at(wednesday, 10)), recurrence: 'none', affectedCount: 0, createdBy: OTHER_ADMIN.fullName, releasedAt: null, hasDelivery: false },
-    { id: 'b-5', resourceId: 'r-fitness', kind: 'cleaning', reason: 'Recurent săptămânal', startsAt: iso(at(nextWeekday(now, 7), 7)), endsAt: iso(at(nextWeekday(now, 7), 8)), recurrence: 'weekly', affectedCount: 0, createdBy: ADMIN.fullName, releasedAt: null, hasDelivery: false },
-    // Istoric: o urgență încheiată
-    { id: 'b-6', resourceId: 'r-football-2', kind: 'emergency', reason: 'Avarie – iluminat nocturn', startsAt: iso(at(subDays(today, 9), 17)), endsAt: iso(at(subDays(today, 9), 21)), recurrence: 'none', affectedCount: 12, createdBy: ADMIN.fullName, releasedAt: iso(at(subDays(today, 9), 20)), hasDelivery: true },
+  const block = (id: string, resource_id: string, kind: Block['kind'], start: Date, end: Date | null, reason: string, created_by = ADMIN.id, recurrence_id: string | null = null): Block => ({
+    id, resource_id, kind, start: iso(start), end: end ? iso(end) : null, reason, recurrence_id, created_by,
+  });
+
+  const blocks: Block[] = [
+    // Activă acum: mentenanță în sala de fitness.
+    block('b-1', 'r-fitness', 'maintenance', subMinutes(now, 30), addMinutes(now, 60), 'Curățenie generală'),
+    block('b-2', 'r-tennis', 'maintenance', at(monday, 8), at(monday, 12), 'Înlocuire fileu', OTHER_ADMIN.id),
+    block('b-3', 'r-football-2', 'maintenance', at(wednesday, 7), at(wednesday, 10), 'Marcaj teren', OTHER_ADMIN.id),
+    // O urgență încheiată.
+    block('b-4', 'r-football-2', 'emergency', at(subDays(today, 9), 17), at(subDays(today, 9), 20), 'Avarie – iluminat nocturn'),
+    // Evenimente.
+    block('b-5', 'r-football-1', 'event', at(saturday, 9), at(saturday, 18), 'Cupa Rectorului – fotbal'),
+    block('b-6', 'r-football-2', 'event', at(saturday, 9), at(saturday, 18), 'Cupa Rectorului – fotbal'),
+    block('b-7', 'r-multi', 'event', at(addDays(today, 9), 10), at(addDays(today, 9), 14), 'Ziua porților deschise'),
   ];
 
-  const resourcesSeed = seedResources();
-  const eventsSeed: DbEvent[] = [
-    { id: 'e-1', name: 'Cupa Rectorului – fotbal', resourceIds: ['r-football-1', 'r-football-2'], startsAt: iso(at(saturday, 9)), endsAt: iso(at(saturday, 18)), recurrence: 'none', cancelledCount: 14 },
-    { id: 'e-2', name: 'Ziua porților deschise', resourceIds: ['r-multi'], startsAt: iso(at(addDays(today, 9), 10)), endsAt: iso(at(addDays(today, 9), 14)), recurrence: 'none', cancelledCount: 0 },
-    { id: 'e-3', name: 'Gala sportului', resourceIds: ['r-multi'], startsAt: iso(at(addWeeks(today, 6), 17)), endsAt: iso(at(addWeeks(today, 6), 22)), recurrence: 'none', cancelledCount: 0 },
+  // Ore EF recurente, ca apariții concrete (cum le ține serverul în `occupancy`).
+  const efClasses: [string, number, number, number, string][] = [
+    ['r-football-1', 1, 10, 12, 'FEAA anul I · gr. 2'],
+    ['r-football-1', 3, 9, 11, 'FEAA anul II · gr. 1'],
+    ['r-fitness', 2, 8, 10, 'FIESC anul II'],
+    ['r-court-2', 3, 12, 14, 'FEFS anul I'],
+    ['r-court-2', 4, 10, 12, 'FEFS anul II'],
+    ['r-tennis', 5, 12, 14, 'FIESC anul I'],
+    ['r-pool', 1, 9, 11, 'FEFS anul III'],
   ];
+  let seq = 100;
+  efClasses.forEach(([rid, weekday, from, to, course], i) => {
+    for (let w = -2; w <= 6; w++) {
+      const day = addDays(nextWeekday(subDays(today, 1), weekday), w * 7);
+      seq++;
+      blocks.push(block(`b-${seq}`, rid, 'pe_class', at(day, from), at(day, to), course, OTHER_ADMIN.id, `rec-${i + 1}`));
+    }
+  });
 
-  const efClasses: EfClass[] = [
-    { resourceId: 'r-football-1', weekday: 1, from: 10, to: 12, course: 'FEAA anul I · gr. 2' },
-    { resourceId: 'r-football-1', weekday: 3, from: 9, to: 11, course: 'FEAA anul II · gr. 1' },
-    { resourceId: 'r-fitness', weekday: 2, from: 8, to: 10, course: 'FIESC anul II' },
-    { resourceId: 'r-court-2', weekday: 3, from: 12, to: 14, course: 'FEFS anul I' },
-    { resourceId: 'r-court-2', weekday: 4, from: 10, to: 12, course: 'FEFS anul II' },
-    { resourceId: 'r-tennis', weekday: 5, from: 12, to: 14, course: 'FIESC anul I' },
-    { resourceId: 'r-pool', weekday: 1, from: 9, to: 11, course: 'FEFS anul III' },
-  ];
+  // Rezervări pe [-7, +10] zile, deterministe, fără suprapuneri peste blocări.
+  // Conturile cu care te poți autentifica în demo (mocks/session.ts) nu primesc rezervări aleatorii,
+  // altfel studentul demo ar începe cu cota epuizată; primesc mai jos câte o rezervare viitoare și una trecută.
+  const demoIds = new Set(['u-student-1', 'u-teacher-1', 'u-external-1']);
+  const holders = users.filter((u) => u.role !== 'admin' && !demoIds.has(u.id));
+  const bookings: MockBooking[] = [];
+  for (let offset = -7; offset <= 10; offset++) {
+    const day = addDays(today, offset);
+    for (const r of resources) {
+      if (!r.active && offset >= 0) continue;
+      for (const slot of slotsForDay(r, day)) {
+        if (blocks.some((b) => b.resource_id === r.id && blockOverlaps(b, slot.start, slot.end))) continue;
+        const rand = rng(hash(`${r.id}|${dateKey(day)}|${slot.start.getHours()}`));
+        const weekendBoost = day.getDay() === 0 || day.getDay() === 6 ? 1.1 : 1;
+        const p = (POPULARITY[r.id] ?? 0.4) * (CURVE[slot.start.getHours() - 8] ?? 0.4) * weekendBoost;
+        if (rand() >= p) continue;
+        const holder = holders[Math.floor(rand() * holders.length)] ?? holders[0]!;
+        seq++;
+        const id = `bk-${seq}`;
+        const past = slot.end <= now;
+        const started = slot.start <= now;
+        const noShow = past && rand() < 0.08;
+        bookings.push({
+          id,
+          resource_id: r.id,
+          resource_name: r.name,
+          user_id: holder.id,
+          holder_name: holder.full_name,
+          category: holder.role === 'external' ? 'external' : 'member',
+          start: iso(slot.start),
+          end: iso(slot.end),
+          status: past ? (noShow ? 'no_show' : 'completed') : 'active',
+          checked_in_at: started && !noShow && rand() < 0.9 ? iso(addMinutes(slot.start, -3)) : null,
+          participants_count: Math.max(1, Math.round(rand() * Math.min(r.capacity, 10))),
+          qr_token: `${id}.${hash(id).toString(16)}.demo`,
+        });
+      }
+    }
+  }
+  const soon = now.getTime() + 20 * 3600_000;
+  for (const demo of users.filter((u) => demoIds.has(u.id))) {
+    const upcoming = bookings.find((b) => b.status === 'active' && Date.parse(b.start) > soon && !demoIds.has(b.user_id));
+    const past = bookings.find((b) => b.status === 'completed' && !demoIds.has(b.user_id));
+    for (const b of [upcoming, past]) {
+      if (b) Object.assign(b, { user_id: demo.id, holder_name: demo.full_name, category: demo.role === 'external' ? 'external' : 'member' });
+    }
+  }
 
-  const announcements: Announcement[] = [
-    { id: 'a-1', category: 'urgent', title: 'Bazin închis – avarie', message: 'Bazinul este închis temporar. Rezervările au fost anulate.', recipients: 23, deliveredPct: 100, sentAt: iso(subHours(now, 3)) },
-    { id: 'a-2', category: 'general', title: 'Program redus de 1 Decembrie', message: 'Pe 1 Decembrie baza sportivă funcționează între 10:00 și 16:00.', recipients: 412, deliveredPct: 100, sentAt: iso(subDays(now, 4)) },
-    { id: 'a-3', category: 'maintenance', title: 'Teren tenis – fileu nou', message: 'Se înlocuiește fileul; terenul e indisponibil luni dimineața.', recipients: 4, deliveredPct: 100, sentAt: iso(subDays(now, 6)) },
-  ];
-
-  const db: Db = {
-    session: 'none',
-    sessionExpiresAt: iso(addHours(now, 8)),
-    resources: resourcesSeed,
-    blocks,
-    events: eventsSeed,
-    efClasses,
-    cancelled: new Set(),
-    deliveries: new Map([['b-6', { blockId: 'b-6', startedAtMs: subDays(now, 9).getTime(), total: 12 }], ['b-3', { blockId: 'b-3', startedAtMs: subDays(now, 2).getTime(), total: 4 }]]),
-    imports: new Map(),
-    announcements,
-    audit: [],
-    users: seedUsers(),
-    settings: {
-      quotaMonthly: 4,
-      maxActiveFuture: 2,
-      quotaPerSport: false,
-      windowTeacherDays: 14,
-      windowStudentDays: 7,
-      windowExternalHours: 24,
-      cancelBeforeHours: 2,
-      checkinBeforeMin: 10,
-      checkinAfterMin: 15,
-      noShowLimit: 3,
-      suspensionDays: 14,
-      waitlistOfferMinutes: 10,
-    },
-    seq: 100,
+  const settings: Settings = {
+    monthly_quota: 4,
+    monthly_quota_per_sport: {},
+    max_active_bookings: 2,
+    booking_window_days_student: 7,
+    booking_window_days_teacher: 14,
+    booking_window_hours_external: 24,
+    cancel_free_hours: 2,
+    checkin_minutes_before: 10,
+    checkin_minutes_after: 15,
+    no_show_threshold: 3,
+    no_show_suspension_days: 14,
+    waitlist_offer_minutes: 10,
+    waitlist_simultaneous_under_hours: 2,
+    default_slot_minutes: 60,
+    member_replaces_external: false,
+    updated_by: OTHER_ADMIN.id,
+    updated_at: iso(subDays(now, 15)),
   };
 
   // Jurnal audit inițial (ultimele ~3 săptămâni).
-  const seedAudit: [number, typeof ADMIN | typeof OTHER_ADMIN, AuditAction, string][] = [
-    [0.1, ADMIN, 'announcement_sent', '„Bazin închis – avarie” · 23 destinatari'],
-    [1, OTHER_ADMIN, 'schedule_import', 'orar_EF_sem1_2026.csv · 532 blocări create'],
-    [1.2, OTHER_ADMIN, 'rule_changed', 'BR-04: anulare 3 h → 2 h'],
-    [2, ADMIN, 'account_suspended', 'Student #20481 · 3 no-show-uri în octombrie'],
-    [2.5, OTHER_ADMIN, 'resource_updated', 'Terenul 2 · sporturi permise: + Volei'],
-    [3, ADMIN, 'event_created', 'Cupa Rectorului · 14 rezervări anulate'],
-    [4, ADMIN, 'planned_block', 'Teren tenis · Înlocuire fileu'],
-    [6, OTHER_ADMIN, 'announcement_sent', '„Teren tenis – fileu nou” · 4 destinatari'],
-    [9, ADMIN, 'emergency_block', 'Teren fotbal 2 · avarie iluminat · 12 rezervări anulate'],
-    [9, ADMIN, 'unblock', 'Teren fotbal 2 · deblocat'],
-    [12, OTHER_ADMIN, 'resource_created', 'Sala polivalentă'],
-    [15, OTHER_ADMIN, 'rule_changed', 'BR-03: fereastră studenți 5 → 7 zile'],
-    [18, ADMIN, 'resource_deactivated', 'Teren 4 (exterior)'],
+  const seedAudit: [number, string, string, string, string | null, AuditEntry['after']][] = [
+    [0.1, ADMIN.id, 'announcement.create', 'announcement', null, { message_ro: 'Bazinul este închis temporar.', recipients_count: 23 }],
+    [1.2, OTHER_ADMIN.id, 'settings.update', 'settings', null, { cancel_free_hours: 2 }],
+    [2, ADMIN.id, 'user.suspend', 'user', 'u-3', { status: 'suspended', reason: '3 no-show-uri în octombrie' }],
+    [2.5, OTHER_ADMIN.id, 'resource.update', 'resource', 'r-court-2', { name: 'Terenul 2', sport_ids: ['s-baschet', 's-volei'] }],
+    [4, ADMIN.id, 'block.create', 'occupancy', 'b-2', { kind: 'maintenance', reason: 'Înlocuire fileu' }],
+    [9, ADMIN.id, 'block.create', 'occupancy', 'b-4', { kind: 'emergency', reason: 'Avarie – iluminat nocturn' }],
+    [12, OTHER_ADMIN.id, 'resource.create', 'resource', 'r-multi', { name: 'Sala polivalentă' }],
+    [15, OTHER_ADMIN.id, 'settings.update', 'settings', null, { booking_window_days_student: 7 }],
+    [18, ADMIN.id, 'resource.update', 'resource', 'r-court-4', { name: 'Teren 4 (exterior)', active: false }],
   ];
-  db.audit = seedAudit.map(([daysAgo, actor, action, object], i) => ({
-    id: `au-${i + 1}`,
-    at: iso(subHours(now, daysAgo * 24)),
-    actor: { id: actor.id, name: actor.fullName },
-    action,
-    object,
+  const audit: AuditEntry[] = seedAudit.map(([daysAgo, actor_id, action, entity, entity_id, after], i) => ({
+    id: `au-${i + 1}`, actor_id, action, entity, entity_id, before: null, after, at: iso(subHours(now, daysAgo * 24)),
   }));
 
-  return db;
+  return {
+    session: 'none',
+    sports: seedSports(),
+    resources,
+    blocks,
+    bookings,
+    deliveries: new Map([
+      ['b-4', { startedAtMs: subDays(now, 9).getTime(), notified: 12 }],
+      ['b-2', { startedAtMs: subDays(now, 2).getTime(), notified: 4 }],
+    ]),
+    audit,
+    users,
+    settings,
+    seq,
+  };
 }
 
 export let db: Db = createDb();
@@ -272,12 +346,22 @@ export function nextId(prefix: string): string {
   return `${prefix}-${db.seq}`;
 }
 
-export function addAudit(action: AuditAction, object: string): void {
+/** Ca `AuditService.record`: o intrare per mutație de administrator (FR-45). */
+export function addAudit(
+  action: string,
+  entity: string,
+  entityId: string | null,
+  after: AuditEntry['after'] = null,
+  before: AuditEntry['before'] = null,
+): void {
   db.audit.unshift({
     id: nextId('au'),
-    at: new Date().toISOString(),
-    actor: { id: ADMIN.id, name: ADMIN.fullName },
+    actor_id: ADMIN.id,
     action,
-    object,
+    entity,
+    entity_id: entityId,
+    before,
+    after,
+    at: iso(new Date()),
   });
 }

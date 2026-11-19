@@ -17,7 +17,19 @@ export class JobsService {
     @InjectQueue(QUEUES.notifications) private readonly notifications: Queue,
     @InjectQueue(QUEUES.waitlist) private readonly waitlist: Queue,
     @InjectQueue(QUEUES.bookings) private readonly bookings: Queue,
-  ) {}
+  ) {
+    // Without a listener every reconnect attempt is printed as an unhandled AggregateError; warn once instead.
+    let warned = false;
+    for (const queue of [notifications, waitlist, bookings]) {
+      queue.on('error', (err: Error) => {
+        if (!warned)
+          this.logger.warn(
+            `Job queues cannot reach Redis (${err.message || err.name}); jobs are not enqueued.`,
+          );
+        warned = true;
+      });
+    }
+  }
 
   notify(job: NotifyJob, opts: JobsOptions = {}): void {
     this.add(this.notifications, job.type, job, {

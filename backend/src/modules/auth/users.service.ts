@@ -50,6 +50,15 @@ export class UsersService {
     return user;
   }
 
+  /** Active accounts, for the development-only login picker. */
+  listActive(limit = 50): Promise<User[]> {
+    return this.users.find({
+      where: { status: 'active' },
+      order: { role: 'ASC', fullName: 'ASC' },
+      take: limit,
+    });
+  }
+
   findByEmail(email: string): Promise<User | null> {
     return this.users.findOneBy({ email: normalizeEmail(email) });
   }
@@ -232,6 +241,8 @@ export class UsersService {
       await em.query(`UPDATE occupancy SET user_id = NULL, anonymized_at = now() WHERE user_id = $1`, [
         user.id,
       ]);
+      // Bookings made through the API record their creator too (occupancy_created_by_fkey).
+      await em.query(`UPDATE occupancy SET created_by = NULL WHERE created_by = $1`, [user.id]);
       await em.query(`DELETE FROM users WHERE id = $1`, [user.id]);
       await this.audit.record(
         {

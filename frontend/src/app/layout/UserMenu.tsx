@@ -3,8 +3,9 @@ import { Check, ChevronsUpDown, LogOut, Monitor, Moon, Sun } from 'lucide-react'
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { api } from '@/api/endpoints';
-import type { AdminUser } from '@/api/types';
+import { client } from '@/api/client';
+import type { User } from '@/api/generated';
+import { useSession } from '@/auth/sessionStore';
 import { Avatar } from '@/components/ui/Avatar';
 import { LANGUAGES, setLanguage, type Language } from '@/i18n';
 import { useUiStore, type ThemePreference } from '@/stores/uiStore';
@@ -13,7 +14,7 @@ const itemClass =
   'flex h-10 cursor-pointer select-none items-center gap-3 rounded-xl px-3 text-sm font-semibold text-ink outline-none data-[highlighted]:bg-subtle';
 const labelClass = 'px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-wider text-muted';
 
-export function UserMenu({ user }: { user: AdminUser }) {
+export function UserMenu({ user }: { user: User }) {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -22,8 +23,9 @@ export function UserMenu({ user }: { user: AdminUser }) {
 
   async function logout() {
     try {
-      await api.auth.logout();
+      await client.auth.logout();
     } finally {
+      useSession.getState().clear();
       queryClient.clear();
       navigate('/admin/login', { replace: true });
     }
@@ -41,9 +43,9 @@ export function UserMenu({ user }: { user: AdminUser }) {
         className="flex w-full items-center gap-3 rounded-2xl bg-navy-2 px-3 py-3 text-left transition-colors hover:brightness-125"
         aria-label={t('menu.open')}
       >
-        <Avatar name={user.fullName} />
+        <Avatar name={user.full_name} />
         <span className="min-w-0 flex-1 leading-tight">
-          <span className="block truncate text-[15px] font-bold text-white">{user.fullName}</span>
+          <span className="block truncate text-[15px] font-bold text-white">{user.full_name}</span>
           <span className="block text-[13px] text-slate-400">{t('menu.role')}</span>
         </span>
         <ChevronsUpDown className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />

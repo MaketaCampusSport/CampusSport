@@ -2,6 +2,8 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import en from './en.json';
+import memberEn from './member.en.json';
+import memberRo from './member.ro.json';
 import ro from './ro.json';
 
 function flatten(obj: Record<string, unknown>, prefix = ''): string[] {
@@ -10,8 +12,10 @@ function flatten(obj: Record<string, unknown>, prefix = ''): string[] {
   );
 }
 const strip = (k: string) => k.replace(/_(one|few|many|other|zero|two)$/, '');
-const roKeys = new Set(flatten(ro).map(strip));
-const enKeys = new Set(flatten(en).map(strip));
+const roAll = { ...ro, ...memberRo };
+const enAll = { ...en, ...memberEn };
+const roKeys = new Set(flatten(roAll).map(strip));
+const enKeys = new Set(flatten(enAll).map(strip));
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((f) => {
@@ -22,6 +26,11 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe('i18n', () => {
+  it('fișierele de traduceri nu își suprascriu cheile de nivel 1', () => {
+    expect(Object.keys(memberRo).filter((k) => k in ro)).toEqual([]);
+    expect(Object.keys(memberEn).filter((k) => k in en)).toEqual([]);
+  });
+
   it('RO și EN au exact aceleași chei', () => {
     expect([...roKeys].filter((k) => !enKeys.has(k))).toEqual([]);
     expect([...enKeys].filter((k) => !roKeys.has(k))).toEqual([]);
@@ -41,11 +50,11 @@ describe('i18n', () => {
   });
 
   it('cheile cu pluralizare au formele românești one/few/other', () => {
-    const keys = flatten(ro).filter((k) => k.endsWith('_few'));
+    const keys = flatten(roAll).filter((k) => k.endsWith('_few'));
     expect(keys.length).toBeGreaterThan(5);
     for (const k of keys) {
       const base = k.replace(/_few$/, '');
-      expect(flatten(ro)).toEqual(expect.arrayContaining([`${base}_one`, `${base}_other`]));
+      expect(flatten(roAll)).toEqual(expect.arrayContaining([`${base}_one`, `${base}_other`]));
     }
   });
 });

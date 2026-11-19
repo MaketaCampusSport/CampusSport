@@ -32,6 +32,8 @@ export interface AppConfig {
   mail: { host: string; port: number; from: string };
   vapid: { publicKey: string; privateKey: string; subject: string };
   smsDriver: 'log';
+  /** Development-only `/auth/dev/*` routes that sign in as a seeded user without SSO (never in production). */
+  devLogin: boolean;
 }
 
 function required(env: NodeJS.ProcessEnv, key: string, fallbackForDev?: string): string {
@@ -117,6 +119,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       subject: env.VAPID_SUBJECT ?? 'mailto:admin@campussport.example',
     },
     smsDriver: 'log',
+    devLogin: nodeEnv === 'development' && bool(env, 'DEV_LOGIN', true),
   };
 }
 

@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /**
- * Applies livrabil05/baza-de-date/schema-postgresql.sql verbatim (copied to ../sql so it ships in dist/).
+ * Applies assets/livrabil05/baza-de-date/schema-postgresql.sql verbatim (copied to ../sql so it ships in dist/).
  * A unit test keeps the copy identical to the livrabil05 original.
  */
 export class InitialSchema1731400000000 implements MigrationInterface {

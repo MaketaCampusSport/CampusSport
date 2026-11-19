@@ -21,7 +21,7 @@ export function NotFoundPage() {
         title={t('errors.notFoundTitle')}
         description={t('errors.notFoundBody')}
         action={
-          <Link to="/admin" className={buttonClasses('primary', 'md', 'mt-2')}>
+          <Link to="/" className={buttonClasses('primary', 'md', 'mt-2')}>
             {t('errors.backToDashboard')}
           </Link>
         }

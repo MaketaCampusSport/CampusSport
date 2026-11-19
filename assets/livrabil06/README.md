@@ -1,6 +1,6 @@
 # Livrabil 06: Structura serverului și stilul de cod
 
-Acest livrabil descrie serverul CampusSport, implementat în `backend/` pornind de la livrabilul 05: specificația API (`livrabil05/openapi.yaml`), schema bazei de date (`livrabil05/baza-de-date/schema-postgresql.sql`) și tehnologiile alese (`livrabil05/Tehnologii-backend.md`).
+Acest livrabil descrie serverul CampusSport, implementat în `backend/` pornind de la livrabilul 05: specificația API (`assets/livrabil05/openapi.yaml`), schema bazei de date (`assets/livrabil05/baza-de-date/schema-postgresql.sql`) și tehnologiile alese (`assets/livrabil05/Tehnologii-backend.md`).
 
 ## Fișiere
 
@@ -25,11 +25,11 @@ npm install
 npm run lint && npm run typecheck   # stilul și tipurile
 npx prettier --check "src/**/*.ts" "test/**/*.ts"
 npm test                            # 299 de teste unitare și de controller
-npm run spec:check                  # conformitatea cu livrabil05/openapi.json
+npm run spec:check                  # conformitatea cu assets/livrabil05/openapi.json
 npm run test:e2e                    # întreaga aplicație pe PostgreSQL 18 (baza *_test)
 ```
 
-Toate verificările de mai sus rulează și în GitHub Actions (`.github/workflows/backend-ci.yml`), la fiecare modificare din `backend/` sau `livrabil05/`.
+Toate verificările de mai sus rulează și în GitHub Actions (`.github/workflows/backend-ci.yml`), la fiecare modificare din `backend/` sau `assets/livrabil05/`.
 
 ## Ce nu este acoperit aici
 

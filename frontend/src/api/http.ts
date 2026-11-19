@@ -1,17 +1,21 @@
 import i18n from '@/i18n';
 import { API_BASE } from './config';
+import type { User } from './generated';
 
 export class ApiError extends Error {
   readonly status: number;
   readonly code?: string;
   readonly details?: unknown;
+  /** Corpul complet al erorii (ex. `waitlist_offer` la 409 SLOT_TAKEN). */
+  readonly body?: Record<string, unknown>;
 
-  constructor(status: number, message: string, code?: string, details?: unknown) {
+  constructor(status: number, message: string, code?: string, details?: unknown, body?: Record<string, unknown>) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
     this.details = details;
+    this.body = body;
   }
 }
 
@@ -25,8 +29,8 @@ interface RequestOptions {
   signal?: AbortSignal;
 }
 
-let accessToken: string | null =
-  import.meta.env.DEV && import.meta.env.VITE_DEV_TOKEN ? String(import.meta.env.VITE_DEV_TOKEN) : null;
+/** Tokenul de acces stă doar în memorie; la reîncărcare se reface din cookie-ul HttpOnly (POST /auth/refresh). */
+let accessToken: string | null = null;
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
@@ -59,6 +63,7 @@ async function toApiError(res: Response): Promise<ApiError> {
   let code: string | undefined;
   let message = res.statusText || `HTTP ${res.status}`;
   let details: unknown;
+  let body: Record<string, unknown> | undefined;
   try {
     const data = (await res.json()) as {
       code?: string;
@@ -67,6 +72,7 @@ async function toApiError(res: Response): Promise<ApiError> {
       message_en?: string;
       details?: unknown;
     };
+    body = data as Record<string, unknown>;
     code = data.code;
     details = data.details;
     const lang = i18n.language?.startsWith('en') ? 'en' : 'ro';
@@ -81,12 +87,27 @@ async function toApiError(res: Response): Promise<ApiError> {
   } catch {
     /* corp non-JSON */
   }
-  return new ApiError(res.status, message, code, details);
+  return new ApiError(res.status, message, code, details, body);
 }
 
-let refreshPromise: Promise<boolean> | null = null;
+/** Răspunsul `Session` (POST /auth/refresh, /auth/2fa/verify, /auth/external/verify). */
+export interface SessionPayload {
+  access_token: string;
+  token_type: 'Bearer';
+  expires_in: number;
+  user: User;
+}
 
-async function tryRefreshToken(): Promise<boolean> {
+let refreshPromise: Promise<SessionPayload | null> | null = null;
+let sessionListener: ((session: SessionPayload | null) => void) | null = null;
+
+/** Înregistrat de aplicație: află de fiecare sesiune reîmprospătată sau pierdută. */
+export function setSessionListener(fn: ((session: SessionPayload | null) => void) | null): void {
+  sessionListener = fn;
+}
+
+/** POST /auth/refresh cu cookie-ul HttpOnly; o singură cerere în zbor. `null` = nu există sesiune. */
+export function refreshSession(): Promise<SessionPayload | null> {
   if (refreshPromise) return refreshPromise;
   refreshPromise = (async () => {
     try {
@@ -95,14 +116,14 @@ async function tryRefreshToken(): Promise<boolean> {
         headers: { Accept: 'application/json' },
         credentials: 'include',
       });
-      if (!res.ok) return false;
-      const data = (await res.json()) as { access_token?: string; accessToken?: string; token?: string };
-      const nextToken = data.access_token ?? data.accessToken ?? data.token ?? null;
-      if (!nextToken) return false;
-      setAccessToken(nextToken);
-      return true;
+      if (!res.ok) return null;
+      const data = (await res.json()) as SessionPayload;
+      if (!data.access_token) return null;
+      setAccessToken(data.access_token);
+      sessionListener?.(data);
+      return data;
     } catch {
-      return false;
+      return null;
     } finally {
       refreshPromise = null;
     }
@@ -142,7 +163,7 @@ async function send(method: string, path: string, opts: RequestOptions = {}, can
   }
 
   if (res.status === 401 && canRetry && !path.startsWith('/auth/')) {
-    const refreshed = await tryRefreshToken();
+    const refreshed = await refreshSession();
     if (refreshed) {
       return send(method, path, opts, false);
     }

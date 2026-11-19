@@ -15,15 +15,19 @@ import './i18n';
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { setUnauthorizedHandler } from './api/http';
+import { setSessionListener, setUnauthorizedHandler } from './api/http';
 import App from './app/App';
-import { useAuthStore } from './stores/authStore';
+import { useSession } from './auth/sessionStore';
 import { initTheme } from './stores/uiStore';
 
 initTheme();
 
-// 401 într-o sesiune pornită => sesiunea a expirat; RequireAdmin trimite la login.
-setUnauthorizedHandler(() => useAuthStore.getState().markExpired());
+// 401 după refresh eșuat => sesiunea a expirat; gărzile de rută trimit la ecranul de login potrivit.
+setUnauthorizedHandler(() => useSession.getState().markExpired());
+// Fiecare refresh reușit (la pornire sau după un 401) actualizează utilizatorul curent.
+setSessionListener((session) => {
+  if (session) useSession.getState().signIn(session);
+});
 
 async function enableMocking() {
   const { USE_MOCKS } = await import('./api/config');

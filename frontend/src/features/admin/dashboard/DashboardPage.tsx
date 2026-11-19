@@ -3,20 +3,20 @@ import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
-import { api } from '@/api/endpoints';
+import { client } from '@/api/client';
 import { keys } from '@/api/keys';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ErrorState, Skeleton } from '@/components/ui/feedback';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
-import { downloadBlob } from '@/lib/download';
 import { addDays, fmtLongDay, fromDateKey, toDateKey, toMonthKey } from '@/lib/dates';
-import { formatDelta } from '@/lib/format';
+import { downloadBlob } from '@/lib/download';
 import { toast } from '@/stores/toastStore';
 import { EmergencyBlockDialog } from '../blocks/EmergencyBlockDialog';
+import { activeBlockByResource, resourceName, useActiveBlocks, useResources } from '../shared/queries';
 import { DayGrid } from './DayGrid';
 import { EmergencyBanner } from './EmergencyBanner';
+import { dashboardKpis, toDayGrid } from './grid';
 
 /** Panoul zilei (FR-43): indicatori + grila resurselor, cu blocare de urgență din 2 acțiuni. */
 export default function DashboardPage() {
@@ -27,10 +27,12 @@ export default function DashboardPage() {
   const date = fromDateKey(dateKey);
   const [blocking, setBlocking] = useState<{ id: string; name: string } | null>(null);
   const [exporting, setExporting] = useState(false);
+  const resources = useResources();
+  const activeBlocks = useActiveBlocks();
 
   const { data, isPending, isError, error, refetch } = useQuery({
     queryKey: keys.dashboard(dateKey),
-    queryFn: () => api.dashboard.get(dateKey),
+    queryFn: () => client.admin.dashboard(dateKey),
     // Panoul rămâne la zi fără reîncărcare manuală (rezervări noi, check-in-uri).
     refetchInterval: 30_000,
   });
@@ -44,7 +46,7 @@ export default function DashboardPage() {
     setExporting(true);
     try {
       const month = toMonthKey(date);
-      downloadBlob(await api.reports.export(month, 'csv'), `raport-${month}.csv`);
+      downloadBlob(await client.admin.reportFile(month, 'csv'), `raport-${month}.csv`);
     } catch {
       toast.error(t('errors.generic'));
     } finally {
@@ -52,7 +54,9 @@ export default function DashboardPage() {
     }
   }
 
-  const delta = data?.kpis.bookings.deltaPct;
+  const blockedBy = activeBlockByResource(activeBlocks.data);
+  const emergencies = (activeBlocks.data ?? []).filter((b) => b.kind === 'emergency');
+  const kpis = data ? dashboardKpis(data) : null;
 
   return (
     <>
@@ -95,9 +99,13 @@ export default function DashboardPage() {
         }
       />
 
+      {emergencies.map((b) => (
+        <EmergencyBanner key={b.id} block={b} resourceName={resourceName(resources.data, b.resource_id)} />
+      ))}
+
       {isError ? (
         <ErrorState message={error.message} onRetry={() => void refetch()} />
-      ) : isPending ? (
+      ) : isPending || !kpis ? (
         <div className="space-y-5" aria-busy="true">
           <div className="grid grid-cols-4 gap-5">
             {[0, 1, 2, 3].map((i) => (
@@ -108,28 +116,14 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
-          {data.activeEmergencies.map((e) => (
-            <EmergencyBanner key={e.blockId} emergency={e} />
-          ))}
-
           <div className="mb-5 grid grid-cols-4 gap-5">
-            <StatCard
-              label={t('dashboard.kpi.bookings')}
-              value={data.kpis.bookings.value}
-              aside={
-                delta !== undefined && delta !== 0 ? (
-                  <Badge tone={delta > 0 ? 'success' : 'danger'} className="px-2 py-0.5">
-                    {formatDelta(delta)}
-                  </Badge>
-                ) : undefined
-              }
-            />
-            <StatCard label={t('dashboard.kpi.checkIns')} value={data.kpis.checkIns.value} tone="success" />
-            <StatCard label={t('dashboard.kpi.noShows')} value={data.kpis.noShows.value} tone="danger" />
-            <StatCard label={t('dashboard.kpi.occupancy')} value={`${data.kpis.occupancyPct.value}%`} tone="brand" />
+            <StatCard label={t('dashboard.kpi.bookings')} value={kpis.bookings} />
+            <StatCard label={t('dashboard.kpi.checkIns')} value={kpis.checkIns} tone="success" />
+            <StatCard label={t('dashboard.kpi.noShows')} value={kpis.noShows} tone="danger" />
+            <StatCard label={t('dashboard.kpi.occupancy')} value={`${kpis.occupancyPct}%`} tone="brand" />
           </div>
 
-          <DayGrid data={data} onBlock={setBlocking} />
+          <DayGrid data={toDayGrid(data, resources.data)} blockedBy={blockedBy} onBlock={setBlocking} />
         </>
       )}
 

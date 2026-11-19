@@ -2,21 +2,21 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import axe from 'axe-core';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { api } from '@/api/endpoints';
-import { http } from '@/api/http';
 import '@/i18n';
+import AdminBookingsPage from '@/features/admin/bookings/AdminBookingsPage';
+import BlocksPage from '@/features/admin/blocks/BlocksPage';
 import SportsPage from '@/features/admin/sports/SportsPage';
 import UsersPage from '@/features/admin/users/UsersPage';
 import { resetDb } from '@/mocks/db';
 import { server } from '@/mocks/node';
+import { signInAs } from './session';
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 beforeEach(async () => {
   resetDb();
-  await http.post('/auth/sso/login');
-  await api.auth.verifyTotp('123456');
+  await signInAs('admin');
 });
 
 function wrap(ui: React.ReactNode) {
@@ -37,6 +37,21 @@ describe('Accesibilitate (NFR-07) – structură', () => {
   it('pagina Utilizatori nu are încălcări axe', async () => {
     const { container } = wrap(<UsersPage />);
     await screen.findByText('Andrei Popescu');
+    const results = await axe.run(container, OPTIONS);
+    expect(results.violations).toEqual([]);
+  });
+
+  it('pagina Rezervări (admin) nu are încălcări axe', async () => {
+    const { container } = wrap(<AdminBookingsPage />);
+    await screen.findByRole('heading', { name: 'Rezervări' });
+    await screen.findByRole('table').catch(() => screen.findByText('Nicio rezervare'));
+    const results = await axe.run(container, OPTIONS);
+    expect(results.violations).toEqual([]);
+  });
+
+  it('pagina Blocări nu are încălcări axe', async () => {
+    const { container } = wrap(<BlocksPage />);
+    await screen.findByRole('table');
     const results = await axe.run(container, OPTIONS);
     expect(results.violations).toEqual([]);
   });

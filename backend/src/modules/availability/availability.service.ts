@@ -35,8 +35,18 @@ export class AvailabilityService {
     now = new Date(),
   ): Promise<AvailabilityView> {
     const resources = await this.resolveResources(query, caller);
+    return { date: query.date, resources: await this.gridFor(resources, query.date, caller, now) };
+  }
+
+  /** The slot grid of the given resources for one day, as `GET /availability` shows it to `caller`. */
+  async gridFor(
+    resources: Resource[],
+    date: string,
+    caller?: AuthUser,
+    now = new Date(),
+  ): Promise<ResourceAvailabilityView[]> {
     const zone = this.config.facilityTimezone;
-    const { start, end } = dayBounds(query.date, zone);
+    const { start, end } = dayBounds(date, zone);
     const [occupancies, rules] = await Promise.all([
       this.loadOccupancies(resources, start, end),
       this.settings.rules(),
@@ -46,25 +56,12 @@ export class AvailabilityService {
     let activeBookings = 0;
     if (caller) {
       [quota, activeBookings] = await Promise.all([
-        caller.role === 'student' ? this.quota.counters(caller.id, `${query.date.slice(0, 7)}-01`) : quota,
+        caller.role === 'student' ? this.quota.counters(caller.id, `${date.slice(0, 7)}-01`) : quota,
         this.quota.activeBookings(caller.id, now),
       ]);
     }
 
-    return {
-      date: query.date,
-      resources: buildGrid({
-        resources,
-        occupancies,
-        date: query.date,
-        zone,
-        now,
-        rules,
-        caller,
-        quota,
-        activeBookings,
-      }),
-    };
+    return buildGrid({ resources, occupancies, date, zone, now, rules, caller, quota, activeBookings });
   }
 
   private async resolveResources(

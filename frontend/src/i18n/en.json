@@ -6,7 +6,12 @@
     "edit": "Edit",
     "loading": "Loading…",
     "retry": "Try again",
-    "save": "Save"
+    "save": "Save",
+    "pageInfo": "Page {{page}} of {{pages}} · {{total}} entries",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
+    "notAvailableTitle": "Not available on the server yet",
+    "notAvailableBody": "The server does not implement this operation yet (501). The form will be enabled as soon as the route is available."
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -33,7 +38,8 @@
     "sports": "Sports",
     "users": "Users",
     "checkin": "Check-in",
-    "account": "My account"
+    "account": "My account",
+    "bookings": "Bookings"
   },
   "menu": {
     "open": "Account menu",
@@ -44,118 +50,6 @@
     "themeLight": "Light",
     "themeDark": "Dark",
     "logout": "Sign out"
-  },
-  "user": {
-    "placeholderTitle": "User app",
-    "placeholderBody": "The mobile app (PWA) for students and teachers goes in src/features/user. For now only the admin panel is available.",
-    "openAdmin": "Open the admin panel",
-    "nav": {
-      "label": "Main navigation",
-      "home": "Home",
-      "search": "Search",
-      "bookings": "Bookings",
-      "profile": "Profile"
-    },
-    "home": {
-      "greeting": "Hi, {{name}}",
-      "subtitle": "WHAT SPORT ARE YOU PLAYING TODAY?",
-      "myProfile": "My profile",
-      "quotaAria": "Remaining entries this month",
-      "remainingOfTotal": "of {{total}} entries left",
-      "remainingProgressAria": "{{remaining}} of {{total}} entries left",
-      "chooseSport": "Choose a sport"
-    },
-    "availability": {
-      "stepTitle": "01/03 COURT + TIME",
-      "backAria": "Back to sport selection",
-      "selectDayAria": "Choose day",
-      "chooseCourtAndTime": "Choose court and time",
-      "courtCount_one": "{{count}} court",
-      "courtCount_other": "{{count}} courts",
-      "emptyTitle": "No courts available",
-      "emptyBody": "There are no active resources for {{sport}} on this day.",
-      "showMore": "More times",
-      "showLess": "Show less",
-      "slotsAria": "Time slots for {{name}}",
-      "slot": {
-        "selected": "Selected ✓",
-        "free": "Free",
-        "myBooking": "My booking",
-        "peClass": "PE class",
-        "occupied": "Occupied"
-      },
-      "selectHint": "Select a free time slot to continue",
-      "continue": "Continue"
-    },
-    "confirm": {
-      "stepConfirm": "02/03 CONFIRM",
-      "title": "Confirm",
-      "subtitle": "Review your booking details",
-      "backToSlotsAria": "Back to time selection",
-      "detailsAria": "Booking details",
-      "dateLabel": "Date",
-      "timeLabel": "Time",
-      "participantsLabel": "Participants",
-      "participantsHint": "Optional up to {{max}}",
-      "decreaseParticipantsAria": "Decrease participants",
-      "increaseParticipantsAria": "Increase participants",
-      "policiesAria": "Quota and policies",
-      "quotaUsage": "Uses 1 entry from your quota",
-      "quotaRemaining": "{{remaining}} of {{total}} left",
-      "freeCancelRule": "Free cancellation up to 2 h before",
-      "checkInRule": "QR check-in between -10 and +15 min ({{window}})",
-      "submit": "Confirm booking",
-      "submitting": "Confirming…",
-      "back": "Back",
-      "errors": {
-        "slotTakenTitle": "This slot was just taken",
-        "slotTakenBody": "Join the waitlist and we will notify you if a spot opens up.",
-        "joinWaitlist": "Join waitlist",
-        "joiningWaitlist": "Joining…",
-        "waitlistJoinedTitle": "You're on the waitlist",
-        "waitlistJoinedBody": "We'll notify you as soon as the slot frees up.",
-        "quotaExhaustedTitle": "Monthly quota reached",
-        "quotaExhaustedBody": "You have used all your free entries for this month."
-      },
-      "success": {
-        "badge": "03/03 BOOKING CONFIRMED",
-        "headline": "ALL SET!",
-        "subtitlePrefix": "See you on",
-        "subtitleAt": "at",
-        "subtitleOn": "on",
-        "courtCol": "COURT",
-        "dateCol": "DATE",
-        "timeCol": "TIME",
-        "checkInNote": "Show this code at the entrance · Check-in open",
-        "addToCalendar": "Add to calendar",
-        "addedToCalendar": "Added to calendar (.ics)",
-        "done": "Done",
-        "qrAria": "Booking QR code {{code}}"
-      }
-    }
-  },
-  "login": {
-    "step1": "Step 1 of 2",
-    "step2": "Step 2 of 2",
-    "title": "Admin panel",
-    "codeTitle": "Verification code",
-    "body": "Sign in with your university account.",
-    "codeBody": "Hello, {{name}}. Enter the code from your authenticator app.",
-    "sso": "Sign in with university SSO",
-    "ssoNote": "Administrators also use a second factor (TOTP).",
-    "codeLabel": "6-digit code",
-    "codeHint": "The code changes every 30 seconds.",
-    "codeInvalid": "Incorrect code. Try again.",
-    "verify": "Verify and continue",
-    "otherAccount": "Use another account",
-    "expiredTitle": "Your session expired",
-    "expiredBody": "Admin sessions last 8 hours. Please sign in again.",
-    "demoHint": "Demo mode: any account works, the code is 123456."
-  },
-  "channels": {
-    "push": "Push notification",
-    "email": "Email",
-    "sms": "SMS"
   },
   "equipment": {
     "panouri": "Backboards",
@@ -201,27 +95,27 @@
     "legend": "Legend",
     "gridLabel": "Resource occupancy by hour",
     "resource": "Resource",
+    "hours": "Hours",
+    "closed": "Closed on this day",
     "state": {
       "free": "Free",
       "booked": "Booked",
       "pe_class": "PE class",
       "event": "Event",
-      "blocked": "Blocked",
-      "closed": "Closed"
+      "blocked": "Blocked"
     },
     "blockedKind": {
       "emergency": "emergency",
-      "maintenance": "maintenance",
-      "cleaning": "cleaning"
+      "maintenance": "maintenance"
     },
     "blockedLabel": "Blocked ({{kind}})",
     "block": "Block",
     "blockNow": "Emergency-block {{name}}",
     "emergency": {
-      "title": "{{name}} is under emergency block ({{count}} bookings cancelled)",
+      "title": "{{name}} is under emergency block since {{since}} · {{reason}}",
       "loading": "Preparing the delivery report…",
       "progress": "Notified {{delivered}} of {{total}} users…",
-      "done": "All users were notified in {{seconds}} s (push {{push}}, email {{email}}, SMS {{sms}})."
+      "done": "All {{total}} affected users were notified (push {{push}}, email {{email}}, SMS {{sms}})."
     }
   },
   "resources": {
@@ -253,7 +147,11 @@
       "opensAt": "Opens",
       "closesAt": "Closes",
       "slot": "Slot length",
-      "external": "External access"
+      "external": "External access",
+      "type": "Type",
+      "location": "Location",
+      "photo": "Photo (URL)",
+      "openDays": "Open days"
     },
     "external": {
       "never": "No external access",
@@ -273,7 +171,11 @@
       "slotTooLong": "The slot is longer than the opening hours.",
       "windowDays": "Pick at least one day for the external window.",
       "windowHours": "The window must end after it starts.",
-      "needsEquipment": "{{sport}} requires: {{equipment}}."
+      "needsEquipment": "{{sport}} requires: {{equipment}}.",
+      "typeRequired": "Enter the resource type.",
+      "locationRequired": "Enter the location.",
+      "photoInvalid": "The address must start with http:// or https://.",
+      "daysRequired": "Choose at least one open day."
     },
     "deactivate": "Deactivate",
     "activate": "Reactivate",
@@ -291,39 +193,48 @@
       "created": "{{name}} created",
       "activated": "{{name}} is active again",
       "deactivated": "{{name}} deactivated"
+    },
+    "hints": {
+      "type": "For example: court, hall, pool.",
+      "photo": "Optional; an http(s) address of the image.",
+      "mixedHours": "Opening hours differ between days; saving applies the hours above to every selected day."
     }
   },
   "blocks": {
     "title": "Blocks",
-    "subtitle": "Emergency and planned blocks for sports resources.",
+    "subtitle": "Emergency, maintenance, PE class and event blocks on sports resources.",
     "new": "Planned block",
+    "period": "Period",
     "tabs": {
-      "active": "Active",
-      "planned": "Planned",
-      "history": "History"
+      "upcoming": "Current and upcoming",
+      "past": "Ended",
+      "all": "All"
     },
     "empty": {
-      "active": "No active blocks",
-      "planned": "No planned blocks",
-      "history": "History is empty",
+      "upcoming": "No current or upcoming blocks",
+      "past": "No ended blocks",
+      "all": "No blocks",
       "body": "Blocks appear here as soon as they are created."
     },
+    "allResources": "All resources",
+    "allKinds": "All types",
     "col": {
       "resource": "Resource",
       "kind": "Type",
       "interval": "Interval",
-      "affected": "Cancelled",
+      "state": "Status",
       "actions": "Actions"
     },
     "kinds": {
       "emergency": "Emergency",
       "maintenance": "Maintenance",
-      "cleaning": "Cleaning"
+      "pe_class": "PE class",
+      "event": "Event"
     },
-    "recurrence": {
-      "none": "Does not repeat",
-      "daily": "Daily",
-      "weekly": "Weekly"
+    "state": {
+      "active": "Active",
+      "planned": "Planned",
+      "ended": "Ended"
     },
     "reasons": {
       "burst": "Burst pipe",
@@ -335,18 +246,15 @@
     },
     "fields": {
       "resource": "Resource",
-      "kind": "Type",
       "reason": "Reason",
       "reasonPlaceholder": "Describe the reason",
       "interval": "Interval",
       "startsAt": "Starts",
-      "endsAt": "Ends",
-      "recurrence": "Repeat"
+      "endsAt": "Ends"
     },
     "errors": {
       "endAfterStart": "The end must be after the start.",
       "reasonRequired": "Describe the reason.",
-      "channelRequired": "Choose at least one channel.",
       "resourceRequired": "Choose a resource."
     },
     "untilFurther": "until further notice",
@@ -359,46 +267,41 @@
     },
     "emergency": {
       "title": "Emergency-block {{name}}",
-      "subtitle": "Bookings in the interval are cancelled and users are notified right away.",
+      "subtitle": "The block starts now. Bookings in the interval are cancelled and users are notified right away.",
       "confirm": "Block now",
       "untilFurther": "Until further notice",
       "fixed": "Fixed interval",
-      "channels": "Notify users via",
-      "smsNote": "SMS is sent only for bookings in the next 24 hours.",
-      "willCancel_one": "{{count}} booking will be cancelled",
-      "willCancel_other": "{{count}} bookings will be cancelled",
+      "willCancel": "Active bookings in the interval are cancelled and their holders get a notification with alternatives.",
       "refundNote": "Users' monthly quota is refunded automatically."
     },
     "planned": {
       "title": "Planned block",
-      "editTitle": "Edit block",
-      "subtitle": "Maintenance or cleaning, optionally recurring.",
+      "subtitle": "Maintenance over a fixed interval.",
       "confirm": "Schedule block",
-      "channels": "Notify affected users via",
-      "willCancel_one": "Will cancel {{count}} existing booking",
-      "willCancel_other": "Will cancel {{count}} existing bookings"
+      "willCancel": "Overlapping active bookings are cancelled on confirmation and their holders are notified. The count is shown after creation."
     },
     "toast": {
       "blocked": "{{name}} was blocked",
       "cancelled_one": "{{count}} booking cancelled",
       "cancelled_other": "{{count}} bookings cancelled",
+      "notified_one": "{{count}} user notified",
+      "notified_other": "{{count}} users notified",
       "released": "{{name}} was unblocked",
-      "planned": "Block scheduled for {{name}}",
-      "updated": "Block for {{name}} updated"
+      "planned": "Block scheduled for {{name}}"
     },
     "delivery": {
       "eyebrow": "Delivery report",
       "since": "Since {{at}}",
       "complete": "Fully sent",
       "sending": "Sending messages…",
-      "progress": "{{delivered}} of {{total}} notified",
+      "progress": "{{delivered}} of {{total}} delivered",
       "stats": {
-        "cancelled": "Cancelled",
-        "quotasRefunded": "Quotas refunded",
+        "notified": "To notify",
+        "delivered": "Delivered",
+        "failed": "Failed",
         "push": "Push",
         "email": "Email",
-        "sms": "SMS",
-        "duration": "Duration"
+        "sms": "SMS"
       }
     }
   },
@@ -413,18 +316,18 @@
     "modeFile": "From file",
     "modeManual": "Add manually",
     "drop": "Drag the file here",
-    "dropHint": "Excel or CSV, up to 5 MB",
+    "dropHint": "CSV or iCal (.ics), up to 5 MB",
     "choose": "Choose file",
     "errors": {
-      "type": "Unsupported format. Use .xlsx, .xls or .csv.",
+      "type": "Unsupported format. Use .csv or .ics.",
       "size": "The file is larger than 5 MB.",
       "course": "Enter the course name.",
       "days": "Choose at least one day.",
       "time": "End time must be after start time.",
       "range": "The end date must be after the start date."
     },
-    "formatTitle": "File format",
-    "formatBody": "One row per class, with these columns in this order:",
+    "formatTitle": "CSV file format",
+    "formatBody": "One row per class, with these columns (weekday: 1 = Monday … 7 = Sunday):",
     "columns": {
       "resource": "Resource",
       "course": "Course",
@@ -434,11 +337,10 @@
     },
     "validFrom": "Valid from",
     "validTo": "Valid until",
-    "checkConflicts": "Check conflicts",
+    "addClass": "Add class",
     "summary": {
-      "recurringClasses": "Recurring classes",
-      "weeks": "Weeks covered",
-      "blocksGenerated": "Blocks generated"
+      "classes": "Recurring classes",
+      "occurrences": "Occurrences generated"
     },
     "conflicts": {
       "title_one": "{{count}} booking in conflict",
@@ -448,21 +350,15 @@
       "col": {
         "user": "User",
         "resource": "Resource",
-        "when": "When",
-        "course": "Course"
+        "when": "When"
       }
-    },
-    "userKind": {
-      "student": "student",
-      "teacher": "teacher",
-      "external": "external"
     },
     "confirm": "Confirm import",
     "confirmWithConflicts_one": "Confirm and cancel {{count}} booking",
     "confirmWithConflicts_other": "Confirm and cancel {{count}} bookings",
     "done": {
       "title": "Schedule imported",
-      "blocksCreated": "Blocks created",
+      "occurrencesCreated": "Occurrences created",
       "cancelledBookings": "Bookings cancelled",
       "notifiedUsers": "Users notified",
       "again": "Import another schedule"
@@ -473,34 +369,26 @@
     "subtitle": "University events reserve resources and cancel conflicting bookings.",
     "new": "New event",
     "create": "Create event",
-    "emptyTitle": "No events",
-    "emptyBody": "Create the first university event.",
-    "dialogSubtitle": "Choose resources and time; see conflicts in advance.",
     "fields": {
       "name": "Name",
-      "resources": "Resources",
+      "resource": "Resource",
       "date": "Date",
       "from": "From",
-      "to": "To",
-      "recurrence": "Repeat"
-    },
-    "recurrence": {
-      "none": "Does not repeat",
-      "weekly": "Weekly",
-      "monthly": "Monthly"
+      "to": "To"
     },
     "errors": {
       "name": "Enter a name.",
-      "resources": "Choose at least one resource.",
+      "resources": "Choose a resource.",
       "date": "Choose a date.",
       "time": "End time must be after start time."
     },
-    "cancelled_one": "{{count}} booking cancelled",
-    "cancelled_other": "{{count}} bookings cancelled",
     "conflicts_one": "{{count}} booking in conflict",
     "conflicts_other": "{{count}} bookings in conflict",
-    "conflictsBody": "They will be cancelled when the event is created and users are notified.",
-    "noConflicts": "No conflicts.",
+    "conflictsBody": "They are cancelled if you confirm, and users are notified.",
+    "confirmConflicts_one": "Create and cancel {{count}} booking",
+    "confirmConflicts_other": "Create and cancel {{count}} bookings",
+    "howTitle": "How it works",
+    "howBody": "An event can be scheduled any time in the future. If it overlaps bookings, the server lists them before cancelling. Created events appear on the Blocks page.",
     "toast": {
       "created": "Event “{{name}}” created",
       "cancelled_one": "{{count}} booking cancelled",
@@ -509,46 +397,33 @@
   },
   "announcements": {
     "title": "Announcements",
-    "subtitle": "Send messages to users on the channels you choose.",
-    "category": {
-      "urgent": "Urgent",
-      "general": "General",
-      "maintenance": "Maintenance"
-    },
+    "subtitle": "Send a message to users with bookings on a resource or in a time range.",
     "fields": {
-      "category": "Category",
-      "title": "Title",
-      "message": "Message",
-      "audience": "Audience",
+      "messageRo": "Message (Romanian)",
+      "messageEn": "Message (English)",
+      "audience": "Recipients",
       "resource": "Resource",
+      "withInterval": "Only bookings in a time range",
       "date": "Date",
       "from": "From",
-      "to": "To",
-      "allDay": "All day",
-      "channels": "Channels"
+      "to": "To"
     },
-    "audience": {
-      "all_with_bookings": "Everyone with active bookings",
-      "resource": "Those who booked a resource",
-      "interval": "Those who booked in an interval",
-      "waitlist": "Those on the waitlist"
+    "hints": {
+      "messageEn": "Optional; otherwise English-speaking users get the Romanian text."
     },
+    "allResources": "All resources (choose a time range)",
     "errors": {
-      "titleRequired": "Enter a title.",
-      "messageRequired": "Write the message.",
-      "channelRequired": "Choose at least one channel.",
-      "resourceRequired": "Choose a resource.",
+      "messageRequired": "Write the message in Romanian.",
+      "targetRequired": "Choose a resource or a time range.",
       "dateRequired": "Choose a date.",
       "timeInvalid": "The time range is not valid."
     },
-    "reach_one": "Reaches {{count}} user",
-    "reach_other": "Reaches {{count}} users",
-    "reachUnknown": "Fill in the form to see how many users get the message.",
+    "reach_one": "The message reaches {{count}} user.",
+    "reach_other": "The message reaches {{count}} users.",
+    "reachNote": "The number of recipients is shown after sending.",
     "send": "Send",
-    "history": "Sent announcements",
-    "emptyTitle": "No announcements sent",
-    "recipients_one": "{{count}} recipient",
-    "recipients_other": "{{count}} recipients",
+    "howTitle": "Who gets the announcement",
+    "howBody": "Holders of active bookings on the chosen resource and/or in the chosen time range, on the channels from their preferences (push, email, SMS).",
     "toast": {
       "sent": "Announcement sent",
       "recipients_one": "{{count}} recipient",
@@ -560,54 +435,61 @@
     "subtitle": "Occupancy, bookings and no-shows by month.",
     "prevMonth": "Previous month",
     "nextMonth": "Next month",
-    "vsPrevious": "vs previous month",
+    "exportCsv": "Export CSV",
     "kpi": {
       "occupancy": "Average occupancy",
       "bookings": "Bookings",
-      "noShow": "No-show rate",
-      "atLimit": "Students at quota limit"
+      "noShows": "No-shows",
+      "atLimit": "Users at quota limit"
     },
     "hourly": "Occupancy by hour",
     "hourlyAlt": "Bar chart: average occupancy for each hour",
     "hour": "Hour",
     "perResource": "Occupancy by resource",
-    "members": "{{members}} active members, {{external}} external users"
+    "byCategory": "Bookings: {{members}} by members, {{externals}} by external users"
   },
   "rules": {
     "title": "Rules",
     "subtitle": "Booking rules apply immediately, without a redeploy.",
+    "updatedAt": "Last changed: {{at}}.",
     "groups": {
       "quota": "Quotas",
       "window": "Booking window",
       "cancel": "Cancellation and check-in",
-      "noshow": "No-shows and waitlist"
+      "noshow": "No-shows and waitlist",
+      "slots": "Slots and priority"
     },
     "fields": {
-      "quotaMonthly": "Monthly booking quota",
-      "maxActiveFuture": "Active future bookings",
-      "windowStudentDays": "Window for students",
-      "windowTeacherDays": "Window for teachers",
-      "windowExternalHours": "Window for external users",
-      "cancelBeforeHours": "Free cancellation at least",
-      "checkinBeforeMin": "Check-in opens",
-      "checkinAfterMin": "Check-in allowed after start",
-      "noShowLimit": "No-shows before suspension",
-      "suspensionDays": "Suspension length",
-      "waitlistOfferMinutes": "Time to accept an offered place",
-      "quotaPerSport": "Separate quota per sport"
+      "monthly_quota": "Monthly booking quota",
+      "max_active_bookings": "Active future bookings",
+      "booking_window_days_student": "Window for students",
+      "booking_window_days_teacher": "Window for teachers",
+      "booking_window_hours_external": "Window for external users",
+      "cancel_free_hours": "Free cancellation at least",
+      "checkin_minutes_before": "Check-in opens",
+      "checkin_minutes_after": "Check-in allowed after start",
+      "no_show_threshold": "No-shows before suspension",
+      "no_show_suspension_days": "Suspension length",
+      "waitlist_offer_minutes": "Time to accept an offered place",
+      "waitlist_simultaneous_under_hours": "Offer to everyone when the slot is less than",
+      "default_slot_minutes": "Default slot length",
+      "monthly_quota_per_sport": "Separate quota per sport",
+      "member_replaces_external": "Members can take over external users' slots"
     },
     "units": {
-      "quotaMonthly": "bookings / month",
-      "maxActiveFuture": "bookings",
-      "windowStudentDays": "days ahead",
-      "windowTeacherDays": "days ahead",
-      "windowExternalHours": "hours ahead",
-      "cancelBeforeHours": "hours before",
-      "checkinBeforeMin": "minutes early",
-      "checkinAfterMin": "minutes",
-      "noShowLimit": "no-shows",
-      "suspensionDays": "days",
-      "waitlistOfferMinutes": "minutes"
+      "monthly_quota": "bookings / month",
+      "max_active_bookings": "bookings",
+      "booking_window_days_student": "days ahead",
+      "booking_window_days_teacher": "days ahead",
+      "booking_window_hours_external": "hours ahead",
+      "cancel_free_hours": "hours before",
+      "checkin_minutes_before": "minutes early",
+      "checkin_minutes_after": "minutes",
+      "no_show_threshold": "no-shows",
+      "no_show_suspension_days": "days",
+      "waitlist_offer_minutes": "minutes",
+      "waitlist_simultaneous_under_hours": "hours away",
+      "default_slot_minutes": "minutes"
     },
     "range": "Between {{min}} and {{max}}",
     "errors": {
@@ -623,9 +505,10 @@
     "title": "Audit log",
     "subtitle": "Administrator actions, read-only.",
     "export": "Export CSV",
-    "search": "Search the log",
     "actor": "Administrator",
     "allActors": "All administrators",
+    "entity": "Entity",
+    "allEntities": "All entities",
     "period": "Period",
     "periods": {
       "24h": "Last 24 hours",
@@ -637,37 +520,52 @@
       "when": "When",
       "who": "Who",
       "action": "Action",
+      "entity": "Entity",
       "object": "Object"
     },
+    "entities": {
+      "occupancy": "Bookings and blocks",
+      "resource": "Resource",
+      "sport": "Sport",
+      "settings": "Rules",
+      "user": "User",
+      "announcement": "Announcement"
+    },
     "actions": {
-      "emergency_block": "Emergency block",
-      "planned_block": "Planned block",
-      "block_updated": "Block updated",
-      "unblock": "Unblock",
-      "announcement_sent": "Announcement sent",
-      "schedule_import": "Schedule import",
-      "rule_changed": "Rule changed",
-      "account_suspended": "Account suspended",
-      "resource_created": "Resource created",
-      "resource_updated": "Resource updated",
-      "resource_deactivated": "Resource deactivated",
-      "resource_activated": "Resource reactivated",
-      "event_created": "Event created",
-      "sport_created": "Sport created",
-      "sport_updated": "Sport updated",
-      "sport_deleted": "Sport deleted",
-      "account_reactivated": "Account reactivated",
-      "twofa_enabled": "2FA configured"
+      "block": {
+        "create": "Block created",
+        "delete": "Unblocked"
+      },
+      "booking": {
+        "cancel": "Booking cancelled",
+        "reschedule": "Booking moved"
+      },
+      "resource": {
+        "create": "Resource created",
+        "update": "Resource updated"
+      },
+      "sport": {
+        "create": "Sport created",
+        "update": "Sport updated"
+      },
+      "settings": {
+        "update": "Rules changed"
+      },
+      "user": {
+        "suspend": "Account suspended",
+        "reactivate": "Account reactivated",
+        "delete": "Account deleted"
+      },
+      "announcement": {
+        "create": "Announcement sent"
+      }
     },
     "emptyTitle": "No entries",
-    "emptyBody": "Change the filters or the period.",
-    "pageInfo": "Page {{page}} of {{pages}} · {{total}} entries",
-    "prev": "Previous page",
-    "next": "Next page"
+    "emptyBody": "Change the filters or the period."
   },
   "sports": {
     "title": "Sports and equipment",
-    "subtitle": "Add or edit sports and their required equipment, with no code changes.",
+    "subtitle": "Add or edit sports and their required equipment, with no code changes. Sports cannot be deleted.",
     "new": "New sport",
     "newTitle": "New sport",
     "editTitle": "Edit sport",
@@ -676,6 +574,7 @@
     "col": {
       "nameRo": "Name (RO)",
       "nameEn": "Name (EN)",
+      "icon": "Icon",
       "equipment": "Required equipment",
       "actions": "Actions"
     },
@@ -683,20 +582,19 @@
     "fields": {
       "nameRo": "Name in Romanian",
       "nameEn": "Name in English",
-      "equipment": "Required equipment"
+      "equipment": "Required equipment",
+      "icon": "Icon"
     },
     "hint": {
-      "equipment": "Only resources that have all of this equipment appear when the sport is chosen."
+      "equipment": "Only resources that have all of this equipment appear when the sport is chosen.",
+      "icon": "Short identifier: lowercase letters, digits and hyphens (e.g. football)."
     },
     "errors": {
-      "required": "Required field."
+      "required": "Required field.",
+      "icon": "Use only lowercase letters, digits and hyphens (max. 40)."
     },
-    "deleteTitle": "Delete the sport “{{name}}”?",
-    "deleteBody": "The sport disappears from the app. It cannot be deleted while a resource uses it.",
-    "delete": "Delete",
     "toast": {
-      "saved": "The sport “{{name}}” was saved.",
-      "deleted": "The sport was deleted."
+      "saved": "The sport “{{name}}” was saved."
     }
   },
   "users": {
@@ -712,7 +610,8 @@
     "roles": {
       "student": "Student",
       "teacher": "Teacher",
-      "external": "External"
+      "external": "External",
+      "admin": "Administrator"
     },
     "status": {
       "active": "Active",
@@ -722,7 +621,7 @@
       "user": "User",
       "role": "Role",
       "status": "Status",
-      "noShows": "No-shows this month",
+      "phone": "Phone",
       "actions": "Actions"
     },
     "until": "until {{date}}",
@@ -743,39 +642,87 @@
     "toast": {
       "suspended": "{{name}}’s account was suspended.",
       "reactivated": "{{name}}’s account was reactivated."
+    },
+    "untilHint": "Suspended until {{date}}."
+  },
+  "adminBookings": {
+    "title": "Bookings",
+    "subtitle": "All bookings, with filters; cancelling as administrator refunds the quota.",
+    "filters": {
+      "date": "Date",
+      "resource": "Resource",
+      "status": "Status",
+      "allResources": "All resources",
+      "allStatuses": "All statuses"
+    },
+    "status": {
+      "active": "Active",
+      "completed": "Completed",
+      "no_show": "No-show",
+      "cancelled": "Cancelled"
+    },
+    "col": {
+      "when": "When",
+      "resource": "Resource",
+      "holder": "Holder",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "userId": "User {{id}}…",
+    "anonymized": "Anonymized",
+    "participants_one": "{{count}} participant",
+    "participants_other": "{{count}} participants",
+    "checkedIn": "checked in at {{time}}",
+    "emptyTitle": "No bookings",
+    "emptyBody": "Change the date or the filters.",
+    "cancel": "Cancel",
+    "cancelTitle": "Cancel this booking?",
+    "cancelBody": "The holder is notified with the reason and their quota is refunded.",
+    "cancelConfirm": "Cancel booking",
+    "fields": {
+      "reason": "Reason"
+    },
+    "errors": {
+      "reason": "The reason is required."
+    },
+    "toast": {
+      "cancelled": "The booking on {{name}} was cancelled",
+      "refunded": "The holder’s quota was refunded."
     }
   },
   "checkin": {
     "title": "Entrance check-in",
-    "subtitle": "Scan the booking’s QR code or enter the code manually.",
+    "subtitle": "Scan the booking’s QR code or enter its content manually.",
     "startCamera": "Start camera",
     "stopCamera": "Stop camera",
     "cameraError": "The camera could not be started. Allow camera access or use the manual code.",
-    "manualLabel": "Booking code",
-    "manualHint": "Demo only: DEMO-OK, DEMO-DUPLICAT, DEMO-EXPIRAT.",
+    "manualLabel": "QR code content",
+    "manualHint": "Format: <booking>.<nonce>.<signature>",
     "verify": "Verify",
     "resultTitle": "Result",
     "idle": "The verification result appears here.",
     "ok": "Access granted",
     "already": "Already confirmed",
     "failed": "Access denied",
+    "at": "Checked in at {{time}}",
     "member": "University member",
-    "external": "External visitor"
+    "external": "External visitor",
+    "errors": {
+      "ALREADY_CHECKED_IN": "This booking is already checked in.",
+      "BOOKING_NOT_ACTIVE": "The booking was cancelled or has ended.",
+      "QR_INVALID": "The QR code is not valid or not for today.",
+      "CHECKIN_WINDOW_CLOSED": "Check-in is not allowed now (outside the window around the start time).",
+      "NOT_FOUND": "The booking does not exist."
+    }
   },
-   "account": {
+  "account": {
     "title": "My account",
-    "subtitle": "Account details and two-step authentication security.",
+    "subtitle": "Account details and two-step sign-in.",
     "sessionTitle": "Session",
     "email": "Email",
-    "expires": "Session expires at {{time}}",
-    "twofaTitle": "Two-step authentication (TOTP)",
-    "twofaBody": "Scan the QR code with an authenticator app, then enter the 6-digit code.",
-    "setup": "Set up authenticator",
-    "secret": "Manual key",
-    "code": "Verification code",
-    "confirm": "Confirm",
-    "cancel": "Cancel",
-    "errors": { "code": "Enter the 6 digits." },
-    "toast": { "enabled": "Two-step authentication was set up." }
+    "sessionLength": "Admin sessions last at most 8 hours.",
+    "twofaTitle": "Two-step sign-in (TOTP)",
+    "twofaBody": "The second factor is set up on the server. Run the command below and scan the printed otpauth:// URI with an authenticator app.",
+    "twofaNote": "Once set up, every SSO sign-in asks for the 6-digit code from the app."
   }
 }

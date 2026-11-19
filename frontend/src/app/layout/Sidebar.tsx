@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  CalendarCheck,
   CalendarDays,
   LayoutGrid,
   Landmark,
@@ -16,12 +17,11 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { NavLink } from 'react-router';
-import type { AdminUser } from '@/api/types';
+import type { User } from '@/api/generated';
 import { cn } from '@/lib/cn';
 import { Logo } from './Logo';
 import { UserMenu } from './UserMenu';
 import { USE_MOCKS } from '@/api/config';
-
 
 interface NavItem {
   to: string;
@@ -30,9 +30,10 @@ interface NavItem {
   end?: boolean;
 }
 
-/** Ordinea din machetă: Panoul zilei, Resurse, Orar EF, Evenimente, Blocări, Anunțuri, Rapoarte, Reguli, Jurnal audit. */
+/** Ordinea din machetă: Panoul zilei, Rezervări, Resurse, Orar EF, Evenimente, Blocări, Anunțuri, Rapoarte, Reguli, Jurnal audit. */
 const NAV: NavItem[] = [
   { to: '/admin', labelKey: 'nav.dashboard', icon: LayoutGrid, end: true },
+  { to: '/admin/bookings', labelKey: 'nav.bookings', icon: CalendarCheck },
   { to: '/admin/resources', labelKey: 'nav.resources', icon: Landmark },
   { to: '/admin/sports', labelKey: 'nav.sports', icon: Trophy },
   { to: '/admin/schedule', labelKey: 'nav.schedule', icon: CalendarDays },
@@ -47,7 +48,7 @@ const NAV: NavItem[] = [
   { to: '/admin/account', labelKey: 'nav.account', icon: UserCog },
 ];
 
-export function Sidebar({ user }: { user: AdminUser }) {
+export function Sidebar({ user }: { user: User }) {
   const { t } = useTranslation();
   return (
     <aside className="fixed inset-y-0 left-0 z-30 flex w-[264px] flex-col bg-navy px-4 py-6">

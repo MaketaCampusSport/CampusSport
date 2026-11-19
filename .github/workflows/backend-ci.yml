@@ -3,9 +3,9 @@ name: backend
 on:
   push:
     branches: [main]
-    paths: ['backend/**', 'livrabil05/**', '.github/workflows/backend-ci.yml']
+    paths: ['backend/**', 'assets/livrabil05/**', '.github/workflows/backend-ci.yml']
   pull_request:
-    paths: ['backend/**', 'livrabil05/**', '.github/workflows/backend-ci.yml']
+    paths: ['backend/**', 'assets/livrabil05/**', '.github/workflows/backend-ci.yml']
 
 defaults:
   run:
@@ -37,7 +37,7 @@ jobs:
       - run: npm run lint
       - run: npx prettier --check "src/**/*.ts" "test/**/*.ts"
       - run: npm run typecheck
-      - name: Unit tests (incl. conformance with livrabil05/openapi.json), coverage
+      - name: Unit tests (incl. conformance with assets/livrabil05/openapi.json), coverage
         run: npm run test:cov -- --coverageThreshold='{"global":{"lines":70}}'
       - name: E2E tests on PostgreSQL 18
         run: npm run test:e2e

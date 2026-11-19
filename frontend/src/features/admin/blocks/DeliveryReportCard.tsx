@@ -1,29 +1,38 @@
 import { CheckCircle2, Send } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
-import { Skeleton } from '@/components/ui/feedback';
+import { ErrorState, Skeleton } from '@/components/ui/feedback';
 import { fmtDayTime } from '@/lib/dates';
 import { formatNumber } from '@/lib/format';
-import { useDelivery } from './queries';
+import { deliveryComplete, useDelivery } from './queries';
 
-/** Raportul „anunțați / livrați” după o blocare de urgență (SDD 7.3, pasul 4). */
-export function DeliveryReportCard({ blockId }: { blockId: string }) {
+interface Props {
+  blockId: string;
+  resourceName: string;
+  startedAt: string;
+}
+
+/** Contorul „anunțați / livrați” al unei blocări (SDD 7.3, pasul 4; GET /admin/blocks/{id}/delivery). */
+export function DeliveryReportCard({ blockId, resourceName, startedAt }: Props) {
   const { t } = useTranslation();
-  const { data, isPending } = useDelivery(blockId);
+  const { data, isPending, isError, error, refetch } = useDelivery(blockId);
 
+  if (isError) return <Card><ErrorState message={error.message} onRetry={() => void refetch()} /></Card>;
   if (isPending || !data) return <Skeleton className="h-40" />;
 
-  const pct = data.total === 0 ? 100 : Math.round((data.delivered / data.total) * 100);
+  const done = data.delivered + data.failed;
+  const pct = data.notified === 0 ? 100 : Math.round((done / data.notified) * 100);
+  const complete = deliveryComplete(data);
 
   return (
     <Card className="p-6" aria-live="polite">
       <div className="flex items-center justify-between gap-4">
         <div>
           <p className="eyebrow">{t('blocks.delivery.eyebrow')}</p>
-          <h3 className="heading text-xl">{data.resourceName}</h3>
-          <p className="text-sm text-muted">{t('blocks.delivery.since', { at: fmtDayTime(data.startedAt) })}</p>
+          <h3 className="heading text-xl">{resourceName}</h3>
+          <p className="text-sm text-muted">{t('blocks.delivery.since', { at: fmtDayTime(startedAt) })}</p>
         </div>
-        {data.complete ? (
+        {complete ? (
           <span className="inline-flex items-center gap-1.5 text-sm font-bold text-success-ink">
             <CheckCircle2 className="h-5 w-5" aria-hidden /> {t('blocks.delivery.complete')}
           </span>
@@ -36,7 +45,7 @@ export function DeliveryReportCard({ blockId }: { blockId: string }) {
 
       <div className="mt-5">
         <div className="mb-1.5 flex justify-between text-sm font-semibold">
-          <span>{t('blocks.delivery.progress', { delivered: formatNumber(data.delivered), total: formatNumber(data.total) })}</span>
+          <span>{t('blocks.delivery.progress', { delivered: formatNumber(data.delivered), total: formatNumber(data.notified) })}</span>
           <span>{pct}%</span>
         </div>
         <div
@@ -54,17 +63,17 @@ export function DeliveryReportCard({ blockId }: { blockId: string }) {
       <dl className="mt-5 grid grid-cols-3 gap-4 text-center sm:grid-cols-6">
         {(
           [
-            ['cancelled', data.cancelled],
-            ['quotasRefunded', data.quotasRefunded],
-            ['push', data.push],
-            ['email', data.email],
-            ['sms', data.sms],
-            ['duration', data.durationSeconds],
+            ['notified', data.notified],
+            ['delivered', data.delivered],
+            ['failed', data.failed],
+            ['push', data.by_channel.push ?? 0],
+            ['email', data.by_channel.email ?? 0],
+            ['sms', data.by_channel.sms ?? 0],
           ] as const
         ).map(([k, v]) => (
-          <div key={k} className="rounded-2xl bg-subtle px-2 py-3">
-            <dd className="heading text-2xl leading-none">{k === 'duration' ? `${v}s` : formatNumber(v)}</dd>
+          <div key={k} className="flex flex-col-reverse rounded-2xl bg-subtle px-2 py-3">
             <dt className="mt-1 text-xs text-muted">{t(`blocks.delivery.stats.${k}`)}</dt>
+            <dd className="heading text-2xl leading-none">{formatNumber(v)}</dd>
           </div>
         ))}
       </dl>
