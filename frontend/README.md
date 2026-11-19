@@ -2,16 +2,23 @@
 
 Sistem de rezervare a bazei sportive universitare. Acest depozit conține:
 
-- **Panoul de administrare (desktop)** – complet, în `src/features/admin`.
-- **Aplicația pentru utilizatori (PWA mobilă)** – de adăugat în `src/features/user` (vezi acolo).
+- **Aplicația pentru utilizatori (PWA mobilă)** – studenți, profesori și externi, în `src/features/user` (rute `/user/*`).
+- **Panoul de administrare (desktop)** – în `src/features/admin` (rute `/admin/*`).
+- **Autentificarea** – `src/features/auth` (`/login`, `/auth/2fa`) și `src/auth` (sesiune, gărzi de rută).
+
+Ambele vorbesc cu serverul NestJS din `../backend` după contractul `assets/livrabil05/openapi.yaml`.
 
 Pași de rulare și testare: **[GHID-TESTARE.md](GHID-TESTARE.md)**.
 
 ## Pornire rapidă
 
 ```bash
-npm install
-npm run dev        # http://localhost:5173/admin  (SSO demo, cod 123456)
+# din rădăcina depozitului: API + aplicație
+npm install && npm run setup
+npm run dev        # http://localhost:5173 – „Autentificare de dezvoltare” pe /login și /admin/login
+
+# doar front-end-ul, cu serverul simulat
+npm run dev:mock   # coduri demo TOTP/OTP: 123456
 ```
 
 ## Stack (conform documentației tehnice)
@@ -22,20 +29,22 @@ React 18 · TypeScript 6.0 · Vite 8 (țintă Safari 16) · Tailwind CSS 3.4 · 
 
 ```
 src/
-  api/          tipuri, client HTTP, endpoint-uri, chei TanStack Query
+  api/          client.ts (o metodă per operație din contract), generated/ (tipuri generate), http.ts, chei TanStack Query
+  auth/         sesiunea (refresh la pornire) și gărzile RequireAdmin / RequireMember
   app/          router, layout (bară laterală, meniu cont), pagini de eroare
   components/ui componente reutilizabile (Button, Modal, Field, Tabs…)
   features/
     admin/      auth, dashboard, resources, schedule, events, blocks,
                 announcements, reports, rules, audit, shared, sports, users, checkin, account.
-    user/       (rezervat pentru PWA-ul utilizatorilor)
-  i18n/         ro.json, en.json
+    auth/       login membri (SSO + OTP extern), pasul 2FA, autentificare de dezvoltare
+    user/       acasă, căutare, confirmare, rezervările mele, profil
+  i18n/         ro.json, en.json (admin + comun), member.ro.json, member.en.json (aplicație + autentificare)
   lib/          date, format, CSV, validări (reguli partajate)
-  mocks/        server simulat MSW (date demo, handlere)
+  mocks/        server simulat MSW pe rutele contractului (authHandlers, memberHandlers, handlers)
   stores/       Zustand: UI/temă, toast, sesiune, wizard orar
   styles/       tokens de culoare (luminos/întunecat), Tailwind
-docs/           API-ASSUMPTIONS.md
-openapi/        loc pentru openapi.yaml (client generat)
+docs/           API-CONTRACT.md (alinierea la contract, funcții fără rută)
+openapi/        cum se regenerează tipurile
 ```
 
 ## Cerințe din documentație acoperite
@@ -60,10 +69,9 @@ openapi/        loc pentru openapi.yaml (client generat)
 
 ## Decizii și abateri (de citit)
 
-1. **Font.** Machetele folosesc un font condensat; documentația cere Barlow. S-a urmat documentația. Titlurile folosesc clasa `.heading` (majuscule, extrabold); fontul se schimbă din `tailwind.config.ts` (`fontFamily.display`).
-2. **Rute API „presupuse”.** SDD 6.1 nu listează toate rutele necesare ecranelor. Cele neprecizate sunt marcate `presupus` în `src/api/endpoints.ts` și enumerate în `docs/API-ASSUMPTIONS.md`.
-3. **Actualizări live.** SDD prevede SSE pentru disponibilitate; panoul de administrare folosește *polling* la 30 s (raportul de trimitere: 1,5 s cât durează trimiterea). SSE se adaugă dacă backend-ul îl expune pentru admin.
-4. **Client API.** Este scris de mână; se înlocuiește cu cel generat (`npm run api:generate`) când există `openapi/openapi.yaml`.
-5. **Server simulat.** Datele demo sunt deterministe și se resetează la reîncărcare. Codul TOTP demo este `123456`. Raportul de livrare simulează 8 mesaje/secundă.
-6. **Export PDF** în demo: fișier de demonstrație; PDF-ul real vine de la server.
-7. **Aplicația pentru utilizatori** nu face parte din această livrare (cerută ulterior).
+1. **Font.** Machetele folosesc un font condensat; documentația cere Barlow. S-a urmat documentația. Titlurile folosesc clasa `.heading`; fontul se schimbă din `tailwind.config.ts` (`fontFamily.display`).
+2. **Contractul API este sursa de adevăr.** Funcțiile din machete fără rută în `openapi.yaml` au fost scoase sau înlocuite; lista este în `docs/API-CONTRACT.md`.
+3. **Actualizări live.** Aplicația utilizatorilor ascultă SSE `slot-changed` (până la 3 resurse) și reîmprospătează la 30 s; panoul de administrare folosește *polling*.
+4. **Ore.** Toate orele se afișează în fusul bazei (Europe/Chisinau), iar rezervarea trimite începutul exact al slotului primit de la server (corect și la schimbarea orei).
+5. **Server simulat.** Datele demo sunt deterministe și se resetează la reîncărcare. Codurile demo TOTP/OTP sunt `123456`.
+6. **Rute încă 501 pe server** (orar EF, evenimente, PDF, export GDPR): paginile le arată ca indisponibile.
