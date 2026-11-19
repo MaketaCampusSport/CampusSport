@@ -15,7 +15,7 @@ import { Banner } from '@/components/ui/feedback';
 import { Button } from '@/components/ui/Button';
 import { Field, Input } from '@/components/ui/fields';
 import { Segmented } from '@/components/ui/Segmented';
-import { DEV_LOGIN_ENABLED, DevLoginPanel } from './DevLoginPanel';
+import { DevLoginPanel } from './DevLoginPanel';
 import { safeReturnTo, startSso } from './sso';
 
 type Mode = 'member' | 'external';
@@ -241,7 +241,7 @@ export default function MemberLoginPage() {
           <ExternalLogin onSignedIn={done} />
         )}
 
-        {DEV_LOGIN_ENABLED && <DevLoginPanel only="member" onSignedIn={done} />}
+        <DevLoginPanel only="member" onSignedIn={done} />
 
         {USE_MOCKS && (
           <div className="mt-6 flex gap-3 rounded-2xl bg-brand-soft p-4 text-sm text-brand-text">

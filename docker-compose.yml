@@ -1,0 +1,174 @@
+# CampusSport — the whole application in containers (locally or on a VPS; ansible/ deploys this file).
+#
+#   cp .env.docker.example .env        # then edit it (demo or production mode, domain, secrets)
+#   docker compose up -d --build       # postgres, redis, migrate, seed, api, worker, web (+ COMPOSE_PROFILES)
+#   docker compose logs -f api
+#
+# Order on every `up`: postgres + redis healthy → migrate (one-shot) → seed (one-shot, only if
+# SEED_EXAMPLE_DATA=true) → api + worker → web (Caddy: the PWA, /api proxy, automatic HTTPS).
+# Optional profiles (COMPOSE_PROFILES in .env): `sso` = Keycloak, `mail` = Mailpit.
+# For day-to-day development use `npm run dev` instead; backend/docker-compose.yml has the dev infrastructure.
+name: campussport-stack
+
+x-backend: &backend
+  build: ./backend
+  image: campussport-backend:${IMAGE_TAG:-local}
+  restart: unless-stopped
+  environment: &backend-env
+    NODE_ENV: ${NODE_ENV:-development}
+    PORT: "3000"
+    LOG_LEVEL: ${LOG_LEVEL:-info}
+    FACILITY_TIMEZONE: ${FACILITY_TIMEZONE:-Europe/Chisinau}
+    PUBLIC_API_URL: ${PUBLIC_SCHEME:-http}://${DOMAIN:-localhost}
+    PWA_URL: ${PUBLIC_SCHEME:-http}://${DOMAIN:-localhost}
+    DATABASE_URL: postgres://campussport:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/campussport
+    REDIS_URL: redis://redis:6379
+    JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set JWT_ACCESS_SECRET in .env}
+    QR_HMAC_SECRET: ${QR_HMAC_SECRET:?set QR_HMAC_SECRET in .env}
+    COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    DEV_LOGIN: ${DEV_LOGIN:-false}
+    SEED_ALLOW_PRODUCTION: ${SEED_EXAMPLE_DATA:-false}
+    OIDC_ISSUER: ${PUBLIC_SCHEME:-http}://${AUTH_DOMAIN:-auth.localhost}/realms/campussport
+    OIDC_CLIENT_ID: campussport-api
+    OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?set OIDC_CLIENT_SECRET in .env}
+    OIDC_REDIRECT_URI: ${PUBLIC_SCHEME:-http}://${DOMAIN:-localhost}/api/v1/auth/sso/callback
+    OIDC_ALLOW_INSECURE: ${OIDC_ALLOW_INSECURE:-false}
+    TOTP_ISSUER: ${TOTP_ISSUER:-CampusSport}
+    SMTP_HOST: ${SMTP_HOST:-mailpit}
+    SMTP_PORT: ${SMTP_PORT:-1025}
+    SMTP_FROM: ${SMTP_FROM:-CampusSport <no-reply@campussport.example>}
+    VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+    VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+    VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@campussport.example}
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: campussport
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: campussport
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campussport -d campussport"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+
+  # Applies pending migrations (the livrabil05 schema) and exits.
+  migrate:
+    <<: *backend
+    restart: "no"
+    command: ["node", "dist/database/cli/migrate.js", "up"]
+    healthcheck: { disable: true }
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # Loads the example data (sports, resources, users) when SEED_EXAMPLE_DATA=true, then exits.
+  seed:
+    <<: *backend
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - 'if [ "$${SEED_EXAMPLE_DATA}" = "true" ]; then node dist/database/cli/seed.js; else echo "SEED_EXAMPLE_DATA is not true: skipping example data"; fi'
+    environment:
+      <<: *backend-env
+      SEED_EXAMPLE_DATA: ${SEED_EXAMPLE_DATA:-false}
+    healthcheck: { disable: true }
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  api:
+    <<: *backend
+    depends_on:
+      seed: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  worker:
+    <<: *backend
+    command: ["node", "dist/worker.js"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9101/metrics').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      seed: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  # Caddy: serves the PWA, proxies /api to the API, terminates TLS (Let's Encrypt) for both hosts.
+  web:
+    build: ./frontend
+    image: campussport-web:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${PUBLIC_SCHEME:-http}://${DOMAIN:-localhost}
+      AUTH_SITE_ADDRESS: ${PUBLIC_SCHEME:-http}://${AUTH_DOMAIN:-auth.localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      default:
+        # The API reaches Keycloak through Caddy at the same public URL the browser uses,
+        # so the token issuer matches OIDC_ISSUER both locally (auth.localhost) and on the VPS.
+        aliases: ["${AUTH_DOMAIN:-auth.localhost}"]
+    depends_on:
+      api: { condition: service_healthy }
+
+  keycloak:
+    profiles: [sso]
+    image: quay.io/keycloak/keycloak:26.4
+    restart: unless-stopped
+    command: ["start", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
+      KC_HOSTNAME: ${PUBLIC_SCHEME:-http}://${AUTH_DOMAIN:-auth.localhost}
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD in .env}
+      # Placeholders substituted into the realm file on first import.
+      PUBLIC_URL: ${PUBLIC_SCHEME:-http}://${DOMAIN:-localhost}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?set OIDC_CLIENT_SECRET in .env}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-parola123}
+    volumes:
+      # demo = realm + test users student1/teacher1/admin1; production = realm only (create users in the console).
+      - ./docker/keycloak/${KEYCLOAK_REALM:-demo}:/opt/keycloak/data/import:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  mailpit:
+    profiles: [mail]
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    # Web UI only on the host's loopback: open it through an SSH tunnel on a VPS.
+    ports: ["127.0.0.1:8025:8025"]
+
+volumes:
+  pgdata:
+  redisdata:
+  caddy_data:
+  caddy_config:

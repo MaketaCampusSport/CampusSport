@@ -14,7 +14,11 @@ export default defineConfig(({ mode }) => {
       alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     },
     server: {
+      // IPv4 explicit: implicit, Node rezolvă „localhost” la ::1 și http://127.0.0.1:5173 ar fi refuzat.
+      // http://localhost:5173 merge în continuare (browserele încearcă și 127.0.0.1).
+      host: env.VITE_DEV_HOST || '127.0.0.1',
       port: 5173,
+      strictPort: true,
       // Fără mock-uri, cererile /api/* merg către serverul NestJS.
       proxy: useMocks
         ? undefined

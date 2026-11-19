@@ -1,0 +1,59 @@
+- name: Update the package cache and upgrade the system
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    upgrade: safe
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name: "{{ ['ca-certificates', 'curl', 'git', 'gnupg', 'unattended-upgrades', 'cron', 'rsync', 'python3-debian'] + server_extra_packages }}"
+    state: present
+
+- name: Set the time zone
+  community.general.timezone:
+    name: "{{ server_timezone }}"
+
+- name: Enable automatic security updates
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+
+- name: Check for an existing swap
+  ansible.builtin.command: swapon --show=NAME --noheadings
+  register: common_swap
+  changed_when: false
+
+- name: Create a swap file
+  when: server_swap_size_mb | int > 0 and common_swap.stdout | length == 0
+  block:
+    - name: Allocate /swapfile
+      ansible.builtin.command: "fallocate -l {{ server_swap_size_mb }}M /swapfile"
+      args:
+        creates: /swapfile
+
+    - name: Restrict /swapfile permissions
+      ansible.builtin.file:
+        path: /swapfile
+        mode: "0600"
+
+    - name: Format and enable /swapfile
+      ansible.builtin.shell: mkswap /swapfile && swapon /swapfile
+      changed_when: true
+
+    - name: Mount /swapfile at boot
+      ansible.posix.mount:
+        src: /swapfile
+        path: none
+        fstype: swap
+        opts: sw
+        state: present
+
+- name: Prefer RAM over swap
+  ansible.posix.sysctl:
+    name: vm.swappiness
+    value: "10"
+    sysctl_set: true

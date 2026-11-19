@@ -1,0 +1,64 @@
+{
+  "realm": "campussport",
+  "enabled": true,
+  "displayName": "CampusSport (dezvoltare)",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "student",
+        "description": "Student"
+      },
+      {
+        "name": "teacher",
+        "description": "Cadru didactic"
+      },
+      {
+        "name": "admin",
+        "description": "Administrator al bazei sportive"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "campussport-api",
+      "name": "CampusSport API",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${OIDC_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "redirectUris": [
+        "${PUBLIC_URL}/api/v1/auth/sso/callback"
+      ],
+      "webOrigins": [
+        "${PUBLIC_URL}"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${PUBLIC_URL}/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "campussport-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "campussport_roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ],
+      "rootUrl": "${PUBLIC_URL}"
+    }
+  ]
+}

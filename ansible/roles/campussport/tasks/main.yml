@@ -1,0 +1,116 @@
+- name: Warn when production mode has no mail relay
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: campussport_mode=production without campussport_smtp_host. One-time codes for externals and
+      notification e-mails will not be delivered; set campussport_smtp_host/port/from to a real SMTP relay.
+  when: campussport_mode == 'production' and campussport_smtp_host | length == 0
+
+- name: Create the application user (member of the docker group)
+  ansible.builtin.user:
+    name: "{{ campussport_user }}"
+    system: true
+    shell: /bin/bash
+    groups: [docker]
+    append: true
+    home: "/home/{{ campussport_user }}"
+    create_home: true
+
+- name: Install the GitHub deploy key (private repository)
+  when: campussport_deploy_key_file | length > 0
+  block:
+    - name: Create ~/.ssh for the application user
+      ansible.builtin.file:
+        path: "/home/{{ campussport_user }}/.ssh"
+        state: directory
+        owner: "{{ campussport_user }}"
+        group: "{{ campussport_user }}"
+        mode: "0700"
+
+    - name: Copy the deploy key
+      ansible.builtin.copy:
+        src: "{{ campussport_deploy_key_file }}"
+        dest: "/home/{{ campussport_user }}/.ssh/campussport_deploy"
+        owner: "{{ campussport_user }}"
+        group: "{{ campussport_user }}"
+        mode: "0600"
+
+    - name: Read the github.com host key
+      ansible.builtin.command: ssh-keyscan -t ed25519 github.com
+      register: campussport_github_hostkey
+      changed_when: false
+
+    - name: Trust github.com
+      ansible.builtin.known_hosts:
+        path: "/home/{{ campussport_user }}/.ssh/known_hosts"
+        name: github.com
+        key: "{{ campussport_github_hostkey.stdout_lines | select('match', '^github.com') | first }}"
+      become_user: "{{ campussport_user }}"
+
+- name: Create the application directory
+  ansible.builtin.file:
+    path: "{{ campussport_app_dir }}"
+    state: directory
+    owner: "{{ campussport_user }}"
+    group: "{{ campussport_user }}"
+    mode: "0750"
+
+- name: Check out the requested version
+  ansible.builtin.git:
+    repo: "{{ campussport_repo_url }}"
+    dest: "{{ campussport_app_dir }}"
+    version: "{{ campussport_repo_version }}"
+    key_file: "{{ ('/home/' ~ campussport_user ~ '/.ssh/campussport_deploy') if campussport_deploy_key_file | length > 0 else omit }}"
+    force: true
+  become_user: "{{ campussport_user }}"
+  register: campussport_checkout
+
+- name: Write the stack configuration (.env)
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ campussport_app_dir }}/.env"
+    owner: "{{ campussport_user }}"
+    group: "{{ campussport_user }}"
+    mode: "0600"
+
+- name: Build and start the stack (migrate and seed run first, then api, worker and web)
+  community.docker.docker_compose_v2:
+    project_src: "{{ campussport_app_dir }}"
+    build: always
+    pull: missing
+    remove_orphans: true
+    state: present
+
+- name: Wait until the API answers through Caddy over HTTPS
+  ansible.builtin.uri:
+    url: "https://{{ campussport_domain }}/health"
+    status_code: 200
+  register: campussport_health
+  until: campussport_health.status == 200
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Enrol administrators for TOTP
+  ansible.builtin.command:
+    cmd: "docker compose exec -T api node dist/database/cli/enroll-totp.js {{ item }}"
+    chdir: "{{ campussport_app_dir }}"
+  loop: "{{ campussport_totp_admins }}"
+  register: campussport_totp
+  changed_when: true
+  tags: [never, totp]
+
+- name: Show the otpauth:// URIs (add them to an authenticator app)
+  ansible.builtin.debug:
+    msg: "{{ campussport_totp.results | map(attribute='stdout') | list }}"
+  tags: [never, totp]
+
+- name: Summary
+  ansible.builtin.debug:
+    msg: "{{ campussport_summary | select | list }}"
+  vars:
+    campussport_summary:
+      - "CampusSport ({{ campussport_mode }}) runs at https://{{ campussport_domain }}, commit {{ campussport_checkout.after[:8] }}"
+      - "{{ ('Keycloak console: https://' ~ campussport_auth_domain ~ '/admin  user admin, password ' ~ campussport_keycloak_admin_password) if campussport_keycloak_enabled | bool else '' }}"
+      - "{{ ('Keycloak test users student1 / teacher1 / admin1, password ' ~ campussport_demo_user_password) if (campussport_mode == 'demo' and campussport_keycloak_enabled | bool) else '' }}"
+      - "{{ ('Mailpit: ssh -L 8025:127.0.0.1:8025 ' ~ (ansible_user | default('root')) ~ '@' ~ ansible_host ~ ' then open http://localhost:8025') if campussport_mailpit_enabled | bool else '' }}"
+      - "Secrets are kept on the control machine in {{ campussport_secrets_dir }}"

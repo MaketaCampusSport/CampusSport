@@ -1,0 +1,24 @@
+# Full install on a fresh Ubuntu 24.04 / Debian 12 VPS:
+#   ansible-playbook site.yml
+# Prepares the server (updates, firewall, SSH hardening, swap, Docker), then deploys CampusSport.
+- name: Prepare the server
+  hosts: all
+  become: true
+  pre_tasks:
+    - name: Check the required variables
+      ansible.builtin.assert:
+        that:
+          - campussport_domain | length > 0
+          - campussport_acme_email | length > 0
+          - campussport_mode in ['demo', 'production']
+        fail_msg: >-
+          Set campussport_domain, campussport_acme_email and campussport_mode (demo|production)
+          in inventory/hosts.yml (see inventory/hosts.example.yml).
+        quiet: true
+  roles:
+    - common
+    - security
+    - docker
+
+- name: Deploy CampusSport
+  import_playbook: deploy.yml

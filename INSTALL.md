@@ -192,6 +192,26 @@ npm run typecheck
 
 ## 10. With Docker (optional)
 
+### The whole application in containers (repo root)
+
+The root `docker-compose.yml` runs everything: PostgreSQL, Redis, the migrations and the example data (one-shot `migrate` and `seed` services), the API, the worker, and Caddy serving the built web app with `/api` proxied to the API. Keycloak (profile `sso`) and Mailpit (profile `mail`) are optional.
+
+```bash
+cp .env.docker.example .env        # demo mode on http://localhost; read the comments in the file
+docker compose up -d --build       # first build takes a few minutes
+docker compose ps                  # migrate and seed show "exited (0)", the rest "healthy"/"running"
+```
+
+- Web app: http://localhost (Development sign-in on `/login` and `/admin/login`)
+- Keycloak: http://auth.localhost (console user `admin`, password `KEYCLOAK_ADMIN_PASSWORD`; test users `student1`, `teacher1`, `admin1` with `DEMO_USER_PASSWORD`)
+- Mailpit: http://127.0.0.1:8025
+
+`.env` switches between **demo** (`NODE_ENV=development`, `DEV_LOGIN=true`, `SEED_EXAMPLE_DATA=true`, `KEYCLOAK_REALM=demo`) and **production** (`production`, `false`, `false`, `production`). Ports 80 and 443 must be free. To reload the example data: `docker compose run --rm seed`. To start from an empty database: `docker compose down -v`.
+
+For a VPS with a domain and HTTPS, use the Ansible playbooks in [`ansible/`](ansible/README.md): they prepare the server and write this `.env` for you.
+
+### Development infrastructure only (`backend/`)
+
 From `backend/`:
 
 ```bash
@@ -207,7 +227,8 @@ Docker Compose reads `backend/.env`, and a `$` inside a value (for example in a 
 | Port | Service |
 |---|---|
 | 3000 | API |
-| 5173 | Web app (Vite dev server) |
+| 5173 | Web app (Vite dev server, `npm run dev`) |
+| 80 / 443 | Web app in the container stack (Caddy) |
 | 9101 | Worker metrics |
 | 5432 | PostgreSQL |
 | 6379 | Redis |

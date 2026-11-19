@@ -1,0 +1,12 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Nightly PostgreSQL dumps of the CampusSport (and Keycloak) databases, kept {{ backups_retention_days }} days.
+# Restore one: gunzip -c FILE.sql.gz | docker compose -f {{ campussport_app_dir }}/docker-compose.yml exec -T postgres psql -U campussport -d DB
+set -eu
+cd {{ campussport_app_dir }}
+stamp=$(date +%Y%m%d-%H%M%S)
+for db in campussport{% if campussport_keycloak_enabled | bool %} keycloak{% endif %}; do
+  docker compose exec -T postgres pg_dump -U campussport --clean --if-exists "$db" | gzip -9 > "{{ backups_dir }}/$db-$stamp.sql.gz"
+done
+find {{ backups_dir }} -name '*.sql.gz' -mtime +{{ backups_retention_days }} -delete
+echo "$(date -Is) backup ok"

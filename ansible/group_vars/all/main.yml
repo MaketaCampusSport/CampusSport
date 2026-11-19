@@ -1,0 +1,59 @@
+# Defaults for every host. Override per host in inventory/hosts.yml (or with -e on the command line).
+
+# ── Application ────────────────────────────────────────────────────────────────────────────────
+campussport_mode: demo                       # demo | production
+campussport_domain: ""                       # required, e.g. campussport.example.com
+campussport_auth_domain: "auth.{{ campussport_domain }}"
+campussport_acme_email: ""                   # required (Let's Encrypt)
+
+campussport_repo_url: https://github.com/MaketaCampusSport/CampusSport.git
+campussport_repo_version: main               # branch, tag or commit
+campussport_deploy_key_file: ""              # local path of a read-only deploy key (private repo)
+
+campussport_user: campussport                # owns the checkout; member of the docker group
+campussport_app_dir: /opt/campussport
+
+campussport_keycloak_enabled: true           # bundled Keycloak at https://<auth domain>
+campussport_mailpit_enabled: "{{ campussport_mode == 'demo' }}"   # catch-all SMTP (UI via SSH tunnel)
+campussport_seed_example_data: "{{ campussport_mode == 'demo' }}"
+campussport_dev_login: "{{ campussport_mode == 'demo' }}"
+
+# Outgoing mail. With Mailpit enabled these default to it; for production set a real relay.
+campussport_smtp_host: "{{ 'mailpit' if campussport_mailpit_enabled | bool else '' }}"
+campussport_smtp_port: 1025
+campussport_smtp_from: "CampusSport <no-reply@{{ campussport_domain }}>"
+
+campussport_facility_timezone: Europe/Chisinau
+campussport_log_level: info
+
+# Administrators to enrol for TOTP (prints otpauth:// URIs). Runs only with `--tags totp`, because
+# every run replaces the secret. The admin must exist first (signed in once via SSO, or seeded).
+campussport_totp_admins: []
+
+# ── Secrets ────────────────────────────────────────────────────────────────────────────────────
+# Generated on the control machine the first time and kept in ansible/secrets/<host>/ (git-ignored),
+# so later runs reuse them. Back that folder up, or override these with ansible-vault variables.
+campussport_secrets_dir: "{{ playbook_dir }}/secrets/{{ inventory_hostname }}"
+campussport_postgres_password: "{{ lookup('ansible.builtin.password', campussport_secrets_dir ~ '/postgres_password', length=40, chars=['ascii_letters', 'digits']) }}"
+campussport_keycloak_db_password: "{{ lookup('ansible.builtin.password', campussport_secrets_dir ~ '/keycloak_db_password', length=40, chars=['ascii_letters', 'digits']) }}"
+campussport_keycloak_admin_password: "{{ lookup('ansible.builtin.password', campussport_secrets_dir ~ '/keycloak_admin_password', length=24, chars=['ascii_letters', 'digits']) }}"
+campussport_jwt_access_secret: "{{ lookup('ansible.builtin.password', campussport_secrets_dir ~ '/jwt_access_secret', length=64, chars=['ascii_letters', 'digits']) }}"
+campussport_qr_hmac_secret: "{{ lookup('ansible.builtin.password', campussport_secrets_dir ~ '/qr_hmac_secret', length=64, chars=['ascii_letters', 'digits']) }}"
+campussport_oidc_client_secret: "{{ lookup('ansible.builtin.password', campussport_secrets_dir ~ '/oidc_client_secret', length=48, chars=['ascii_letters', 'digits']) }}"
+campussport_demo_user_password: "{{ lookup('ansible.builtin.password', campussport_secrets_dir ~ '/demo_user_password', length=16, chars=['ascii_letters', 'digits']) }}"
+campussport_vapid_public_key: ""
+campussport_vapid_private_key: ""
+
+# ── Server ─────────────────────────────────────────────────────────────────────────────────────
+server_timezone: Europe/Chisinau
+server_swap_size_mb: 2048                    # Keycloak + builds need ~2 GB; 0 = no swap file
+server_harden_ssh: true                      # key-only SSH, no root password login
+server_ssh_port: 22
+server_extra_packages: [htop, ncdu, jq]
+
+# ── Backups ────────────────────────────────────────────────────────────────────────────────────
+backups_enabled: true
+backups_dir: /var/backups/campussport
+backups_retention_days: 14
+backups_cron_hour: "3"
+backups_cron_minute: "15"
