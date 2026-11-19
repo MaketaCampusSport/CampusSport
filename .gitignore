@@ -33,3 +33,7 @@ postman/*-local.postman_environment.json
 
 # Local task log for this work (not part of the repository)
 tasks.md
+!.env.docker.example
+
+# Ansible: generated secrets per host
+ansible/secrets/
