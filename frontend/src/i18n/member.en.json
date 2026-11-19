@@ -1,8 +1,5 @@
 {
   "user": {
-    "placeholderTitle": "User app",
-    "placeholderBody": "The mobile app (PWA) for students and teachers goes in src/features/user. For now only the admin panel is available.",
-    "openAdmin": "Open the admin panel",
     "nav": {
       "label": "Main navigation",
       "home": "Home",
@@ -17,7 +14,10 @@
       "quotaAria": "Remaining entries this month",
       "remainingOfTotal": "of {{total}} entries left",
       "remainingProgressAria": "{{remaining}} of {{total}} entries left",
-      "chooseSport": "Choose a sport"
+      "chooseSport": "Choose a sport",
+      "lastMinuteOnly": "Quota used up: you can only book slots still free in the last 24 h.",
+      "noUpcomingTitle": "No upcoming bookings",
+      "noUpcomingBody": "Pick a sport above and book a court."
     },
     "availability": {
       "stepTitle": "01/03 COURT + TIME",
@@ -36,10 +36,14 @@
         "free": "Free",
         "myBooking": "My booking",
         "peClass": "PE class",
-        "occupied": "Occupied"
+        "occupied": "Occupied",
+        "waitlist": "Waitlist"
       },
       "selectHint": "Select a free time slot to continue",
-      "continue": "Continue"
+      "continue": "Continue",
+      "sportAria": "Choose the sport",
+      "closed": "Closed on this day.",
+      "alreadyOnWaitlist": "You are already on the waitlist for this slot."
     },
     "confirm": {
       "stepConfirm": "02/03 CONFIRM",
@@ -56,7 +60,7 @@
       "policiesAria": "Quota and policies",
       "quotaUsage": "Uses 1 entry from your quota",
       "quotaRemaining": "{{remaining}} of {{total}} left",
-      "freeCancelRule": "Free cancellation up to 2 h before",
+      "freeCancelRule": "Free cancellation up to {{hours}} h before",
       "checkInRule": "QR check-in between -10 and +15 min ({{window}})",
       "submit": "Confirm booking",
       "submitting": "Confirming…",
@@ -84,8 +88,81 @@
         "addToCalendar": "Add to calendar",
         "addedToCalendar": "Added to calendar (.ics)",
         "done": "Done",
-        "qrAria": "Booking QR code {{code}}"
+        "calendarFailed": "The calendar file could not be downloaded"
       }
+    },
+    "qr": {
+      "title": "Your access code",
+      "aria": "Booking QR code {{code}}",
+      "unavailable": "The QR code cannot be loaded right now.",
+      "window": "Check-in: {{window}}",
+      "hint": "Show the QR code to the staff at the entrance (-10/+15 min around the booking time).",
+      "next": "Next booking",
+      "openAria": "Open the QR code for {{name}}"
+    },
+    "bookings": {
+      "eyebrow": "My schedule",
+      "title": "Bookings",
+      "upcoming": "Upcoming",
+      "history": "History",
+      "status": {
+        "active": "Active",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "no_show": "No-show"
+      },
+      "empty": {
+        "upcoming": "No upcoming bookings",
+        "history": "No history yet",
+        "hint": "Find a free court in the Search tab."
+      },
+      "cancelReason": "Reason: {{reason}}",
+      "checkedIn": "Checked in ✓",
+      "showQr": "QR code",
+      "calendar": "Calendar (.ics)",
+      "cancel": "Cancel",
+      "cancelTitle": "Cancel this booking?",
+      "cancelBody": "The entry is refunded if you cancel at least 2 hours before.",
+      "cancelConfirm": "Yes, cancel",
+      "cancelledRefunded": "Booking cancelled. The entry was refunded.",
+      "cancelledNoRefund": "Booking cancelled. The entry is no longer refundable."
+    },
+    "waitlist": {
+      "title": "Waitlists",
+      "anySlot": "Any matching slot",
+      "offerExpires": "The offer expires at {{time}}",
+      "accept": "Take the slot",
+      "leave": "Leave",
+      "accepted": "The slot is yours! The booking was created.",
+      "status": {
+        "waiting": "Waiting",
+        "offered": "Slot offered",
+        "accepted": "Accepted",
+        "expired": "Expired"
+      }
+    },
+    "profile": {
+      "eyebrow": "My account",
+      "title": "Profile",
+      "quotaTitle": "This month's quota",
+      "quotaBody": "{{remaining}} of {{limit}} entries left ({{refunded}} refunded).",
+      "notificationsTitle": "Notifications",
+      "notificationsBody": "Where you get confirmations, cancellations and waitlist offers.",
+      "channel": {
+        "push": "Push notifications",
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "messageLanguage": "Message language",
+      "prefsSaved": "Preferences saved.",
+      "appTitle": "App",
+      "dataTitle": "My data",
+      "exportUnavailable": "Personal data export (GDPR) is not available on the server yet.",
+      "delete": "Delete account",
+      "deleteTitle": "Delete your account?",
+      "deleteBody": "Upcoming bookings are cancelled and personal data is anonymised. This cannot be undone.",
+      "deleteConfirm": "Delete permanently",
+      "deleted": "Your account was deleted."
     }
   },
   "login": {

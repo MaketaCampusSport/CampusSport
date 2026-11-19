@@ -1,8 +1,5 @@
 {
   "user": {
-    "placeholderTitle": "Aplicația pentru utilizatori",
-    "placeholderBody": "Aplicația mobilă (PWA) pentru studenți și profesori se adaugă în src/features/user. Momentan este disponibil panoul de administrare.",
-    "openAdmin": "Deschide panoul de administrare",
     "nav": {
       "label": "Navigare principală",
       "home": "Acasă",
@@ -17,7 +14,10 @@
       "quotaAria": "Intrări rămase în luna curentă",
       "remainingOfTotal": "din {{total}} intrări rămase",
       "remainingProgressAria": "{{remaining}} din {{total}} intrări rămase",
-      "chooseSport": "Alege sportul"
+      "chooseSport": "Alege sportul",
+      "lastMinuteOnly": "Cota e epuizată: poți rezerva doar sloturi rămase libere în ultimele 24 h.",
+      "noUpcomingTitle": "Nicio rezervare viitoare",
+      "noUpcomingBody": "Alege un sport de mai sus și rezervă un teren."
     },
     "availability": {
       "stepTitle": "01/03 TEREN + ORĂ",
@@ -37,10 +37,14 @@
         "free": "Liber",
         "myBooking": "Rezervarea mea",
         "peClass": "Curs EF",
-        "occupied": "Ocupat"
+        "occupied": "Ocupat",
+        "waitlist": "Listă de așteptare"
       },
       "selectHint": "Selectează o oră liberă pentru a continua",
-      "continue": "Continuă"
+      "continue": "Continuă",
+      "sportAria": "Alege sportul",
+      "closed": "Închis în această zi.",
+      "alreadyOnWaitlist": "Ești deja pe lista de așteptare pentru acest slot."
     },
     "confirm": {
       "stepConfirm": "02/03 CONFIRMĂ",
@@ -57,7 +61,7 @@
       "policiesAria": "Cotă și reguli",
       "quotaUsage": "Folosești 1 intrare din cotă",
       "quotaRemaining": "{{remaining}} din {{total}} rămân",
-      "freeCancelRule": "Anulare gratuită până la 2 h înainte",
+      "freeCancelRule": "Anulare gratuită până la {{hours}} h înainte",
       "checkInRule": "Check-in cu QR între -10 și +15 min ({{window}})",
       "submit": "Confirmă rezervarea",
       "submitting": "Se confirmă…",
@@ -85,8 +89,81 @@
         "addToCalendar": "Adaugă în calendar",
         "addedToCalendar": "Adăugat în calendar (.ics)",
         "done": "Gata",
-        "qrAria": "Cod QR rezervare {{code}}"
+        "calendarFailed": "Calendarul nu a putut fi descărcat"
       }
+    },
+    "qr": {
+      "title": "Codul tău de acces",
+      "aria": "Cod QR rezervare {{code}}",
+      "unavailable": "Codul QR nu poate fi încărcat acum.",
+      "window": "Check-in: {{window}}",
+      "hint": "Arată codul QR personalului de la intrare (-10/+15 min față de ora rezervării).",
+      "next": "Următoarea rezervare",
+      "openAria": "Deschide codul QR pentru {{name}}"
+    },
+    "bookings": {
+      "eyebrow": "Programul meu",
+      "title": "Rezervări",
+      "upcoming": "Viitoare",
+      "history": "Istoric",
+      "status": {
+        "active": "Activă",
+        "completed": "Încheiată",
+        "cancelled": "Anulată",
+        "no_show": "Neprezentare"
+      },
+      "empty": {
+        "upcoming": "Nu ai rezervări viitoare",
+        "history": "Încă nu ai istoric",
+        "hint": "Caută un teren liber din fila Caută."
+      },
+      "cancelReason": "Motiv: {{reason}}",
+      "checkedIn": "Check-in făcut ✓",
+      "showQr": "Cod QR",
+      "calendar": "Calendar (.ics)",
+      "cancel": "Anulează",
+      "cancelTitle": "Anulezi rezervarea?",
+      "cancelBody": "Intrarea se restituie dacă anulezi cu cel puțin 2 ore înainte.",
+      "cancelConfirm": "Da, anulează",
+      "cancelledRefunded": "Rezervare anulată. Intrarea a fost restituită.",
+      "cancelledNoRefund": "Rezervare anulată. Intrarea nu se mai restituie."
+    },
+    "waitlist": {
+      "title": "Liste de așteptare",
+      "anySlot": "Orice slot compatibil",
+      "offerExpires": "Oferta expiră la {{time}}",
+      "accept": "Acceptă locul",
+      "leave": "Renunță",
+      "accepted": "Locul este al tău! Rezervarea a fost creată.",
+      "status": {
+        "waiting": "În așteptare",
+        "offered": "Loc oferit",
+        "accepted": "Acceptat",
+        "expired": "Expirat"
+      }
+    },
+    "profile": {
+      "eyebrow": "Contul meu",
+      "title": "Profil",
+      "quotaTitle": "Cota lunii",
+      "quotaBody": "{{remaining}} din {{limit}} intrări rămase ({{refunded}} restituite).",
+      "notificationsTitle": "Notificări",
+      "notificationsBody": "Unde primești confirmări, anulări și oferte de pe lista de așteptare.",
+      "channel": {
+        "push": "Notificări push",
+        "email": "Email",
+        "sms": "SMS"
+      },
+      "messageLanguage": "Limba mesajelor",
+      "prefsSaved": "Preferințele au fost salvate.",
+      "appTitle": "Aplicație",
+      "dataTitle": "Datele mele",
+      "exportUnavailable": "Exportul datelor personale (GDPR) nu este încă disponibil pe server.",
+      "delete": "Șterge contul",
+      "deleteTitle": "Ștergi contul?",
+      "deleteBody": "Rezervările viitoare se anulează, iar datele personale se anonimizează. Acțiunea nu poate fi anulată.",
+      "deleteConfirm": "Șterge definitiv",
+      "deleted": "Contul a fost șters."
     }
   },
   "login": {

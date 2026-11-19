@@ -1,64 +1,18 @@
-import { useState } from 'react';
-import { createBrowserRouter } from 'react-router';
+import { createBrowserRouter, type RouteObject } from 'react-router';
 import { HomeRedirect, RequireAdmin, RequireMember } from '@/auth/guards';
-import AvailabilityScreen from '@/features/user/booking/AvailabilityScreen';
-import BookingConfirmScreen from '@/features/user/booking/BookingConfirmScreen';
-import type { SelectedSlotSummary } from '@/features/user/booking/mapAvailability';
-import type { ActiveReservation } from '@/features/user/components/QrTicketCard';
-import StartScreen, { DEFAULT_UPCOMING_RESERVATION } from '@/features/user/home/StartScreen';
+import { MemberLayout } from '@/features/user/MemberLayout';
 import { AdminLayout } from './app/layout/AdminLayout';
 import { adminPages } from './features/admin/routes';
 import { FullPageSpinner, NotFoundPage, RouteErrorPage } from './app/RouteFallbacks';
 
-function StudentFlowPage() {
-  const [selectedSportId, setSelectedSportId] = useState<string | null>(null);
-  const [pendingBooking, setPendingBooking] = useState<SelectedSlotSummary | null>(null);
-
-  const totalEntries = 4;
-  const [remainingEntries, setRemainingEntries] = useState<number>(3);
-  const [upcomingReservation, setUpcomingReservation] = useState<ActiveReservation>(
-    DEFAULT_UPCOMING_RESERVATION,
-  );
-
-  if (pendingBooking) {
-    return (
-      <BookingConfirmScreen
-        selection={pendingBooking}
-        remainingEntries={remainingEntries}
-        totalEntries={totalEntries}
-        onBack={() => setPendingBooking(null)}
-        onComplete={(createdReservation) => {
-          setUpcomingReservation(createdReservation);
-          setRemainingEntries((prev) => Math.max(0, prev - 1));
-          setPendingBooking(null);
-          setSelectedSportId(null);
-        }}
-      />
-    );
-  }
-
-  if (selectedSportId) {
-    return (
-      <AvailabilityScreen
-        sportId={selectedSportId}
-        onBack={() => setSelectedSportId(null)}
-        onContinue={(selection) => setPendingBooking(selection)}
-      />
-    );
-  }
-
-  return (
-    <StartScreen
-      remainingEntries={remainingEntries}
-      totalEntries={totalEntries}
-      upcomingReservation={upcomingReservation}
-      onSelectSport={(sportId) => {
-        setSelectedSportId(sportId);
-        setPendingBooking(null);
-      }}
-    />
-  );
-}
+/** Aplicația utilizatorilor (PWA): fiecare pas are propriul URL, deci reîncărcarea și „Înapoi” funcționează. */
+const memberPages: RouteObject[] = [
+  { index: true, lazy: async () => ({ Component: (await import('@/features/user/home/HomePage')).default }) },
+  { path: 'search', lazy: async () => ({ Component: (await import('@/features/user/booking/SearchPage')).default }) },
+  { path: 'book/:resourceId', lazy: async () => ({ Component: (await import('@/features/user/booking/ConfirmPage')).default }) },
+  { path: 'bookings', lazy: async () => ({ Component: (await import('@/features/user/bookings/MyBookingsPage')).default }) },
+  { path: 'profile', lazy: async () => ({ Component: (await import('@/features/user/profile/ProfilePage')).default }) },
+];
 
 export const router = createBrowserRouter([
   { path: '/', element: <HomeRedirect />, errorElement: <RouteErrorPage /> },
@@ -78,7 +32,8 @@ export const router = createBrowserRouter([
     path: '/user',
     element: <RequireMember />,
     errorElement: <RouteErrorPage />,
-    children: [{ path: '*?', element: <StudentFlowPage /> }],
+    HydrateFallback: FullPageSpinner,
+    children: [{ element: <MemberLayout />, children: memberPages }],
   },
   {
     path: '/admin/login',
