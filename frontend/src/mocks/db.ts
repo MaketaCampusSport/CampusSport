@@ -234,7 +234,10 @@ export function createDb(now = new Date()): Db {
   });
 
   // Rezervări pe [-7, +10] zile, deterministe, fără suprapuneri peste blocări.
-  const holders = users.filter((u) => u.role !== 'admin');
+  // Conturile cu care te poți autentifica în demo (mocks/session.ts) nu primesc rezervări aleatorii,
+  // altfel studentul demo ar începe cu cota epuizată; primesc mai jos câte o rezervare viitoare și una trecută.
+  const demoIds = new Set(['u-student-1', 'u-teacher-1', 'u-external-1']);
+  const holders = users.filter((u) => u.role !== 'admin' && !demoIds.has(u.id));
   const bookings: MockBooking[] = [];
   for (let offset = -7; offset <= 10; offset++) {
     const day = addDays(today, offset);
@@ -267,6 +270,14 @@ export function createDb(now = new Date()): Db {
           qr_token: `${id}.${hash(id).toString(16)}.demo`,
         });
       }
+    }
+  }
+  const soon = now.getTime() + 20 * 3600_000;
+  for (const demo of users.filter((u) => demoIds.has(u.id))) {
+    const upcoming = bookings.find((b) => b.status === 'active' && Date.parse(b.start) > soon && !demoIds.has(b.user_id));
+    const past = bookings.find((b) => b.status === 'completed' && !demoIds.has(b.user_id));
+    for (const b of [upcoming, past]) {
+      if (b) Object.assign(b, { user_id: demo.id, holder_name: demo.full_name, category: demo.role === 'external' ? 'external' : 'member' });
     }
   }
 

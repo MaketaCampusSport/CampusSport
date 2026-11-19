@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { client } from '@/api/client';
 import type { Slot } from '@/api/generated';
 import { useSession } from '@/auth/sessionStore';
+import { resetDb } from '@/mocks/db';
 import { resetMemberMocks } from '@/mocks/memberHandlers';
 import { server } from '@/mocks/node';
 import { setCurrentUser } from '@/mocks/session';
@@ -13,6 +14,7 @@ beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 beforeEach(() => {
+  resetDb();
   resetMemberMocks();
   setCurrentUser(null);
   useSession.getState().clear();
@@ -58,23 +60,33 @@ describe('fluxul de rezervare pe serverul simulat', () => {
   it('rezervă, listează, anulează și restituie intrarea', async () => {
     await signInAs('student');
     const before = await client.me.quota();
-    const start = new Date(Date.now() + 26 * 3600_000).toISOString();
+    // Un slot liber, rezervabil, de poimâine (după fereastra de anulare gratuită).
+    const [sport] = await client.catalog.sports();
+    const grid = await client.availability.get({ sport: sport!.id, date: dayKey(new Date(Date.now() + 2 * 86_400_000)) });
+    const free = grid.resources.flatMap((r) => r.slots.map((s) => ({ r, s }))).find(({ s }) => s.bookable);
+    expect(free).toBeDefined();
+    const resource_id = free!.r.resource_id;
+    const start = free!.s.start;
 
-    const booking = await client.bookings.create({ resource_id: 'r-1', start });
+    const booking = await client.bookings.create({ resource_id, start });
     expect(booking.qr_token).toContain(booking.id);
     expect((await client.me.quota()).remaining).toBe(before.remaining - 1);
-    expect((await client.me.bookings({ scope: 'upcoming' })).items.map((b) => b.id)).toEqual([booking.id]);
+    expect((await client.me.bookings({ scope: 'upcoming' })).items.map((b) => b.id)).toContain(booking.id);
 
-    await expect(client.bookings.create({ resource_id: 'r-1', start })).rejects.toMatchObject({
+    await expect(client.bookings.create({ resource_id, start })).rejects.toMatchObject({
       status: 409,
       code: 'SLOT_TAKEN',
-      body: { waitlist_offer: { resource_id: 'r-1' } },
+      body: { waitlist_offer: { resource_id } },
     });
+
+    // Același slot apare acum ca „al meu” în grilă și cu titularul în panoul adminului.
+    const after = await client.availability.get({ sport: sport!.id, date: dayKey(start) });
+    expect(after.resources.find((r) => r.resource_id === resource_id)?.slots.find((s) => s.start === start)?.status).toBe('mine');
 
     const result = await client.bookings.cancel(booking.id);
     expect(result.quota_refunded).toBe(true);
     expect((await client.me.quota()).remaining).toBe(before.remaining);
-    expect((await client.me.bookings({ scope: 'history' })).items[0]?.status).toBe('cancelled');
+    expect((await client.me.bookings({ scope: 'history' })).items.find((b) => b.id === booking.id)?.status).toBe('cancelled');
   });
 
   it('lista de așteptare refuză dublurile', async () => {
