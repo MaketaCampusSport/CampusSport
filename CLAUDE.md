@@ -14,6 +14,8 @@ CampusSport is the booking system for a university sports facility. The docs are
 - `backend/` is the NestJS implementation (API and worker). `backend/README.md` has setup, commands and the list of stubbed routes.
 - `frontend/` is the React PWA: the student/teacher/external app under `/user` and the admin panel under `/admin`. `frontend/GHID-TESTARE.md` is its testing guide.
 - The root `package.json` only runs both packages (`concurrently`). `INSTALL.md` is the setup guide.
+- Root `docker-compose.yml` + `.env.docker.example` + `docker/` (Caddyfile, Keycloak realm templates, Postgres init) run the whole app in containers; one `.env` switches demo/production. `backend/docker-compose.yml` is only dev infrastructure.
+- `ansible/` installs that stack on a VPS (`site.yml` full install, `deploy.yml` update); see `ansible/README.md`. Secrets are generated into the git-ignored `ansible/secrets/<host>/`.
 
 When the API or the schema changes, change `assets/livrabil05/` deliberately; the backend follows it. Two tests enforce this:
 
@@ -75,6 +77,8 @@ npm run api:generate   # regenerate src/api/generated/ from assets/livrabil05/op
 - `backend/.gitattributes` forces LF. The repo has `core.autocrlf=true`, so edit scripts that match `\n` can silently miss on files git checked out before that rule existed.
 - BullMQ 6 rejects `:` in custom job ids, so ids use `_`.
 - **Running without Redis (development):** `RedisModule` pings Redis at startup and, outside production, falls back to `MemoryKvStore`, so sign-in works but sessions are lost when the API restarts. `MailService` prints undelivered emails (OTP codes) to the log outside production.
+- **Container stack:** `migrate` and `seed` are one-shot services that `api`/`worker` wait for; `seed` runs only when `SEED_EXAMPLE_DATA=true` (and passes `SEED_ALLOW_PRODUCTION`, which the seeder requires under `NODE_ENV=production`). The API reaches Keycloak through a network alias on `web` so the token issuer equals the browser URL. Keycloak realm files use `${PUBLIC_URL}`-style placeholders and are imported only into an empty `keycloak` database.
+- **Windows dev server:** Vite binds `127.0.0.1` explicitly (Node resolves `localhost` to `::1` only); `VITE_DEV_HOST` overrides.
 - **Development sign-in:** `DevAuthController` (`/api/v1/auth/dev/users`, `/auth/dev/login`) issues a real session for a seeded user. It answers 404 unless `NODE_ENV=development` and `DEV_LOGIN` isn't `false`. It's outside the spec, hidden from Swagger, and deliberately not in the conformance test's controller list.
 
 ## Architecture
