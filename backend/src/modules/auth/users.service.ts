@@ -50,6 +50,15 @@ export class UsersService {
     return user;
   }
 
+  /** Active accounts, for the development-only login picker. */
+  listActive(limit = 50): Promise<User[]> {
+    return this.users.find({
+      where: { status: 'active' },
+      order: { role: 'ASC', fullName: 'ASC' },
+      take: limit,
+    });
+  }
+
   findByEmail(email: string): Promise<User | null> {
     return this.users.findOneBy({ email: normalizeEmail(email) });
   }

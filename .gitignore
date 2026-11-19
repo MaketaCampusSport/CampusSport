@@ -30,3 +30,6 @@ postman/*-local.postman_environment.json
 !frontend/.env.development
 !frontend/.env.mock
 !frontend/.env.demo
+
+# Local task log for this work (not part of the repository)
+tasks.md
