@@ -8,7 +8,7 @@ import { useEnsureSession } from '@/auth/guards';
 import { isAdmin, useSession } from '@/auth/sessionStore';
 import { Banner } from '@/components/ui/feedback';
 import { Button } from '@/components/ui/Button';
-import { DEV_LOGIN_ENABLED, DevLoginPanel } from '@/features/auth/DevLoginPanel';
+import { DevLoginPanel } from '@/features/auth/DevLoginPanel';
 import { safeReturnTo, startSso } from '@/features/auth/sso';
 
 interface LocationState {
@@ -67,7 +67,7 @@ export default function LoginPage() {
           <p className="text-center text-xs text-muted">{t('login.ssoNote')}</p>
         </div>
 
-        {DEV_LOGIN_ENABLED && <DevLoginPanel only="admin" onSignedIn={() => navigate(from, { replace: true })} />}
+        <DevLoginPanel only="admin" onSignedIn={() => navigate(from, { replace: true })} />
 
         {USE_MOCKS && (
           <div className="mt-8 flex gap-3 rounded-2xl bg-brand-soft p-4 text-sm text-brand-text">

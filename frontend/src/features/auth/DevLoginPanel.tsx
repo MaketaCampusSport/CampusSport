@@ -7,12 +7,12 @@ import type { Session } from '@/api/generated';
 import { ApiError } from '@/api/http';
 import { useSession } from '@/auth/sessionStore';
 
-/** Doar în dezvoltare și în demo-ul MSW: rutele /auth/dev/* ale serverului nu există în producție. */
-export const DEV_LOGIN_ENABLED = import.meta.env.DEV || USE_MOCKS;
-
 /**
  * Autentificare de dezvoltare ca un utilizator din datele de exemplu, fără SSO, Keycloak sau TOTP.
  * Serverul emite o sesiune reală (cookie de refresh + JWT), deci reîncărcarea paginii o păstrează.
+ *
+ * Serverul decide dacă rutele /auth/dev/* există (NODE_ENV=development și DEV_LOGIN, ex. modul demo pe VPS).
+ * Într-un build de producție panoul apare doar când serverul le oferă; în dezvoltare explică de ce lipsesc.
  */
 export function DevLoginPanel({ only, onSignedIn }: { only?: 'admin' | 'member'; onSignedIn: (s: Session) => void }) {
   const { t } = useTranslation();
@@ -25,6 +25,8 @@ export function DevLoginPanel({ only, onSignedIn }: { only?: 'admin' | 'member';
       onSignedIn(session);
     },
   });
+
+  if (!import.meta.env.DEV && !USE_MOCKS && !users.isSuccess) return null;
 
   const list = (users.data ?? []).filter((u) =>
     only === 'admin' ? u.role === 'admin' : only === 'member' ? u.role !== 'admin' : true,
