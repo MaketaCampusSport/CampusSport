@@ -147,7 +147,8 @@ export const client = {
     importSchedule: (form: FormData) => http.upload<ScheduleImportPreview>('/admin/schedule/import', form),
     confirmScheduleImport: (id: string) =>
       http.post<ScheduleImportResult>(`/admin/schedule/import/${enc(id)}/confirm`),
-    createScheduleClass: (input: ScheduleClassCreate) => http.post<BlockResult>('/admin/schedule/classes', input),
+    createScheduleClass: (input: ScheduleClassCreate) =>
+      http.post<ScheduleImportResult>('/admin/schedule/classes', input),
     createEvent: (input: EventCreate) => http.post<BlockResult>('/admin/events', input),
 
     announce: (input: AnnouncementCreate) => http.post<{ recipients_count: number }>('/admin/announcements', input),

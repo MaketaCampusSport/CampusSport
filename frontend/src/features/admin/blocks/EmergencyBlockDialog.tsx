@@ -1,17 +1,15 @@
 import { AlertTriangle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ApiError } from '@/api/http';
-import type { Channel } from '@/api/types';
+import type { BlockResult } from '@/api/client';
 import { Button } from '@/components/ui/Button';
-import { CheckboxField } from '@/components/ui/CheckboxField';
 import { Field, Input, Select } from '@/components/ui/fields';
 import { Modal } from '@/components/ui/Modal';
 import { Segmented } from '@/components/ui/Segmented';
-import { Skeleton } from '@/components/ui/feedback';
-import { addDays, fromLocalInput, toLocalInput } from '@/lib/dates';
+import { fromLocalInput, toLocalInput } from '@/lib/dates';
 import { toast } from '@/stores/toastStore';
-import { useBlockPreview, useCreateBlock } from './queries';
+import { errorMessage } from '../shared/errors';
+import { useCreateBlock } from './queries';
 
 const REASONS = ['burst', 'board', 'power', 'cleaning', 'weather', 'other'] as const;
 type ReasonKey = (typeof REASONS)[number];
@@ -19,23 +17,33 @@ type ReasonKey = (typeof REASONS)[number];
 interface Props {
   resource: { id: string; name: string } | null;
   onClose: () => void;
+  onCreated?: (result: BlockResult) => void;
+}
+
+/** Toast-ul de după o blocare: câte rezervări s-au anulat și câți utilizatori sunt anunțați (`BlockResult`). */
+export function useBlockResultToast() {
+  const { t } = useTranslation();
+  return (name: string, result: BlockResult, titleKey = 'blocks.toast.blocked') =>
+    toast.success(
+      t(titleKey, { name }),
+      `${t('blocks.toast.cancelled', { count: result.cancelled_bookings_count })} · ${t('blocks.toast.notified', { count: result.notified_users_count })}`,
+    );
 }
 
 /**
  * Blocare de urgență (FR-40, FR-41): din 2 acțiuni – „Blochează” pe resursă, apoi confirmarea.
- * Arată în avans câte rezervări se anulează și pe ce canale sunt anunțați utilizatorii.
+ * Începe imediat (serverul folosește ora curentă); `end: null` = „până la noi ordine”.
  */
-export function EmergencyBlockDialog({ resource, onClose }: Props) {
+export function EmergencyBlockDialog({ resource, onClose, onCreated }: Props) {
   const { t } = useTranslation();
   const create = useCreateBlock();
+  const showResult = useBlockResultToast();
   const open = !!resource;
 
   const [reasonKey, setReasonKey] = useState<ReasonKey>('burst');
   const [customReason, setCustomReason] = useState('');
   const [mode, setMode] = useState<'indefinite' | 'fixed'>('indefinite');
   const [endsLocal, setEndsLocal] = useState('');
-  const [channels, setChannels] = useState<Record<Channel, boolean>>({ push: true, email: true, sms: true });
-  // Momentul deschiderii: previzualizarea și blocarea pornesc de la el.
   const [openedAt, setOpenedAt] = useState(() => new Date());
 
   useEffect(() => {
@@ -47,7 +55,6 @@ export function EmergencyBlockDialog({ resource, onClose }: Props) {
       setCustomReason('');
       setMode('indefinite');
       setEndsLocal(toLocalInput(new Date(now.getTime() + 2 * 3600_000)));
-      setChannels({ push: true, email: true, sms: true });
       create.reset();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -59,43 +66,24 @@ export function EmergencyBlockDialog({ resource, onClose }: Props) {
     return Number.isNaN(d.getTime()) ? null : d;
   }, [mode, endsLocal]);
 
-  const intervalError =
-    mode === 'fixed' && (!endsAt || endsAt <= openedAt) ? t('blocks.errors.endAfterStart') : undefined;
+  const intervalError = mode === 'fixed' && (!endsAt || endsAt <= openedAt) ? t('blocks.errors.endAfterStart') : undefined;
   const reasonText = reasonKey === 'other' ? customReason.trim() : t(`blocks.reasons.${reasonKey}`);
   const reasonError = reasonKey === 'other' && !reasonText ? t('blocks.errors.reasonRequired') : undefined;
-  const selectedChannels = (Object.keys(channels) as Channel[]).filter((c) => channels[c]);
-  const channelError = selectedChannels.length === 0 ? t('blocks.errors.channelRequired') : undefined;
-
-  const preview = useBlockPreview(
-    resource && !intervalError
-      ? { resourceId: resource.id, from: openedAt.toISOString(), to: endsAt ? endsAt.toISOString() : addDays(openedAt, 30).toISOString() }
-      : null,
-  );
-
-  const canSubmit = !intervalError && !reasonError && !channelError && !create.isPending;
+  const canSubmit = !intervalError && !reasonError && !create.isPending;
 
   function submit() {
     if (!resource || !canSubmit) return;
     create.mutate(
+      { resource_id: resource.id, kind: 'emergency', reason: reasonText, end: endsAt ? endsAt.toISOString() : null },
       {
-        resourceId: resource.id,
-        kind: 'emergency',
-        reason: reasonText,
-        startsAt: openedAt.toISOString(),
-        endsAt: endsAt ? endsAt.toISOString() : null,
-        recurrence: 'none',
-        channels: selectedChannels,
-      },
-      {
-        onSuccess: (block) => {
-          toast.success(t('blocks.toast.blocked', { name: resource.name }), t('blocks.toast.cancelled', { count: block.affectedCount }));
+        onSuccess: (result) => {
+          showResult(resource.name, result);
+          onCreated?.(result);
           onClose();
         },
       },
     );
   }
-
-  const count = preview.data?.affectedCount;
 
   return (
     <Modal
@@ -131,7 +119,7 @@ export function EmergencyBlockDialog({ resource, onClose }: Props) {
                 <Input
                   value={customReason}
                   onChange={(e) => setCustomReason(e.target.value)}
-                  maxLength={80}
+                  maxLength={200}
                   placeholder={t('blocks.fields.reasonPlaceholder')}
                   aria-label={t('blocks.fields.reason')}
                   autoFocus
@@ -154,50 +142,19 @@ export function EmergencyBlockDialog({ resource, onClose }: Props) {
           />
           {mode === 'fixed' && (
             <Field label={t('blocks.fields.endsAt')} error={intervalError}>
-              {(control) => (
-                <Input {...control} type="datetime-local" value={endsLocal} onChange={(e) => setEndsLocal(e.target.value)} />
-              )}
+              {(control) => <Input {...control} type="datetime-local" value={endsLocal} onChange={(e) => setEndsLocal(e.target.value)} />}
             </Field>
           )}
         </div>
 
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-semibold text-ink">{t('blocks.emergency.channels')}</legend>
-          <div className="flex flex-wrap gap-x-6 gap-y-2">
-            {(['push', 'email', 'sms'] as Channel[]).map((c) => (
-              <CheckboxField
-                key={c}
-                checked={channels[c]}
-                onCheckedChange={(v) => setChannels((s) => ({ ...s, [c]: v }))}
-                label={t(`channels.${c}`)}
-              />
-            ))}
-          </div>
-          <p className="text-xs text-muted">{t('blocks.emergency.smsNote')}</p>
-          {channelError && (
-            <p role="alert" className="text-xs font-semibold text-danger-ink">
-              {channelError}
-            </p>
-          )}
-        </fieldset>
-
-        <div className="flex items-center gap-4 rounded-2xl bg-danger-soft px-5 py-4" aria-live="polite">
-          {preview.isPending || count === undefined ? (
-            <Skeleton className="h-10 w-full" />
-          ) : (
-            <>
-              <span className="heading text-4xl leading-none text-danger">{count}</span>
-              <div>
-                <p className="text-sm font-extrabold text-danger-ink">{t('blocks.emergency.willCancel', { count })}</p>
-                <p className="text-xs text-danger-ink">{t('blocks.emergency.refundNote')}</p>
-              </div>
-            </>
-          )}
+        <div className="rounded-2xl bg-danger-soft px-5 py-4">
+          <p className="text-sm font-extrabold text-danger-ink">{t('blocks.emergency.willCancel')}</p>
+          <p className="text-xs text-danger-ink">{t('blocks.emergency.refundNote')}</p>
         </div>
 
         {create.isError && (
           <p role="alert" className="text-sm font-semibold text-danger-ink">
-            {create.error instanceof ApiError ? create.error.message : t('errors.generic')}
+            {errorMessage(create.error, t)}
           </p>
         )}
       </div>

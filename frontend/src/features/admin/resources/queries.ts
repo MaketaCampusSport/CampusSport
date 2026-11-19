@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/api/endpoints';
+import { client, type ResourceInput } from '@/api/client';
 import { keys } from '@/api/keys';
-import type { ResourceInput } from '@/api/types';
 
 function useRefreshResources() {
   const qc = useQueryClient();
@@ -15,21 +14,14 @@ function useRefreshResources() {
 
 export function useCreateResource() {
   const refresh = useRefreshResources();
-  return useMutation({ mutationFn: (input: ResourceInput) => api.resources.create(input), onSuccess: () => refresh() });
+  return useMutation({ mutationFn: (input: ResourceInput) => client.admin.createResource(input), onSuccess: () => refresh() });
 }
 
+/** PATCH /admin/resources/{id}: trimite doar câmpurile modificate (aici: tot formularul sau doar `active`). */
 export function useUpdateResource() {
   const refresh = useRefreshResources();
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: ResourceInput }) => api.resources.update(id, input),
-    onSuccess: () => refresh(),
-  });
-}
-
-export function useSetResourceActive() {
-  const refresh = useRefreshResources();
-  return useMutation({
-    mutationFn: ({ id, active }: { id: string; active: boolean }) => api.resources.setActive(id, active),
+    mutationFn: ({ id, input }: { id: string; input: ResourceInput }) => client.admin.updateResource(id, input),
     onSuccess: () => refresh(),
   });
 }

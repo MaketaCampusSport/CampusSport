@@ -1,161 +1,194 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarPlus, Star } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { AlertTriangle, CalendarPlus } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api } from '@/api/endpoints';
+import { client, type BookingConflict, type ConflictsError, type EventCreate } from '@/api/client';
 import { ApiError } from '@/api/http';
 import { keys } from '@/api/keys';
-import type { EventInput, EventRecurrence } from '@/api/types';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Chip, toggleInList } from '@/components/ui/Chip';
-import { Banner, EmptyState, ErrorState, Skeleton } from '@/components/ui/feedback';
+import { Banner } from '@/components/ui/feedback';
 import { Field, Input, Select } from '@/components/ui/fields';
-import { Modal } from '@/components/ui/Modal';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { ResourceThumb } from '@/components/ui/ResourceThumb';
-import { addDays, fmtLongDay, fmtTime, timeToMinutes, toDateKey } from '@/lib/dates';
+import { addDays, fmtDayTime, fromLocalInput, timeToMinutes, toDateKey } from '@/lib/dates';
 import { toast } from '@/stores/toastStore';
-import { useResources } from '../shared/queries';
+import { errorMessage } from '../shared/errors';
+import { activeResources, useResources } from '../shared/queries';
 
-/** Evenimente universitare (FR-44): rezervă resursele și anulează rezervările în conflict. */
+/** Serverul răspunde încă 501 NOT_IMPLEMENTED pe POST /admin/events (backend/README.md). */
+const SERVER_READY = false;
+
+/**
+ * Evenimente universitare (FR-21): rezervă o resursă oricât de departe în viitor.
+ * Dacă există rezervări suprapuse, serverul răspunde 409 cu lista lor; retrimiterea cu
+ * `confirm_conflicts: true` le anulează. Contractul nu are o listă a evenimentelor (apar în Blocări).
+ */
 export default function EventsPage() {
-  const { t } = useTranslation();
-  const events = useQuery({ queryKey: keys.events, queryFn: () => api.events.list() });
-  const [open, setOpen] = useState(false);
-
-  return (
-    <>
-      <PageHeader
-        title={t('events.title')}
-        subtitle={t('events.subtitle')}
-        actions={<Button variant="accent" size="lg" leftIcon={<CalendarPlus className="h-5 w-5" aria-hidden />} onClick={() => setOpen(true)}>{t('events.new')}</Button>}
-      />
-      {events.isError ? (
-        <ErrorState message={events.error.message} onRetry={() => void events.refetch()} />
-      ) : events.isPending ? (
-        <Skeleton className="h-64 rounded-3xl" />
-      ) : events.data.length === 0 ? (
-        <Card><EmptyState icon={<Star className="h-6 w-6" aria-hidden />} title={t('events.emptyTitle')} description={t('events.emptyBody')} /></Card>
-      ) : (
-        <ul className="grid grid-cols-2 gap-5">
-          {events.data.map((e) => (
-            <li key={e.id}>
-              <Card className="flex gap-4 p-5">
-                <ResourceThumb src={e.photoUrl} className="h-24 w-24 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <h2 className="heading text-lg leading-tight">{e.name}</h2>
-                  <p className="mt-1 text-sm text-muted">{e.resourceNames.join(', ')}</p>
-                  <p className="mt-1 text-sm font-semibold text-ink">
-                    {fmtLongDay(e.startsAt)} · {fmtTime(e.startsAt)}–{fmtTime(e.endsAt)}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {e.recurrence !== 'none' && <Badge tone="brand">{t(`events.recurrence.${e.recurrence}`)}</Badge>}
-                    <Badge tone={e.cancelledCount > 0 ? 'warn' : 'success'}>{t('events.cancelled', { count: e.cancelledCount })}</Badge>
-                  </div>
-                </div>
-              </Card>
-            </li>
-          ))}
-        </ul>
-      )}
-      <EventDialog open={open} onClose={() => setOpen(false)} />
-    </>
-  );
-}
-
-function EventDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const resources = useResources();
+  const options = activeResources(resources.data);
   const [name, setName] = useState('');
-  const [resourceIds, setResourceIds] = useState<string[]>([]);
+  const [resourceId, setResourceId] = useState('');
   const [date, setDate] = useState(() => toDateKey(addDays(new Date(), 7)));
   const [from, setFrom] = useState('18:00');
   const [to, setTo] = useState('21:00');
-  const [recurrence, setRecurrence] = useState<EventRecurrence>('none');
   const [submitted, setSubmitted] = useState(false);
+  const [conflicts, setConflicts] = useState<BookingConflict[] | null>(null);
 
-  const input: EventInput = { name: name.trim(), resourceIds, date, from, to, recurrence };
+  const effectiveResource = resourceId || options[0]?.id || '';
   const errors = {
     name: !name.trim() ? t('events.errors.name') : undefined,
-    resources: resourceIds.length === 0 ? t('events.errors.resources') : undefined,
+    resource: !effectiveResource ? t('events.errors.resources') : undefined,
     date: !date ? t('events.errors.date') : undefined,
     time: timeToMinutes(to) <= timeToMinutes(from) ? t('events.errors.time') : undefined,
   };
   const invalid = Object.values(errors).some(Boolean);
-  const previewPayload = useMemo(() => (resourceIds.length && date && !errors.time ? { resourceIds, date, from, to, recurrence, name: '' } : null), [resourceIds, date, from, to, recurrence, errors.time]);
-  const preview = useQuery({
-    queryKey: keys.eventPreview(previewPayload),
-    queryFn: () => api.events.preview(previewPayload as EventInput),
-    enabled: open && !!previewPayload,
-  });
+  const input: EventCreate = {
+    resource_id: effectiveResource,
+    reason: name.trim(),
+    start: fromLocalInput(`${date}T${from}`).toISOString(),
+    end: fromLocalInput(`${date}T${to}`).toISOString(),
+  };
+
   const create = useMutation({
-    mutationFn: (i: EventInput) => api.events.create(i),
-    onSuccess: (ev) => {
-      void qc.invalidateQueries({ queryKey: keys.events });
+    mutationFn: (i: EventCreate) => client.admin.createEvent(i),
+    onSuccess: (res) => {
+      void qc.invalidateQueries({ queryKey: keys.blocksAll });
       void qc.invalidateQueries({ queryKey: keys.dashboardAll });
       void qc.invalidateQueries({ queryKey: keys.auditAll });
-      toast.success(t('events.toast.created', { name: ev.name }), t('events.toast.cancelled', { count: ev.cancelledCount }));
-      setName(''); setResourceIds([]); setSubmitted(false);
-      onClose();
+      toast.success(t('events.toast.created', { name: res.block.reason }), t('events.toast.cancelled', { count: res.cancelled_bookings_count }));
+      setName('');
+      setConflicts(null);
+      setSubmitted(false);
+    },
+    onError: (e) => {
+      if (e instanceof ApiError && e.code === 'CONFLICTS_NEED_CONFIRMATION') setConflicts((e.body as ConflictsError | undefined)?.conflicts ?? []);
     },
   });
 
+  function submit(confirm: boolean) {
+    setSubmitted(true);
+    if (!SERVER_READY || invalid) return;
+    create.mutate({ ...input, ...(confirm ? { confirm_conflicts: true } : {}) });
+  }
+
+  const showError = create.isError && !(create.error instanceof ApiError && create.error.code === 'CONFLICTS_NEED_CONFIRMATION');
+
   return (
-    <Modal
-      open={open}
-      onOpenChange={(o) => !o && onClose()}
-      tone="brand"
-      icon={<Star className="h-7 w-7" aria-hidden />}
-      title={t('events.new')}
-      description={t('events.dialogSubtitle')}
-      footer={
-        <>
-          <Button variant="outline" size="lg" className="flex-1" onClick={onClose}>{t('common.cancelAction')}</Button>
-          <Button variant="accent" size="lg" className="flex-1" loading={create.isPending} onClick={() => { setSubmitted(true); if (!invalid) create.mutate(input); }}>
-            {t('events.create')}
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-5">
-        <Field label={t('events.fields.name')} error={submitted ? errors.name : undefined}>
-          {(c) => <Input {...c} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />}
-        </Field>
-        <fieldset>
-          <legend className="mb-2 text-sm font-semibold text-ink">{t('events.fields.resources')}</legend>
-          <div className="flex flex-wrap gap-2">
-            {(resources.data ?? []).filter((r) => r.active).map((r) => (
-              <Chip key={r.id} pressed={resourceIds.includes(r.id)} onPressedChange={(on) => setResourceIds(toggleInList(resourceIds, r.id, on))}>{r.name}</Chip>
-            ))}
-          </div>
-          {submitted && errors.resources && <p role="alert" className="mt-2 text-xs font-semibold text-danger-ink">{errors.resources}</p>}
-        </fieldset>
-        <div className="grid grid-cols-3 gap-4">
-          <Field label={t('events.fields.date')} error={submitted ? errors.date : undefined}>{(c) => <Input {...c} type="date" value={date} onChange={(e) => setDate(e.target.value)} />}</Field>
-          <Field label={t('events.fields.from')}>{(c) => <Input {...c} type="time" value={from} onChange={(e) => setFrom(e.target.value)} />}</Field>
-          <Field label={t('events.fields.to')} error={submitted ? errors.time : undefined}>{(c) => <Input {...c} type="time" value={to} onChange={(e) => setTo(e.target.value)} />}</Field>
-        </div>
-        <Field label={t('events.fields.recurrence')}>
-          {(c) => (
-            <Select {...c} value={recurrence} onChange={(e) => setRecurrence(e.target.value as EventRecurrence)}>
-              {(['none', 'weekly', 'monthly'] as EventRecurrence[]).map((r) => <option key={r} value={r}>{t(`events.recurrence.${r}`)}</option>)}
-            </Select>
-          )}
-        </Field>
-        <div aria-live="polite">
-          {preview.data ? (
-            preview.data.conflictCount > 0 ? (
-              <Banner tone="warn" title={t('events.conflicts', { count: preview.data.conflictCount })}>{t('events.conflictsBody')}</Banner>
+    <>
+      <PageHeader title={t('events.title')} subtitle={t('events.subtitle')} />
+      {!SERVER_READY && (
+        <Banner tone="info" role="status" className="mb-6" title={t('common.notAvailableTitle')}>
+          {t('common.notAvailableBody')}
+        </Banner>
+      )}
+      <div className="grid grid-cols-[minmax(0,1fr)_400px] items-start gap-6">
+        <Card className="p-6">
+          <form
+            noValidate
+            className="space-y-5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              submit(false);
+            }}
+          >
+            <h2 className="heading text-lg">{t('events.new')}</h2>
+            <Field label={t('events.fields.name')} error={submitted ? errors.name : undefined}>
+              {(c) => (
+                <Input
+                  {...c}
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setConflicts(null);
+                  }}
+                  maxLength={120}
+                />
+              )}
+            </Field>
+            <Field label={t('events.fields.resource')} error={submitted ? errors.resource : undefined}>
+              {(c) => (
+                <Select
+                  {...c}
+                  value={effectiveResource}
+                  onChange={(e) => {
+                    setResourceId(e.target.value);
+                    setConflicts(null);
+                  }}
+                >
+                  {options.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            <div className="grid grid-cols-3 gap-4">
+              <Field label={t('events.fields.date')} error={submitted ? errors.date : undefined}>
+                {(c) => <Input {...c} type="date" value={date} onChange={(e) => { setDate(e.target.value); setConflicts(null); }} />}
+              </Field>
+              <Field label={t('events.fields.from')}>
+                {(c) => <Input {...c} type="time" value={from} onChange={(e) => { setFrom(e.target.value); setConflicts(null); }} />}
+              </Field>
+              <Field label={t('events.fields.to')} error={submitted ? errors.time : undefined}>
+                {(c) => <Input {...c} type="time" value={to} onChange={(e) => { setTo(e.target.value); setConflicts(null); }} />}
+              </Field>
+            </div>
+
+            {conflicts && (
+              <div className="space-y-3" aria-live="polite">
+                <Banner tone="warn" role="alert" title={t('events.conflicts', { count: conflicts.length })}>
+                  {t('events.conflictsBody')}
+                </Banner>
+                <ul className="divide-y divide-line rounded-2xl bg-subtle px-4">
+                  {conflicts.map((c) => (
+                    <li key={c.booking_id} className="flex justify-between py-2 text-sm">
+                      <span className="font-semibold text-ink">{c.holder_name ?? '—'}</span>
+                      <span className="text-muted">{fmtDayTime(c.start)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {showError && (
+              <p role="alert" className="text-sm font-semibold text-danger-ink">
+                {errorMessage(create.error, t)}
+              </p>
+            )}
+
+            {conflicts ? (
+              <Button
+                variant="danger"
+                size="lg"
+                loading={create.isPending}
+                disabled={!SERVER_READY}
+                leftIcon={<AlertTriangle className="h-5 w-5" aria-hidden />}
+                onClick={() => submit(true)}
+              >
+                {t('events.confirmConflicts', { count: conflicts.length })}
+              </Button>
             ) : (
-              <Banner tone="success" title={t('events.noConflicts')} />
-            )
-          ) : previewPayload ? <Skeleton className="h-14" /> : null}
-        </div>
-        {create.isError && <p role="alert" className="text-sm font-semibold text-danger-ink">{create.error instanceof ApiError ? create.error.message : t('errors.generic')}</p>}
+              <Button
+                type="submit"
+                variant="accent"
+                size="lg"
+                loading={create.isPending}
+                disabled={!SERVER_READY}
+                leftIcon={<CalendarPlus className="h-5 w-5" aria-hidden />}
+              >
+                {t('events.create')}
+              </Button>
+            )}
+          </form>
+        </Card>
+        <Card className="p-6">
+          <h2 className="heading text-lg">{t('events.howTitle')}</h2>
+          <p className="mt-2 text-sm text-muted">{t('events.howBody')}</p>
+        </Card>
       </div>
-    </Modal>
+    </>
   );
 }

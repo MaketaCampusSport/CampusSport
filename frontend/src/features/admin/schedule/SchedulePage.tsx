@@ -1,28 +1,54 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, FileSpreadsheet, Upload } from 'lucide-react';
 import { useRef, useState, type DragEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { api } from '@/api/endpoints';
+import { client, type BookingConflict, type ConflictsError, type ScheduleClassCreate } from '@/api/client';
 import { ApiError } from '@/api/http';
-import type { IsoWeekday, ManualClassInput, SchedulePreview } from '@/api/types';
-import { Badge } from '@/components/ui/Badge';
+import { keys } from '@/api/keys';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Field, Input, Select } from '@/components/ui/fields';
-import { Banner } from '@/components/ui/feedback';
-import { PageHeader } from '@/components/ui/PageHeader';
 import { Chip, toggleInList } from '@/components/ui/Chip';
+import { Banner } from '@/components/ui/feedback';
+import { Field, Input, Select } from '@/components/ui/fields';
+import { PageHeader } from '@/components/ui/PageHeader';
 import { cn } from '@/lib/cn';
-import { fmtDayTime, timeToMinutes, toDateKey, addDays } from '@/lib/dates';
-import { useScheduleWizardStore } from '@/stores/scheduleWizardStore';
-import { useQueryClient } from '@tanstack/react-query';
-import { keys } from '@/api/keys';
-import { useResources } from '../shared/queries';
+import { addDays, fmtDayTime, fromDateKey, fromLocalInput, timeToMinutes, toDateKey } from '@/lib/dates';
+import { ISO_WEEKDAYS, type IsoWeekday } from '@/lib/validators';
+import { errorMessage } from '../shared/errors';
+import { activeResources, resourceName, useResources } from '../shared/queries';
+import { useScheduleWizardStore } from './wizardStore';
 
+/** Serverul răspunde încă 501 NOT_IMPLEMENTED pe rutele /admin/schedule/* (backend/README.md). */
+const SERVER_READY = false;
 const MAX_BYTES = 5 * 1024 * 1024;
-const ACCEPT = '.xlsx,.xls,.csv';
+const ACCEPT = '.csv,.ics';
+const BYDAY: Record<IsoWeekday, string> = { 1: 'MO', 2: 'TU', 3: 'WE', 4: 'TH', 5: 'FR', 6: 'SA', 7: 'SU' };
 
-/** Orar Educație Fizică (FR-42, SDD 7.4): încarcă → verifică conflictele → confirmă. */
+interface ManualClass {
+  resourceId: string;
+  courseName: string;
+  weekdays: IsoWeekday[];
+  from: string;
+  to: string;
+  validFrom: string;
+  validTo: string;
+}
+
+/** Ora manuală → `ScheduleClassCreate`: prima apariție + regula RRULE săptămânală. */
+export function toScheduleClass(m: ManualClass): ScheduleClassCreate {
+  let first = fromDateKey(m.validFrom);
+  for (let i = 0; i < 7 && !m.weekdays.includes(((first.getDay() + 6) % 7) + 1 as IsoWeekday); i++) first = addDays(first, 1);
+  const day = toDateKey(first);
+  return {
+    resource_id: m.resourceId,
+    reason: m.courseName.trim(),
+    first_start: fromLocalInput(`${day}T${m.from}`).toISOString(),
+    first_end: fromLocalInput(`${day}T${m.to}`).toISOString(),
+    recurrence: { rule: `FREQ=WEEKLY;BYDAY=${m.weekdays.map((d) => BYDAY[d]).join(',')}`, valid_from: m.validFrom, valid_to: m.validTo },
+  };
+}
+
+/** Orar Educație Fizică (FR-19, SDD 7.4): încarcă → verifică conflictele → confirmă. */
 export default function SchedulePage() {
   const { t } = useTranslation();
   const wizard = useScheduleWizardStore();
@@ -31,6 +57,11 @@ export default function SchedulePage() {
   return (
     <>
       <PageHeader title={t('schedule.title')} subtitle={t('schedule.subtitle')} />
+      {!SERVER_READY && (
+        <Banner tone="info" role="status" className="mb-6" title={t('common.notAvailableTitle')}>
+          {t('common.notAvailableBody')}
+        </Banner>
+      )}
       <ol className="mb-6 flex gap-3" aria-label={t('schedule.title')}>
         {steps.map((s, i) => {
           const n = i + 1;
@@ -51,27 +82,49 @@ export default function SchedulePage() {
         })}
       </ol>
       {wizard.step === 1 && <UploadStep />}
-      {wizard.step === 2 && wizard.preview && <CheckStep preview={wizard.preview} />}
+      {wizard.step === 2 && wizard.pending && <CheckStep />}
       {wizard.step === 3 && wizard.result && <DoneStep />}
     </>
   );
 }
 
+function useInvalidateAfterImport() {
+  const qc = useQueryClient();
+  return () => {
+    void qc.invalidateQueries({ queryKey: keys.blocksAll });
+    void qc.invalidateQueries({ queryKey: keys.dashboardAll });
+    void qc.invalidateQueries({ queryKey: keys.auditAll });
+  };
+}
+
 function UploadStep() {
   const { t } = useTranslation();
-  const setPreview = useScheduleWizardStore((s) => s.setPreview);
+  const setPending = useScheduleWizardStore((s) => s.setPending);
   const inputRef = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
   const [mode, setMode] = useState<'file' | 'manual'>('file');
+  const today = new Date();
+  const [validFrom, setValidFrom] = useState(toDateKey(today));
+  const [validTo, setValidTo] = useState(toDateKey(addDays(today, 98)));
 
-  const upload = useMutation({ mutationFn: (f: File) => api.schedule.previewFile(f), onSuccess: setPreview });
+  const upload = useMutation({
+    mutationFn: (f: File) => {
+      const form = new FormData();
+      form.append('file', f);
+      form.append('valid_from', validFrom);
+      form.append('valid_to', validTo);
+      return client.admin.importSchedule(form);
+    },
+    onSuccess: (preview) => setPending({ kind: 'file', preview }),
+  });
 
   function pick(file: File | undefined) {
     setFileError(null);
-    if (!file) return;
-    if (!/\.(xlsx|xls|csv)$/i.test(file.name)) return setFileError(t('schedule.errors.type'));
+    if (!file || !SERVER_READY) return;
+    if (!/\.(csv|ics)$/i.test(file.name)) return setFileError(t('schedule.errors.type'));
     if (file.size > MAX_BYTES) return setFileError(t('schedule.errors.size'));
+    if (validTo < validFrom) return setFileError(t('schedule.errors.range'));
     upload.mutate(file);
   }
   function onDrop(e: DragEvent) {
@@ -84,13 +137,24 @@ function UploadStep() {
     <div className="grid grid-cols-[minmax(0,1fr)_420px] items-start gap-6">
       <Card className="p-6">
         <div className="mb-4 flex gap-2">
-          <Chip pressed={mode === 'file'} onPressedChange={() => setMode('file')}>{t('schedule.modeFile')}</Chip>
-          <Chip pressed={mode === 'manual'} onPressedChange={() => setMode('manual')}>{t('schedule.modeManual')}</Chip>
+          <Chip pressed={mode === 'file'} onPressedChange={() => setMode('file')}>
+            {t('schedule.modeFile')}
+          </Chip>
+          <Chip pressed={mode === 'manual'} onPressedChange={() => setMode('manual')}>
+            {t('schedule.modeManual')}
+          </Chip>
         </div>
         {mode === 'file' ? (
           <>
+            <div className="mb-4 grid grid-cols-2 gap-4">
+              <Field label={t('schedule.validFrom')}>{(c) => <Input {...c} type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />}</Field>
+              <Field label={t('schedule.validTo')}>{(c) => <Input {...c} type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} />}</Field>
+            </div>
             <div
-              onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDrag(true);
+              }}
               onDragLeave={() => setDrag(false)}
               onDrop={onDrop}
               className={cn(
@@ -103,19 +167,34 @@ function UploadStep() {
               </div>
               <p className="heading text-lg">{t('schedule.drop')}</p>
               <p className="text-sm text-muted">{t('schedule.dropHint')}</p>
-              <input ref={inputRef} type="file" accept={ACCEPT} className="sr-only" aria-label={t('schedule.choose')} onChange={(e) => pick(e.target.files?.[0])} />
-              <Button variant="accent" size="md" loading={upload.isPending} leftIcon={<Upload className="h-4 w-4" aria-hidden />} onClick={() => inputRef.current?.click()}>
+              <input
+                ref={inputRef}
+                type="file"
+                accept={ACCEPT}
+                className="sr-only"
+                aria-label={t('schedule.choose')}
+                disabled={!SERVER_READY}
+                onChange={(e) => pick(e.target.files?.[0])}
+              />
+              <Button
+                variant="accent"
+                size="md"
+                loading={upload.isPending}
+                disabled={!SERVER_READY}
+                leftIcon={<Upload className="h-4 w-4" aria-hidden />}
+                onClick={() => inputRef.current?.click()}
+              >
                 {t('schedule.choose')}
               </Button>
             </div>
             {(fileError || upload.isError) && (
               <p role="alert" className="mt-3 text-sm font-semibold text-danger-ink">
-                {fileError ?? (upload.error instanceof ApiError ? upload.error.message : t('errors.generic'))}
+                {fileError ?? errorMessage(upload.error, t)}
               </p>
             )}
           </>
         ) : (
-          <ManualForm onPreview={setPreview} />
+          <ManualForm />
         )}
       </Card>
 
@@ -125,18 +204,20 @@ function UploadStep() {
         <table className="mt-4 w-full text-left text-sm">
           <thead>
             <tr className="border-b border-line">
-              {['resource', 'course', 'day', 'from', 'to'].map((c) => (
-                <th key={c} scope="col" className="py-2 pr-2 text-xs font-bold uppercase text-muted">{t(`schedule.columns.${c}`)}</th>
+              {['resource_id', 'weekday', 'start_time', 'end_time', 'group'].map((c) => (
+                <th key={c} scope="col" className="py-2 pr-2 font-mono text-xs font-bold text-muted">
+                  {c}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td className="py-2 pr-2">Sala sport 1</td>
-              <td className="pr-2">EF Anul I</td>
-              <td className="pr-2">Luni</td>
+              <td className="py-2 pr-2 font-mono text-xs">2c9e…7a33</td>
+              <td className="pr-2">1</td>
               <td className="pr-2">10:00</td>
-              <td>12:00</td>
+              <td className="pr-2">12:00</td>
+              <td>EF Anul I</td>
             </tr>
           </tbody>
         </table>
@@ -145,25 +226,45 @@ function UploadStep() {
   );
 }
 
-function ManualForm({ onPreview }: { onPreview: (p: SchedulePreview) => void }) {
+function ManualForm() {
   const { t } = useTranslation();
   const resources = useResources();
+  const { setPending, setResult } = useScheduleWizardStore();
+  const invalidate = useInvalidateAfterImport();
   const today = new Date();
-  const [form, setForm] = useState({
-    resourceId: '', courseName: '', weekdays: [1] as IsoWeekday[], from: '10:00', to: '12:00',
-    validFrom: toDateKey(today), validTo: toDateKey(addDays(today, 90)),
+  const [form, setForm] = useState<ManualClass>({
+    resourceId: '',
+    courseName: '',
+    weekdays: [1],
+    from: '10:00',
+    to: '12:00',
+    validFrom: toDateKey(today),
+    validTo: toDateKey(addDays(today, 90)),
   });
   const [submitted, setSubmitted] = useState(false);
-  const mutation = useMutation({ mutationFn: (i: ManualClassInput) => api.schedule.previewManual(i), onSuccess: onPreview });
+  const mutation = useMutation({
+    mutationFn: (input: ScheduleClassCreate) => client.admin.createScheduleClass(input),
+    onSuccess: (res) => {
+      invalidate();
+      setResult(res);
+    },
+    onError: (e, input) => {
+      // 409 cu lista rezervărilor suprapuse: se confirmă în pasul 2 (retrimitere cu `confirm_conflicts`).
+      if (e instanceof ApiError && e.code === 'CONFLICTS_NEED_CONFIRMATION') {
+        setPending({ kind: 'manual', input, conflicts: (e.body as ConflictsError | undefined)?.conflicts ?? [] });
+      }
+    },
+  });
 
-  const resourceId = form.resourceId || resources.data?.find((r) => r.active)?.id || '';
+  const options = activeResources(resources.data);
+  const resourceId = form.resourceId || options[0]?.id || '';
   const errors = {
     course: !form.courseName.trim() ? t('schedule.errors.course') : undefined,
     days: form.weekdays.length === 0 ? t('schedule.errors.days') : undefined,
     time: timeToMinutes(form.to) <= timeToMinutes(form.from) ? t('schedule.errors.time') : undefined,
     range: form.validTo < form.validFrom ? t('schedule.errors.range') : undefined,
   };
-  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof ManualClass>(k: K, v: ManualClass[K]) => setForm((f) => ({ ...f, [k]: v }));
 
   return (
     <form
@@ -172,15 +273,19 @@ function ManualForm({ onPreview }: { onPreview: (p: SchedulePreview) => void }) 
       onSubmit={(e) => {
         e.preventDefault();
         setSubmitted(true);
-        if (Object.values(errors).some(Boolean) || !resourceId) return;
-        mutation.mutate({ ...form, resourceId, courseName: form.courseName.trim() });
+        if (!SERVER_READY || Object.values(errors).some(Boolean) || !resourceId) return;
+        mutation.mutate(toScheduleClass({ ...form, resourceId }));
       }}
     >
       <div className="grid grid-cols-2 gap-4">
         <Field label={t('schedule.columns.resource')}>
           {(c) => (
             <Select {...c} value={resourceId} onChange={(e) => set('resourceId', e.target.value)}>
-              {(resources.data ?? []).filter((r) => r.active).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              {options.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
             </Select>
           )}
         </Field>
@@ -191,91 +296,142 @@ function ManualForm({ onPreview }: { onPreview: (p: SchedulePreview) => void }) 
       <fieldset>
         <legend className="mb-2 text-sm font-semibold text-ink">{t('schedule.columns.day')}</legend>
         <div className="flex flex-wrap gap-2">
-          {([1, 2, 3, 4, 5, 6, 7] as IsoWeekday[]).map((d) => (
-            <Chip key={d} pressed={form.weekdays.includes(d)} onPressedChange={(on) => set('weekdays', toggleInList(form.weekdays, d, on).sort() as IsoWeekday[])} aria-label={t(`weekdays.long.${d}`)}>
+          {ISO_WEEKDAYS.map((d) => (
+            <Chip
+              key={d}
+              pressed={form.weekdays.includes(d)}
+              onPressedChange={(on) => set('weekdays', toggleInList(form.weekdays, d, on).sort())}
+              aria-label={t(`weekdays.long.${d}`)}
+            >
               {t(`weekdays.short.${d}`)}
             </Chip>
           ))}
         </div>
-        {submitted && errors.days && <p role="alert" className="mt-2 text-xs font-semibold text-danger-ink">{errors.days}</p>}
+        {submitted && errors.days && (
+          <p role="alert" className="mt-2 text-xs font-semibold text-danger-ink">
+            {errors.days}
+          </p>
+        )}
       </fieldset>
       <div className="grid grid-cols-2 gap-4">
         <Field label={t('schedule.columns.from')}>{(c) => <Input {...c} type="time" value={form.from} onChange={(e) => set('from', e.target.value)} />}</Field>
-        <Field label={t('schedule.columns.to')} error={submitted ? errors.time : undefined}>{(c) => <Input {...c} type="time" value={form.to} onChange={(e) => set('to', e.target.value)} />}</Field>
+        <Field label={t('schedule.columns.to')} error={submitted ? errors.time : undefined}>
+          {(c) => <Input {...c} type="time" value={form.to} onChange={(e) => set('to', e.target.value)} />}
+        </Field>
         <Field label={t('schedule.validFrom')}>{(c) => <Input {...c} type="date" value={form.validFrom} onChange={(e) => set('validFrom', e.target.value)} />}</Field>
-        <Field label={t('schedule.validTo')} error={submitted ? errors.range : undefined}>{(c) => <Input {...c} type="date" value={form.validTo} onChange={(e) => set('validTo', e.target.value)} />}</Field>
+        <Field label={t('schedule.validTo')} error={submitted ? errors.range : undefined}>
+          {(c) => <Input {...c} type="date" value={form.validTo} onChange={(e) => set('validTo', e.target.value)} />}
+        </Field>
       </div>
-      {mutation.isError && <p role="alert" className="text-sm font-semibold text-danger-ink">{mutation.error instanceof ApiError ? mutation.error.message : t('errors.generic')}</p>}
-      <Button type="submit" variant="accent" size="lg" loading={mutation.isPending}>{t('schedule.checkConflicts')}</Button>
+      {mutation.isError && !(mutation.error instanceof ApiError && mutation.error.code === 'CONFLICTS_NEED_CONFIRMATION') && (
+        <p role="alert" className="text-sm font-semibold text-danger-ink">
+          {errorMessage(mutation.error, t)}
+        </p>
+      )}
+      <Button type="submit" variant="accent" size="lg" loading={mutation.isPending} disabled={!SERVER_READY}>
+        {t('schedule.addClass')}
+      </Button>
     </form>
   );
 }
 
-function CheckStep({ preview }: { preview: SchedulePreview }) {
+function ConflictTable({ conflicts }: { conflicts: BookingConflict[] }) {
   const { t } = useTranslation();
-  const qc = useQueryClient();
-  const { setResult, backToUpload } = useScheduleWizardStore();
+  const resources = useResources();
+  return (
+    <Card className="overflow-hidden">
+      <table className="w-full text-left">
+        <caption className="sr-only">{t('schedule.conflicts.title', { count: conflicts.length })}</caption>
+        <thead>
+          <tr className="border-b border-line">
+            {['user', 'resource', 'when'].map((c) => (
+              <th key={c} scope="col" className="table-head first:pl-6">
+                {t(`schedule.conflicts.col.${c}`)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {conflicts.map((c) => (
+            <tr key={c.booking_id} className="border-b border-line last:border-b-0">
+              <td className="py-3 pl-6 pr-3 text-[15px] font-bold text-ink">{c.holder_name ?? '—'}</td>
+              <td className="px-4 py-3 text-[15px] text-muted">{resourceName(resources.data, c.resource_id)}</td>
+              <td className="px-4 py-3 text-[15px] text-muted">{fmtDayTime(c.start)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
+  );
+}
+
+function CheckStep() {
+  const { t } = useTranslation();
+  const { pending, setResult, backToUpload } = useScheduleWizardStore();
+  const invalidate = useInvalidateAfterImport();
   const commit = useMutation({
-    mutationFn: () => api.schedule.commit(preview.importId),
+    mutationFn: () => {
+      if (!pending) throw new Error('no pending import');
+      return pending.kind === 'file'
+        ? client.admin.confirmScheduleImport(pending.preview.import_id)
+        : client.admin.createScheduleClass({ ...pending.input, confirm_conflicts: true });
+    },
     onSuccess: (res) => {
+      invalidate();
       setResult(res);
-      void qc.invalidateQueries({ queryKey: keys.blocks });
-      void qc.invalidateQueries({ queryKey: keys.dashboardAll });
-      void qc.invalidateQueries({ queryKey: keys.auditAll });
     },
   });
-  const { conflictCount } = preview;
+  if (!pending) return null;
+  const conflicts = pending.kind === 'file' ? pending.preview.conflicts : pending.conflicts;
+  const count = conflicts.length;
 
   return (
     <div className="space-y-5">
-      <Card className="grid grid-cols-3 divide-x divide-line">
-        {([['recurringClasses', preview.recurringClasses], ['weeks', preview.weeks], ['blocksGenerated', preview.blocksGenerated]] as const).map(([k, v]) => (
-          <div key={k} className="px-6 py-5">
-            <p className="text-sm text-muted">{t(`schedule.summary.${k}`)}</p>
-            <p className="heading mt-1 text-4xl leading-none">{v}</p>
-          </div>
-        ))}
-      </Card>
+      {pending.kind === 'file' && (
+        <Card className="grid grid-cols-2 divide-x divide-line">
+          {(
+            [
+              ['classes', pending.preview.classes_count],
+              ['occurrences', pending.preview.occurrences_count],
+            ] as const
+          ).map(([k, v]) => (
+            <div key={k} className="px-6 py-5">
+              <p className="text-sm text-muted">{t(`schedule.summary.${k}`)}</p>
+              <p className="heading mt-1 text-4xl leading-none">{v}</p>
+            </div>
+          ))}
+        </Card>
+      )}
 
-      {conflictCount > 0 ? (
-        <Banner tone="warn" role="alert" title={t('schedule.conflicts.title', { count: conflictCount })}>
+      {count > 0 ? (
+        <Banner tone="warn" role="alert" title={t('schedule.conflicts.title', { count })}>
           {t('schedule.conflicts.body')}
         </Banner>
       ) : (
         <Banner tone="success" role="status" title={t('schedule.conflicts.none')} />
       )}
 
-      {conflictCount > 0 && (
-        <Card className="overflow-hidden">
-          <table className="w-full text-left">
-            <caption className="sr-only">{t('schedule.conflicts.title', { count: conflictCount })}</caption>
-            <thead>
-              <tr className="border-b border-line">
-                {['user', 'resource', 'when', 'course'].map((c) => <th key={c} scope="col" className="table-head first:pl-6">{t(`schedule.conflicts.col.${c}`)}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {preview.conflicts.map((c) => (
-                <tr key={c.bookingId} className="border-b border-line last:border-b-0">
-                  <td className="py-3 pl-6 pr-3 text-[15px] font-bold text-ink">
-                    {c.userName} <Badge tone="neutral" className="ml-1">{t(`schedule.userKind.${c.userKind}`)}</Badge>
-                  </td>
-                  <td className="px-4 py-3 text-[15px] text-muted">{c.resourceName}</td>
-                  <td className="px-4 py-3 text-[15px] text-muted">{fmtDayTime(c.startsAt)}</td>
-                  <td className="px-4 py-3 text-[15px] text-muted">{c.courseName}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+      {count > 0 && <ConflictTable conflicts={conflicts} />}
+
+      {commit.isError && (
+        <p role="alert" className="text-sm font-semibold text-danger-ink">
+          {errorMessage(commit.error, t)}
+        </p>
       )}
 
-      {commit.isError && <p role="alert" className="text-sm font-semibold text-danger-ink">{commit.error instanceof ApiError ? commit.error.message : t('errors.generic')}</p>}
-
       <div className="flex gap-3">
-        <Button variant="outline" size="lg" onClick={backToUpload}>{t('common.back')}</Button>
-        <Button variant="accent" size="lg" loading={commit.isPending} leftIcon={conflictCount > 0 ? <AlertTriangle className="h-5 w-5" aria-hidden /> : undefined} onClick={() => commit.mutate()}>
-          {conflictCount > 0 ? t('schedule.confirmWithConflicts', { count: conflictCount }) : t('schedule.confirm')}
+        <Button variant="outline" size="lg" onClick={backToUpload}>
+          {t('common.back')}
+        </Button>
+        <Button
+          variant="accent"
+          size="lg"
+          loading={commit.isPending}
+          disabled={!SERVER_READY}
+          leftIcon={count > 0 ? <AlertTriangle className="h-5 w-5" aria-hidden /> : undefined}
+          onClick={() => commit.mutate()}
+        >
+          {count > 0 ? t('schedule.confirmWithConflicts', { count }) : t('schedule.confirm')}
         </Button>
       </div>
     </div>
@@ -293,14 +449,22 @@ function DoneStep() {
       </div>
       <h2 className="heading mt-4 text-2xl">{t('schedule.done.title')}</h2>
       <dl className="mx-auto mt-6 grid max-w-lg grid-cols-3 gap-4">
-        {([['blocksCreated', result.blocksCreated], ['cancelledBookings', result.cancelledBookings], ['notifiedUsers', result.notifiedUsers]] as const).map(([k, v]) => (
-          <div key={k} className="rounded-2xl bg-subtle px-3 py-4">
-            <dd className="heading text-3xl leading-none">{v}</dd>
+        {(
+          [
+            ['occurrencesCreated', result.occurrences_created],
+            ['cancelledBookings', result.cancelled_bookings_count],
+            ['notifiedUsers', result.notified_users_count],
+          ] as const
+        ).map(([k, v]) => (
+          <div key={k} className="flex flex-col-reverse rounded-2xl bg-subtle px-3 py-4">
             <dt className="mt-1 text-xs text-muted">{t(`schedule.done.${k}`)}</dt>
+            <dd className="heading text-3xl leading-none">{v}</dd>
           </div>
         ))}
       </dl>
-      <Button className="mt-6" variant="primary" size="lg" onClick={reset}>{t('schedule.done.again')}</Button>
+      <Button className="mt-6" variant="primary" size="lg" onClick={reset}>
+        {t('schedule.done.again')}
+      </Button>
     </Card>
   );
 }

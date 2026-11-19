@@ -1,28 +1,23 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/api/endpoints';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { client, type BlockCreate, type DeliveryStatus, type ListBlocksData } from '@/api/client';
 import { keys } from '@/api/keys';
-import type { BlockInput, BlockPreviewQuery } from '@/api/types';
 
-export function useBlocks() {
-  return useQuery({ queryKey: keys.blocks, queryFn: () => api.blocks.list() });
+export function useBlocks(q: ListBlocksData['query']) {
+  return useQuery({ queryKey: keys.blocks(q), queryFn: () => client.admin.blocks(q), placeholderData: keepPreviousData });
 }
 
-export function useBlockPreview(q: BlockPreviewQuery | null) {
-  return useQuery({
-    queryKey: keys.blockPreview(q?.resourceId ?? '', q?.from ?? '', q?.to ?? null, q?.excludeBlockId),
-    queryFn: () => api.blocks.preview(q as BlockPreviewQuery),
-    enabled: !!q,
-    staleTime: 0,
-  });
+/** Toate mesajele au primit un rezultat (livrat sau eșuat). */
+export function deliveryComplete(d: DeliveryStatus): boolean {
+  return d.delivered + d.failed >= d.notified;
 }
 
-/** Raportul „anunțați / livrați”; se reîmprospătează cât timp trimiterea nu s-a încheiat (SDD 7.3). */
+/** Contorul „anunțați / livrați”; se reîmprospătează cât timp trimiterea nu s-a încheiat (SDD 7.3, pasul 4). */
 export function useDelivery(blockId: string | null) {
   return useQuery({
     queryKey: keys.delivery(blockId ?? ''),
-    queryFn: () => api.blocks.delivery(blockId as string),
+    queryFn: () => client.admin.blockDelivery(blockId as string),
     enabled: !!blockId,
-    refetchInterval: (query) => (query.state.data?.complete ? false : 1500),
+    refetchInterval: (query) => (query.state.data && deliveryComplete(query.state.data) ? false : 2000),
   });
 }
 
@@ -31,9 +26,9 @@ function useInvalidateAfterBlockChange() {
   const qc = useQueryClient();
   return () =>
     Promise.all([
-      qc.invalidateQueries({ queryKey: keys.blocks }),
+      qc.invalidateQueries({ queryKey: keys.blocksAll }),
       qc.invalidateQueries({ queryKey: keys.dashboardAll }),
-      qc.invalidateQueries({ queryKey: keys.resources }),
+      qc.invalidateQueries({ queryKey: keys.adminBookingsAll }),
       qc.invalidateQueries({ queryKey: keys.auditAll }),
     ]);
 }
@@ -41,23 +36,16 @@ function useInvalidateAfterBlockChange() {
 export function useCreateBlock() {
   const invalidate = useInvalidateAfterBlockChange();
   return useMutation({
-    mutationFn: (input: BlockInput) => api.blocks.create(input),
+    mutationFn: (input: BlockCreate) => client.admin.createBlock(input),
     onSuccess: () => invalidate(),
   });
 }
 
-export function useUpdateBlock() {
-  const invalidate = useInvalidateAfterBlockChange();
-  return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: BlockInput }) => api.blocks.update(id, input),
-    onSuccess: () => invalidate(),
-  });
-}
-
+/** DELETE /admin/blocks/{id}: deblocare (rezervările deja anulate nu se refac). */
 export function useReleaseBlock() {
   const invalidate = useInvalidateAfterBlockChange();
   return useMutation({
-    mutationFn: (id: string) => api.blocks.release(id),
+    mutationFn: (id: string) => client.admin.deleteBlock(id),
     onSuccess: () => invalidate(),
   });
 }
