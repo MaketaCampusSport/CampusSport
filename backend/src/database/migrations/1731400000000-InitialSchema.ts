@@ -18,7 +18,7 @@ export class InitialSchema1731400000000 implements MigrationInterface {
   async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       DROP TABLE IF EXISTS audit_log, settings, push_subscriptions, notifications, waitlist, monthly_quota,
-        occupancy, recurrences, resource_sports, resources, sports, users CASCADE;
+        occupancy, recurrences, resource_sports, resources, sports, user_avatars, users CASCADE;
       DROP FUNCTION IF EXISTS create_monthly_partitions(date);
       DROP FUNCTION IF EXISTS audit_log_insert_only();
     `);

@@ -1,6 +1,6 @@
 # Alinierea front-end-ului la contractul API
 
-Contractul este `assets/livrabil05/openapi.yaml` (56 de operații sub `/api/v1`). Front-end-ul nu mai folosește rute „presupuse”:
+Contractul este `assets/livrabil05/openapi.yaml` (64 de operații sub `/api/v1`). Front-end-ul nu mai folosește rute „presupuse”:
 
 - tipurile se generează din contract în `src/api/generated/` (`npm run api:generate`, rezultatul se versionează);
 - `src/api/client.ts` are o metodă pentru fiecare operație, cu JSON snake_case exact ca în specificație;

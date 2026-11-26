@@ -21,6 +21,7 @@ export function userEntity(key: keyof typeof EXAMPLE_USERS, overrides: Partial<U
     calendarToken: '6f1e2d3c-4b5a-4968-8776-655443322110',
     notificationPreferences: { push: true, email: true, sms: false, language: 'ro' },
     lastActiveAt: null,
+    avatarUpdatedAt: null,
     createdAt: CREATED_AT,
     ...overrides,
   };

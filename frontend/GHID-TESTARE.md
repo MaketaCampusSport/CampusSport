@@ -101,13 +101,19 @@ Deschide **<http://localhost:5173>**. Utilizatorii ajung în aplicația mobilă 
 
 ### Utilizatori (FR-05)
 - Caută, filtrează după rol și stare. **Suspendă** (durată și motiv), **Reactivează**.
+- **Adaugă utilizator**: nume, email, rol (oricare, inclusiv administrator), telefon (obligatoriu pentru externi), parolă și, opțional, fotografie.
+- **Editează**: aceleași câmpuri; parola rămâne neschimbată dacă lași câmpul gol. Fotografia se schimbă sau se șterge imediat, din aceeași fereastră. Nu îți poți schimba propriul rol.
+- **Șterge** (coșul): rezervările viitoare se anulează, istoricul rămâne anonimizat. Propriul cont nu are buton de ștergere; un cont care apare în jurnalul de audit (de ex. alt administrator) nu se poate șterge, se suspendă.
 
 ### Check-in (FR-03 / FR-15)
 - Scanează QR-ul rezervării cu camera (HTTPS sau `localhost`) sau lipește conținutul codului (`<id>.<nonce>.<semnătură>`). Mesaje pentru cod invalid, check-in deja făcut, rezervare inactivă sau în afara ferestrei −10 / +15 min.
 - Pentru un test complet: rezervă ca student pentru ziua curentă, deschide QR-ul din *Rezervări*, copiază conținutul și verifică-l ca admin.
 
 ### Contul meu (NFR-08)
-- Datele sesiunii și comanda pentru configurarea TOTP pe server.
+- Datele sesiunii.
+
+### Fotografia de profil (aplicația utilizatorilor)
+- *Profil* → **Fotografia de profil** → **Adaugă fotografie** / **Schimbă fotografia** / **Șterge fotografia**. Imaginea se decupează pătrat și se micșorează la 512 px înainte de trimitere; apare imediat în profil, pe pagina de start și în panoul de administrare.
 
 ## 6. Teme, limbă, accesibilitate
 - Panou: meniul din stânga-jos (**Limbă**, **Aspect**). Aplicația: **Profil**.

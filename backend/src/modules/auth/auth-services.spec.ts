@@ -67,6 +67,9 @@ import { TotpService } from './totp.service';
 //   });
 // });
 
+// scrypt is slow on purpose (32 MiB, ~100 ms per hash); with the whole suite in parallel it needs headroom.
+jest.setTimeout(30_000);
+
 describe('password hashing', () => {
   it('verifies the right password only, with a random salt per hash', async () => {
     const a = await hashPassword('parola123');

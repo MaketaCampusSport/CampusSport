@@ -14,6 +14,7 @@ CREATE TABLE users (
     phone_verified_at        TIMESTAMP WITH TIME ZONE,
     totp_secret              VARCHAR2(255),
     password_hash            VARCHAR2(255),
+    avatar_updated_at        TIMESTAMP WITH TIME ZONE,
     calendar_token           VARCHAR2(36) NOT NULL,
     notification_preferences CLOB NOT NULL,
     last_active_at           TIMESTAMP WITH TIME ZONE,
@@ -39,6 +40,19 @@ ALTER TABLE users ADD CONSTRAINT users_suspended_ck CHECK ( status <> 'suspended
 ALTER TABLE users ADD CONSTRAINT users_external_phone_ck CHECK ( role <> 'external' OR phone IS NOT NULL );
 -- Dezactivat (autentificare cu email si parola):
 -- ALTER TABLE users ADD CONSTRAINT users_sso_ck CHECK ( ( role = 'external' AND sso_subject IS NULL ) OR ( role <> 'external' AND sso_subject IS NOT NULL ) );
+
+CREATE TABLE user_avatars (
+    user_id      VARCHAR2(36) NOT NULL,
+    content_type VARCHAR2(20) NOT NULL,
+    data         BLOB NOT NULL,
+    updated_at   TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+COMMENT ON TABLE user_avatars IS 'Fotografia de profil (JPEG, PNG sau WebP, cel mult 2 MB); bytea in PostgreSQL';
+
+ALTER TABLE user_avatars ADD CONSTRAINT user_avatars_pk PRIMARY KEY ( user_id );
+ALTER TABLE user_avatars ADD CONSTRAINT user_avatars_users_fk FOREIGN KEY ( user_id ) REFERENCES users ( id ) ON DELETE CASCADE;
+ALTER TABLE user_avatars ADD CONSTRAINT user_avatars_type_ck CHECK ( content_type IN ( 'image/jpeg', 'image/png', 'image/webp' ) );
 
 CREATE TABLE sports (
     id                 VARCHAR2(36) NOT NULL,

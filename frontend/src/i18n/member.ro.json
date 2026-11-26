@@ -163,7 +163,10 @@
       "deleteTitle": "Ștergi contul?",
       "deleteBody": "Rezervările viitoare se anulează, iar datele personale se anonimizează. Acțiunea nu poate fi anulată.",
       "deleteConfirm": "Șterge definitiv",
-      "deleted": "Contul a fost șters."
+      "deleted": "Contul a fost șters.",
+      "photoTitle": "Fotografia de profil",
+      "photoSaved": "Fotografia a fost salvată.",
+      "photoRemoved": "Fotografia a fost ștearsă."
     }
   },
   "login": {

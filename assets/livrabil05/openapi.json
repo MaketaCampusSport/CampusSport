@@ -3,7 +3,7 @@
   "info": {
     "title": "CampusSport API",
     "version": "1.0.0",
-    "description": "API REST JSON pentru **CampusSport**, sistemul de programare a bazei sportive universitare.\nImplementează interfața descrisă în SDD cap. 6 și cerințele din SRS cap. 8.\n\n## Convenții\n- **Versionare:** toate rutele sunt sub `/api/v1` (SDD 6).\n- **Transport:** HTTPS cu TLS 1.2+ (NFR-08, SRS 8.3.4).\n- **Timp:** intervalele se transmit ca `start` / `end` în ISO 8601 cu fus orar; în baza de date sunt un singur `tstzrange` (`period`). Parametrii de tip `date` se interpretează în fusul orar al bazei sportive.\n- **Denumiri:** câmpurile JSON folosesc `snake_case`, ca în tabelele din SDD 5.1.\n- **Erori:** orice eroare are un `code` stabil și mesaje pentru utilizator în română și engleză (SDD 6.1).\n- **Limitare de cereri:** de exemplu 10 rezervări/minut per utilizator; la depășire se răspunde cu `429` (SDD 8.1).\n\n## Coduri de eroare\n| HTTP | Coduri |\n|---|---|\n| 400 | `BAD_REQUEST` |\n| 401 | `UNAUTHENTICATED`, `INVALID_CREDENTIALS`, `OTP_INVALID` |\n| 403 | `FORBIDDEN`, `ACCOUNT_SUSPENDED` |\n| 404 | `NOT_FOUND` |\n| 409 | `SLOT_TAKEN`, `SLOT_BLOCKED`, `EMAIL_ALREADY_USED`, `BOOKING_NOT_CANCELLABLE`, `BOOKING_NOT_ACTIVE`, `ALREADY_CHECKED_IN`, `ALREADY_ON_WAITLIST`, `OFFER_TAKEN`, `BLOCK_CONFLICT`, `CONFLICTS_NEED_CONFIRMATION` |\n| 410 | `OFFER_EXPIRED` |\n| 422 | `VALIDATION_FAILED`, `QUOTA_EXHAUSTED`, `ACTIVE_LIMIT_REACHED`, `WINDOW_EXCEEDED`, `EXTERNAL_ACCESS_DENIED`, `OUTSIDE_OPENING_HOURS`, `INVALID_SLOT`, `RESOURCE_INACTIVE`, `QR_INVALID`, `CHECKIN_WINDOW_CLOSED`, `SCHEDULE_FILE_INVALID` |\n| 429 | `RATE_LIMITED` |\n\n## Autentificare\n- **Toate rolurile:** email și parolă păstrate în baza de date (hash scrypt). Înregistrarea publică creează conturi de student sau profesor; rolurile `external` și `admin` se atribuie altfel (date inițiale, administrare).\n- **Dezactivat:** SSO prin OpenID Connect (SDD 6.3), OTP pentru externi și 2FA pentru administratori (NFR-08). Rutele sunt comentate în acest fișier.\n- **Sesiune:** JWT de acces valabil 15 minute, trimis ca `Authorization: Bearer`. Tokenul de reîmprospătare stă în cookie `HttpOnly`, `Secure`, `SameSite=Strict` și este valabil 30 de zile pe telefon, respectiv 8 ore pentru administratori (SDD 8.1).\n\n## Roluri\n| Valoare | Semnificație | Prioritate (SRS 3.3) |\n|---|---|---|\n| `teacher` | Cadru didactic | 1 |\n| `student` | Student | 2 |\n| `external` | Persoană externă | 3 |\n| `admin` | Administrator al bazei sportive | – |\n\nFiecare operație indică rolul minim în `x-min-role` și cerințele SRS acoperite în `x-srs`.\n`x-sdd-route: false` marchează rutele care nu sunt în lista „rute principale” din SDD 6.1, dar sunt necesare pentru cerințele SRS.\n",
+    "description": "API REST JSON pentru **CampusSport**, sistemul de programare a bazei sportive universitare.\nImplementează interfața descrisă în SDD cap. 6 și cerințele din SRS cap. 8.\n\n## Convenții\n- **Versionare:** toate rutele sunt sub `/api/v1` (SDD 6).\n- **Transport:** HTTPS cu TLS 1.2+ (NFR-08, SRS 8.3.4).\n- **Timp:** intervalele se transmit ca `start` / `end` în ISO 8601 cu fus orar; în baza de date sunt un singur `tstzrange` (`period`). Parametrii de tip `date` se interpretează în fusul orar al bazei sportive.\n- **Denumiri:** câmpurile JSON folosesc `snake_case`, ca în tabelele din SDD 5.1.\n- **Erori:** orice eroare are un `code` stabil și mesaje pentru utilizator în română și engleză (SDD 6.1).\n- **Limitare de cereri:** de exemplu 10 rezervări/minut per utilizator; la depășire se răspunde cu `429` (SDD 8.1).\n\n## Coduri de eroare\n| HTTP | Coduri |\n|---|---|\n| 400 | `BAD_REQUEST` |\n| 401 | `UNAUTHENTICATED`, `INVALID_CREDENTIALS`, `OTP_INVALID` |\n| 403 | `FORBIDDEN`, `ACCOUNT_SUSPENDED` |\n| 404 | `NOT_FOUND` |\n| 409 | `SLOT_TAKEN`, `SLOT_BLOCKED`, `EMAIL_ALREADY_USED`, `BOOKING_NOT_CANCELLABLE`, `BOOKING_NOT_ACTIVE`, `ALREADY_CHECKED_IN`, `ALREADY_ON_WAITLIST`, `OFFER_TAKEN`, `BLOCK_CONFLICT`, `CONFLICTS_NEED_CONFIRMATION`, `USER_HAS_HISTORY` |\n| 410 | `OFFER_EXPIRED` |\n| 422 | `VALIDATION_FAILED`, `QUOTA_EXHAUSTED`, `ACTIVE_LIMIT_REACHED`, `WINDOW_EXCEEDED`, `EXTERNAL_ACCESS_DENIED`, `OUTSIDE_OPENING_HOURS`, `INVALID_SLOT`, `RESOURCE_INACTIVE`, `QR_INVALID`, `CHECKIN_WINDOW_CLOSED`, `SCHEDULE_FILE_INVALID`, `IMAGE_INVALID` |\n| 429 | `RATE_LIMITED` |\n\n## Autentificare\n- **Toate rolurile:** email și parolă păstrate în baza de date (hash scrypt). Înregistrarea publică creează conturi de student sau profesor; rolurile `external` și `admin` se atribuie altfel (date inițiale, administrare).\n- **Dezactivat:** SSO prin OpenID Connect (SDD 6.3), OTP pentru externi și 2FA pentru administratori (NFR-08). Rutele sunt comentate în acest fișier.\n- **Sesiune:** JWT de acces valabil 15 minute, trimis ca `Authorization: Bearer`. Tokenul de reîmprospătare stă în cookie `HttpOnly`, `Secure`, `SameSite=Strict` și este valabil 30 de zile pe telefon, respectiv 8 ore pentru administratori (SDD 8.1).\n\n## Roluri\n| Valoare | Semnificație | Prioritate (SRS 3.3) |\n|---|---|---|\n| `teacher` | Cadru didactic | 1 |\n| `student` | Student | 2 |\n| `external` | Persoană externă | 3 |\n| `admin` | Administrator al bazei sportive | – |\n\nFiecare operație indică rolul minim în `x-min-role` și cerințele SRS acoperite în `x-srs`.\n`x-sdd-route: false` marchează rutele care nu sunt în lista „rute principale” din SDD 6.1, dar sunt necesare pentru cerințele SRS.\n",
     "x-documents": [
       "MA-Software Requirements Specifications - Sistem de programare a bazei sportive universitare",
       "MA-Software Design Descriptions - Sistem de programare a bazei sportive universitare"
@@ -26,7 +26,7 @@
   "tags": [
     {
       "name": "Auth",
-      "description": "Înregistrare și login cu email și parolă, sesiuni, cont, suspendare (FR-01, FR-02, FR-05, NFR-11)."
+      "description": "Înregistrare și login cu email și parolă, sesiuni, cont, fotografie de profil, administrarea conturilor (FR-01, FR-02, FR-05, NFR-11)."
     },
     {
       "name": "Catalog",
@@ -336,6 +336,83 @@
         }
       }
     },
+    "/me/avatar": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "uploadMyAvatar",
+        "summary": "Încarcă fotografia de profil",
+        "description": "Înlocuiește fotografia existentă. Clientul o micșorează înainte de trimitere.",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "FR-01"
+        ],
+        "x-sdd-route": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/AvatarUpload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profilul cu noul `avatar_url`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "description": "Imagine nevalidă (`IMAGE_INVALID`) – doar JPEG, PNG sau WebP, cel mult 2 MB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "deleteMyAvatar",
+        "summary": "Șterge fotografia de profil",
+        "x-min-role": "utilizator",
+        "x-srs": [
+          "FR-01"
+        ],
+        "x-sdd-route": false,
+        "responses": {
+          "200": {
+            "description": "Profilul, fără fotografie.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
     "/admin/users": {
       "get": {
         "tags": [
@@ -412,6 +489,61 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "createUser",
+        "summary": "Creează un cont",
+        "description": "Administratorul poate crea orice rol, inclusiv `admin` și `external` (externii au nevoie de telefon).",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-05",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Cont creat.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "Există deja un cont cu acest email (`EMAIL_ALREADY_USED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
           }
         }
       }
@@ -517,6 +649,272 @@
           },
           "403": {
             "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/admin/users/{id}": {
+      "patch": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "updateUser",
+        "summary": "Modifică un cont",
+        "description": "Se trimit doar câmpurile schimbate. `password` setează o parolă nouă. Schimbarea rolului, a emailului sau a parolei închide sesiunile contului.\nAdministratorul nu își poate scoate singur rolul `admin` (`FORBIDDEN`).\n",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-05",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contul modificat.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Există deja un cont cu acest email (`EMAIL_ALREADY_USED`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableEntity"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "deleteUser",
+        "summary": "Șterge un cont",
+        "description": "Ca la `DELETE /me`: rezervările viitoare se anulează, iar istoricul rămâne anonimizat (SDD 5.3).\nPropriul cont nu se poate șterge de aici (`FORBIDDEN`). Un cont care apare ca autor în jurnalul de audit nu se poate șterge (`USER_HAS_HISTORY`); se suspendă.\n",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-05",
+          "FR-45",
+          "NFR-11"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Cont șters."
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Contul apare în jurnalul de audit (`USER_HAS_HISTORY`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/users/{id}/avatar": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "uploadUserAvatar",
+        "summary": "Încarcă fotografia unui utilizator",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-05",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/AvatarUpload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contul cu noul `avatar_url`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "description": "Imagine nevalidă (`IMAGE_INVALID`) – doar JPEG, PNG sau WebP, cel mult 2 MB.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "deleteUserAvatar",
+        "summary": "Șterge fotografia unui utilizator",
+        "x-min-role": "admin",
+        "x-srs": [
+          "FR-05",
+          "FR-45"
+        ],
+        "x-sdd-route": false,
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contul, fără fotografie.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/users/{id}/avatar": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "getUserAvatar",
+        "summary": "Fotografia de profil a unui utilizator",
+        "description": "Publică, pentru că `<img>` nu poate trimite tokenul. Se folosește `avatar_url` din `User`, care conține versiunea (`v`), deci răspunsul se poate păstra în cache.",
+        "x-min-role": "public",
+        "x-srs": [
+          "FR-01"
+        ],
+        "x-sdd-route": false,
+        "security": [],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          },
+          {
+            "name": "v",
+            "in": "query",
+            "description": "Versiunea fotografiei, doar pentru cache.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Imaginea.",
+            "content": {
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/webp": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
@@ -3186,7 +3584,9 @@
           "OFFER_EXPIRED",
           "BLOCK_CONFLICT",
           "CONFLICTS_NEED_CONFIRMATION",
-          "SCHEDULE_FILE_INVALID"
+          "SCHEDULE_FILE_INVALID",
+          "IMAGE_INVALID",
+          "USER_HAS_HISTORY"
         ]
       },
       "SlotConflictError": {
@@ -3338,10 +3738,98 @@
             "format": "date-time",
             "nullable": true
           },
+          "avatar_url": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true,
+            "description": "Calea fotografiei de profil (`GET /users/{id}/avatar`), cu versiunea în `v`; `null` fără fotografie.",
+            "example": "/api/v1/users/3c7d1e94-52af-4b08-9e61-a8f02d6b7c15/avatar?v=1764158400000"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
             "readOnly": true
+          }
+        }
+      },
+      "UserCreate": {
+        "type": "object",
+        "required": [
+          "full_name",
+          "email",
+          "role",
+          "password"
+        ],
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Elena Munteanu"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "elena.munteanu@example.edu"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^\\+[1-9]\\d{7,14}$",
+            "description": "Format E.164; obligatoriu pentru `external`.",
+            "example": "+37360000002"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "maxLength": 128,
+            "example": "parola123"
+          }
+        }
+      },
+      "UserUpdate": {
+        "type": "object",
+        "minProperties": 1,
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^\\+[1-9]\\d{7,14}$",
+            "description": "Format E.164; `null` șterge telefonul (nu și pentru `external`)."
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "maxLength": 128,
+            "description": "Parola nouă."
+          }
+        }
+      },
+      "AvatarUpload": {
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "description": "JPEG, PNG sau WebP, cel mult 2 MB."
           }
         }
       },

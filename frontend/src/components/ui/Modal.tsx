@@ -50,7 +50,7 @@ export function Modal({
         <Dialog.Content
           aria-describedby={description ? undefined : undefined}
           className={cn(
-            'fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[calc(100vw-48px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-4xl bg-surface p-8 shadow-pop [animation:cs-pop-in_0.18s_ease-out] focus:outline-none',
+            'fixed left-1/2 top-1/2 z-50 max-h-[90vh] w-[calc(100vw-48px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-4xl bg-surface p-8 shadow-pop [animation:cs-modal-in_0.18s_ease-out] focus:outline-none',
             sizes[size],
           )}
         >

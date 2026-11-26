@@ -2,8 +2,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import { rowsOf } from '../../common/db/rows';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, ILike, Repository } from 'typeorm';
-import type { FindOptionsWhere } from 'typeorm';
+import type { EntityManager, FindOptionsWhere } from 'typeorm';
 import type { AuthUser } from '../../common/auth/auth.types';
+import { pgErrorCode } from '../../common/errors/all-exceptions.filter';
 import { AppException } from '../../common/errors/app.exception';
 import { Page, pageOf, pageOffset } from '../../common/http/pagination';
 import { APP_CONFIG } from '../../config/configuration';
@@ -12,7 +13,13 @@ import { User } from '../../database/entities';
 // DISABLED with SSO: import type { Role } from '../../database/enums';
 import { AuditService } from '../audit/audit.service';
 import type { CancelledBooking } from '../jobs/queues';
-import { ListUsersQueryDto, toUserResponse, UserResponse } from './dto/user.dto';
+import {
+  CreateUserDto,
+  ListUsersQueryDto,
+  toUserResponse,
+  UpdateUserDto,
+  UserResponse,
+} from './dto/user.dto';
 import { hashPassword } from './password';
 
 // DISABLED: SSO and the external OTP flow are commented out; sign-in is email + password.
@@ -274,40 +281,168 @@ export class UsersService {
    */
   async deleteSelf(user: AuthUser): Promise<CancelledBooking[]> {
     if (user.role === 'admin') throw new AppException('FORBIDDEN');
+    return this.dataSource.transaction((em) =>
+      this.removeAccount(em, user.id, 'user', { actorId: null, after: { self_service: true } }),
+    );
+  }
+
+  /**
+   * An administrator deletes another account, with the same anonymization as DELETE /me.
+   * The insert-only audit log references its actors, so an account that acted there cannot be deleted.
+   */
+  async deleteByAdmin(actor: AuthUser, id: string): Promise<CancelledBooking[]> {
+    if (id === actor.id) throw new AppException('FORBIDDEN');
     return this.dataSource.transaction(async (em) => {
-      const cancelled: { id: string; resource_id: string; start: Date; end: Date }[] = rowsOf(
-        await em.query(
-          `UPDATE occupancy SET status = 'cancelled', cancel_source = 'user'
+      const target = await em.getRepository(User).findOneBy({ id });
+      if (!target) throw new AppException('NOT_FOUND');
+      const acted = await em.query(`SELECT 1 FROM audit_log WHERE actor_id = $1 LIMIT 1`, [id]);
+      if (acted.length) throw new AppException('USER_HAS_HISTORY');
+      return this.removeAccount(em, id, 'admin', {
+        actorId: actor.id,
+        before: { full_name: target.fullName, email: target.email, role: target.role },
+        after: { self_service: false },
+      });
+    });
+  }
+
+  /** NFR-11 / SDD 5.3 inside the caller's transaction. Returns the cancelled future bookings. */
+  private async removeAccount(
+    em: EntityManager,
+    userId: string,
+    cancelSource: 'user' | 'admin',
+    audit: { actorId: string | null; before?: Record<string, unknown>; after: Record<string, unknown> },
+  ): Promise<CancelledBooking[]> {
+    const cancelled: { id: string; resource_id: string; start: Date; end: Date }[] = rowsOf(
+      await em.query(
+        `UPDATE occupancy SET status = 'cancelled', cancel_source = $2
          WHERE user_id = $1 AND kind = 'booking' AND status = 'active' AND lower(period) > now()
          RETURNING id, resource_id, lower(period) AS start, upper(period) AS "end"`,
-          [user.id],
-        ),
-      );
-      await em.query(`UPDATE occupancy SET user_id = NULL, anonymized_at = now() WHERE user_id = $1`, [
-        user.id,
-      ]);
-      // Bookings made through the API record their creator too (occupancy_created_by_fkey).
-      await em.query(`UPDATE occupancy SET created_by = NULL WHERE created_by = $1`, [user.id]);
-      await em.query(`DELETE FROM users WHERE id = $1`, [user.id]);
+        [userId, cancelSource],
+      ),
+    );
+    await em.query(`UPDATE occupancy SET user_id = NULL, anonymized_at = now() WHERE user_id = $1`, [userId]);
+    // Bookings made through the API record their creator too (occupancy_created_by_fkey).
+    await em.query(`UPDATE occupancy SET created_by = NULL WHERE created_by = $1`, [userId]);
+    // user_avatars, waitlist, quota, notifications and push subscriptions go with ON DELETE CASCADE.
+    await em.query(`DELETE FROM users WHERE id = $1`, [userId]);
+    await this.audit.record({ ...audit, action: 'user.delete', entity: 'user', entityId: userId }, em);
+    return cancelled.map((r) => ({
+      id: r.id,
+      userId: null,
+      resourceId: r.resource_id,
+      start: r.start,
+      end: r.end,
+    }));
+  }
+
+  /** An administrator creates an account of any role (FR-05). */
+  async createByAdmin(actor: AuthUser, input: CreateUserDto): Promise<UserResponse> {
+    const email = normalizeEmail(input.email);
+    const phone = input.phone ?? null;
+    if (input.role === 'external' && !phone) throw phoneRequired();
+    const passwordHash = await hashPassword(input.password);
+    return this.dataSource.transaction(async (em) => {
+      const repo = em.getRepository(User);
+      if (await repo.existsBy({ email })) throw new AppException('EMAIL_ALREADY_USED');
+      const created = await repo
+        .save(
+          repo.create({
+            fullName: input.full_name,
+            email,
+            phone,
+            role: input.role,
+            ssoSubject: null,
+            passwordHash,
+          }),
+        )
+        .catch(rethrowDuplicateEmail);
       await this.audit.record(
         {
-          actorId: null,
-          action: 'user.delete',
+          actorId: actor.id,
+          action: 'user.create',
           entity: 'user',
-          entityId: user.id,
-          after: { self_service: true },
+          entityId: created.id,
+          after: { full_name: input.full_name, email, phone, role: input.role },
         },
         em,
       );
-      return cancelled.map((r) => ({
-        id: r.id,
-        userId: null,
-        resourceId: r.resource_id,
-        start: r.start,
-        end: r.end,
-      }));
+      return this.toResponse((await repo.findOneBy({ id: created.id }))!);
     });
   }
+
+  /**
+   * Partial update by an administrator. `signOut` tells the caller to end the account's sessions:
+   * role, email or password changed (never for the acting admin's own sessions).
+   */
+  async updateByAdmin(
+    actor: AuthUser,
+    id: string,
+    input: UpdateUserDto,
+  ): Promise<{ user: UserResponse; signOut: boolean }> {
+    const passwordHash = input.password ? await hashPassword(input.password) : undefined;
+    return this.dataSource.transaction(async (em) => {
+      const repo = em.getRepository(User);
+      const user = await repo.findOneBy({ id });
+      if (!user) throw new AppException('NOT_FOUND');
+      if (id === actor.id && input.role !== undefined && input.role !== 'admin') {
+        throw new AppException('FORBIDDEN');
+      }
+
+      const changes: Partial<User> = {};
+      if (input.full_name !== undefined && input.full_name !== user.fullName)
+        changes.fullName = input.full_name;
+      if (input.email !== undefined) {
+        const email = normalizeEmail(input.email);
+        if (email !== user.email) {
+          if (await repo.existsBy({ email })) throw new AppException('EMAIL_ALREADY_USED');
+          changes.email = email;
+        }
+      }
+      if (input.phone !== undefined && input.phone !== user.phone) changes.phone = input.phone;
+      if (input.role !== undefined && input.role !== user.role) changes.role = input.role;
+      const role = changes.role ?? user.role;
+      const phone = changes.phone !== undefined ? changes.phone : user.phone;
+      if (role === 'external' && !phone) throw phoneRequired();
+
+      if (Object.keys(changes).length || passwordHash) {
+        await repo
+          .update({ id }, { ...changes, ...(passwordHash ? { passwordHash } : {}) })
+          .catch(rethrowDuplicateEmail);
+        const pick = (u: Partial<User>) => ({
+          ...(u.fullName !== undefined ? { full_name: u.fullName } : {}),
+          ...(u.email !== undefined ? { email: u.email } : {}),
+          ...(u.phone !== undefined ? { phone: u.phone } : {}),
+          ...(u.role !== undefined ? { role: u.role } : {}),
+        });
+        const keys = Object.keys(changes) as (keyof User)[];
+        await this.audit.record(
+          {
+            actorId: actor.id,
+            action: 'user.update',
+            entity: 'user',
+            entityId: id,
+            before: pick(Object.fromEntries(keys.map((k) => [k, user[k]]))),
+            after: { ...pick(changes), ...(passwordHash ? { password_changed: true } : {}) },
+          },
+          em,
+        );
+      }
+      const signOut = id !== actor.id && Boolean(changes.role || changes.email || passwordHash);
+      return { user: this.toResponse((await repo.findOneBy({ id }))!), signOut };
+    });
+  }
+}
+
+function phoneRequired(): AppException {
+  return new AppException('VALIDATION_FAILED', {
+    details: { fields: { phone: ['required for the external role'] } },
+  });
+}
+
+/** Two writes with the same email at once: users_email_uq decides. */
+function rethrowDuplicateEmail(err: unknown): never {
+  if (pgErrorCode(err) === '23505') throw new AppException('EMAIL_ALREADY_USED');
+  throw err;
 }
 
 function escapeLike(term: string): string {

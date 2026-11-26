@@ -35,6 +35,8 @@ export const ERROR_CODES = [
   'BLOCK_CONFLICT',
   'CONFLICTS_NEED_CONFIRMATION',
   'SCHEDULE_FILE_INVALID',
+  'IMAGE_INVALID',
+  'USER_HAS_HISTORY',
   'NOT_IMPLEMENTED',
   'INTERNAL_ERROR',
 ] as const;
@@ -161,6 +163,16 @@ export const ERRORS: Record<ErrorCode, ErrorDefinition> = {
     status: 422,
     ro: 'Fișierul cu orarul nu este valid.',
     en: 'The schedule file is not valid.',
+  },
+  IMAGE_INVALID: {
+    status: 422,
+    ro: 'Imaginea trebuie să fie JPEG, PNG sau WebP, de cel mult 2 MB.',
+    en: 'The image must be a JPEG, PNG or WebP file of at most 2 MB.',
+  },
+  USER_HAS_HISTORY: {
+    status: 409,
+    ro: 'Contul apare în jurnalul de audit și nu poate fi șters. Suspendă-l în schimb.',
+    en: 'The account appears in the audit log and cannot be deleted. Suspend it instead.',
   },
   RATE_LIMITED: {
     status: 429,

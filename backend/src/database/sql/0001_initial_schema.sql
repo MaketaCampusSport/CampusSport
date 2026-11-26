@@ -16,6 +16,7 @@ CREATE TABLE users (
     phone_verified_at        timestamptz,
     totp_secret              text,
     password_hash            text,
+    avatar_updated_at        timestamptz,
     calendar_token           uuid NOT NULL DEFAULT gen_random_uuid(),
     notification_preferences jsonb NOT NULL DEFAULT '{"push": true, "email": true, "sms": false, "language": "ro"}',
     last_active_at           timestamptz,
@@ -29,6 +30,17 @@ CREATE TABLE users (
     CONSTRAINT users_external_phone_ck CHECK (role <> 'external' OR phone IS NOT NULL)
     -- Dezactivat (autentificare cu email și parolă): membrii nu mai au neapărat cont SSO.
     -- CONSTRAINT users_sso_ck CHECK ((role = 'external') = (sso_subject IS NULL))
+);
+
+-- Fotografia de profil, separat de users ca citirile obișnuite să nu încarce imaginea.
+-- users.avatar_updated_at dă versiunea din avatar_url (cache).
+CREATE TABLE user_avatars (
+    user_id      uuid PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+    content_type text NOT NULL,
+    data         bytea NOT NULL,
+    updated_at   timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT user_avatars_type_ck CHECK (content_type IN ('image/jpeg', 'image/png', 'image/webp')),
+    CONSTRAINT user_avatars_size_ck CHECK (octet_length(data) <= 2097152)
 );
 
 CREATE TABLE sports (

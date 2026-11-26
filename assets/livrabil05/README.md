@@ -16,10 +16,10 @@ Pentru a vedea specificația în editorul indicat în sarcină: pe <https://edit
 
 ## Conținut
 
-56 de operații pe 51 de căi și 54 de scheme, grupate pe cele 9 module din SDD cap. 4:
+64 de operații pe 55 de căi și 57 de scheme, grupate pe cele 9 module din SDD cap. 4:
 
 - **19 operații** sunt rutele din SDD 6.1 și 6.2.
-- **37 de operații** sunt adăugate fiindcă SRS le cere, dar SDD nu le listează. Sunt marcate cu `x-sdd-route: false`.
+- **45 de operații** sunt adăugate fiindcă SRS le cere, dar SDD nu le listează. Sunt marcate cu `x-sdd-route: false`.
 
 Fiecare operație are rolul minim în `x-min-role` și cerințele acoperite în `x-srs`.
 
@@ -53,11 +53,11 @@ FR-16, FR-31, FR-33, FR-34, FR-36 și NFR-03 sunt realizate în principal de wor
 
 | Cerință | Operații |
 |---|---|
-| FR-01 | `POST /auth/register`, `POST /auth/login`, `GET /me` |
+| FR-01 | `POST /auth/register`, `POST /auth/login`, `GET /me`, `POST /me/avatar`, `DELETE /me/avatar`, `GET /users/{id}/avatar` |
 | FR-02 | `POST /auth/register` (fluxul OTP pentru externi este dezactivat) |
 | FR-03 | `POST /bookings`, `GET /bookings/{id}`, `POST /bookings/{id}/check-in` |
 | FR-04 | `GET /resources`, `POST /admin/resources`, `PATCH /admin/resources/{id}` |
-| FR-05 | `GET /admin/users`, `POST /admin/users/{id}/suspend`, `POST /admin/users/{id}/reactivate` |
+| FR-05 | `GET /admin/users`, `POST /admin/users`, `PATCH /admin/users/{id}`, `DELETE /admin/users/{id}`, `POST /admin/users/{id}/avatar`, `DELETE /admin/users/{id}/avatar`, `POST /admin/users/{id}/suspend`, `POST /admin/users/{id}/reactivate` |
 | FR-06 | `GET /sports` |
 | FR-07 | `GET /resources` |
 | FR-08 | `GET /resources/{id}` |
@@ -97,12 +97,12 @@ FR-16, FR-31, FR-33, FR-34, FR-36 și NFR-03 sunt realizate în principal de wor
 | FR-42 | `GET /admin/blocks`, `POST /admin/blocks` |
 | FR-43 | `GET /admin/bookings`, `GET /admin/dashboard` |
 | FR-44 | `GET /admin/reports` |
-| FR-45 | `POST /admin/users/{id}/suspend`, `POST /admin/users/{id}/reactivate`, `POST /admin/sports`, `PUT /admin/sports/{id}`, `POST /admin/resources`, `PATCH /admin/resources/{id}`, `PATCH /admin/bookings/{id}`, `POST /admin/bookings/{id}/cancel`, `POST /admin/blocks`, `DELETE /admin/blocks/{id}`, `POST /admin/schedule/import/{id}/confirm`, `POST /admin/schedule/classes`, `DELETE /admin/schedule/recurrences/{id}`, `POST /admin/events`, `POST /admin/announcements`, `PUT /admin/settings`, `GET /admin/audit-log` |
+| FR-45 | `POST /admin/users`, `PATCH /admin/users/{id}`, `DELETE /admin/users/{id}`, `POST /admin/users/{id}/avatar`, `DELETE /admin/users/{id}/avatar`, `POST /admin/users/{id}/suspend`, `POST /admin/users/{id}/reactivate`, `POST /admin/sports`, `PUT /admin/sports/{id}`, `POST /admin/resources`, `PATCH /admin/resources/{id}`, `PATCH /admin/bookings/{id}`, `POST /admin/bookings/{id}/cancel`, `POST /admin/blocks`, `DELETE /admin/blocks/{id}`, `POST /admin/schedule/import/{id}/confirm`, `POST /admin/schedule/classes`, `DELETE /admin/schedule/recurrences/{id}`, `POST /admin/events`, `POST /admin/announcements`, `PUT /admin/settings`, `GET /admin/audit-log` |
 | FR-46 | `GET /admin/settings`, `PUT /admin/settings` |
 | NFR-01 | `GET /availability`, `POST /bookings` |
 | NFR-03 | `POST /admin/blocks`, `GET /admin/blocks/{id}/delivery` |
 | NFR-04 | `POST /bookings` |
 | NFR-08 | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout` |
 | NFR-09 | `GET /bookings/{id}`, `DELETE /bookings/{id}`, `POST /bookings/{id}/check-in` |
-| NFR-11 | `DELETE /me`, `GET /me/export` |
+| NFR-11 | `DELETE /me`, `DELETE /admin/users/{id}`, `GET /me/export` |
 | NFR-14 | `POST /admin/sports`, `PUT /admin/sports/{id}`, `POST /admin/resources` |

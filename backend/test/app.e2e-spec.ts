@@ -596,4 +596,125 @@ describe('CampusSport API (e2e, real PostgreSQL)', () => {
     }
     await t.http().get('/api/v1/me').set('Authorization', extAuth).expect(401);
   });
+
+  it('admin user management: create, edit, photos, delete; accounts in the audit log stay', async () => {
+    const email = `e2e.admin.created.${Date.now()}@example.edu`;
+    const created = await t
+      .http()
+      .post('/api/v1/admin/users')
+      .set('Authorization', admin)
+      .send({
+        full_name: 'Radu Test',
+        email,
+        role: 'external',
+        phone: '+37360000009',
+        password: 'parola-e2e-2',
+      })
+      .expect(201);
+    const id: string = created.body.id;
+    expect(created.body).toMatchObject({ email, role: 'external', phone: '+37360000009', avatar_url: null });
+    // An external without a phone would break users_external_phone_ck: refused as a validation error.
+    await t
+      .http()
+      .patch(`/api/v1/admin/users/${id}`)
+      .set('Authorization', admin)
+      .send({ phone: null })
+      .expect(422);
+    await t
+      .http()
+      .patch(`/api/v1/admin/users/${id}`)
+      .set('Authorization', admin)
+      .send({ email: U.teacher.email })
+      .expect(409);
+    const edited = await t
+      .http()
+      .patch(`/api/v1/admin/users/${id}`)
+      .set('Authorization', admin)
+      .send({ role: 'teacher', phone: null, password: 'parola-e2e-3' })
+      .expect(200);
+    expect(edited.body).toMatchObject({ role: 'teacher', phone: null });
+    await t.http().post('/api/v1/auth/login').send({ email, password: 'parola-e2e-2' }).expect(401);
+    const login = await t
+      .http()
+      .post('/api/v1/auth/login')
+      .send({ email, password: 'parola-e2e-3' })
+      .expect(200);
+    const own = `Bearer ${login.body.access_token}`;
+
+    // Own photo from the profile; the admin replaces it; the public URL serves the current bytes.
+    const png = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.alloc(64, 1),
+    ]);
+    const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 2)]);
+    const mine = await t
+      .http()
+      .post('/api/v1/me/avatar')
+      .set('Authorization', own)
+      .attach('file', png, 'a.png')
+      .expect(200);
+    expect(mine.body.avatar_url).toMatch(new RegExp(`^/api/v1/users/${id}/avatar\\?v=\\d+$`));
+    await t
+      .http()
+      .post('/api/v1/me/avatar')
+      .set('Authorization', own)
+      .attach('file', Buffer.from('<svg/>'), 'x.svg')
+      .expect(422);
+    const replaced = await t
+      .http()
+      .post(`/api/v1/admin/users/${id}/avatar`)
+      .set('Authorization', admin)
+      .attach('file', jpeg, 'b.jpg')
+      .expect(200);
+    const img = await t.http().get(replaced.body.avatar_url).expect(200);
+    expect(img.headers['content-type']).toBe('image/jpeg');
+    expect(Buffer.from(img.body).equals(jpeg)).toBe(true);
+    await t.http().delete(`/api/v1/admin/users/${id}/avatar`).set('Authorization', admin).expect(200);
+    await t.http().get(`/api/v1/users/${id}/avatar`).expect(404);
+    await t
+      .http()
+      .post('/api/v1/me/avatar')
+      .set('Authorization', own)
+      .attach('file', png, 'a.png')
+      .expect(200);
+
+    // Deleting: never yourself, never an account the audit log references, otherwise everything goes.
+    await t.http().delete(`/api/v1/admin/users/${U.admin.id}`).set('Authorization', admin).expect(403);
+    await t.http().delete(`/api/v1/admin/users/${id}`).set('Authorization', own).expect(403);
+    await t.http().delete(`/api/v1/admin/users/${id}`).set('Authorization', admin).expect(204);
+    expect((await t.db.query(`SELECT 1 FROM users WHERE id = $1`, [id])).rows).toHaveLength(0);
+    expect((await t.db.query(`SELECT 1 FROM user_avatars WHERE user_id = $1`, [id])).rows).toHaveLength(0);
+    await t.http().get('/api/v1/me').set('Authorization', own).expect(401);
+
+    const otherAdmin = await t
+      .http()
+      .post('/api/v1/admin/users')
+      .set('Authorization', admin)
+      .send({
+        full_name: 'Admin Doi',
+        email: `e2e.admin2.${Date.now()}@example.edu`,
+        role: 'admin',
+        password: 'parola-e2e-4',
+      })
+      .expect(201);
+    const adminTwo = t.bearer(otherAdmin.body.id, 'admin');
+    await t
+      .http()
+      .post(`/api/v1/admin/users/${U.student.id}/reactivate`)
+      .set('Authorization', adminTwo)
+      .expect(200); // audited with Admin Doi as the actor
+    const refused = await t
+      .http()
+      .delete(`/api/v1/admin/users/${otherAdmin.body.id}`)
+      .set('Authorization', admin)
+      .expect(409);
+    expect(refused.body.code).toBe('USER_HAS_HISTORY');
+    // An admin cannot drop their own admin role.
+    await t
+      .http()
+      .patch(`/api/v1/admin/users/${U.admin.id}`)
+      .set('Authorization', admin)
+      .send({ role: 'teacher' })
+      .expect(403);
+  });
 });

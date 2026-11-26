@@ -8,7 +8,7 @@ CampusSport is the booking system for a university sports facility. The docs are
 
 - `assets/MA-Software Requirements Specifications …pdf` (SRS) and `assets/MA-Software Design Descriptions …pdf` (SDD) hold the requirements (FR-xx, NFR-xx, BR-xx) and the design. Code comments cite them as `SDD 7.1`, `FR-12` and so on.
 - `assets/livrabil05/` is the source of truth for the server contract:
-  - `openapi.yaml` describes 56 operations under `/api/v1`, with `x-min-role` (the minimum role) and `x-srs` (the requirements covered). `openapi.json` is the same spec in JSON, and the conformance test reads it.
+  - `openapi.yaml` describes 64 operations under `/api/v1`, with `x-min-role` (the minimum role) and `x-srs` (the requirements covered). `openapi.json` is the same spec in JSON, and the conformance test reads it.
   - `baza-de-date/schema-postgresql.sql` is the real DB schema. `datamodeler-import.ddl` is only an Oracle-dialect copy for drawing the ERD.
   - `Tehnologii-backend.md` is the agreed stack and versions. `README.md` lists the open design decisions.
 - `backend/` is the NestJS implementation (API and worker). `backend/README.md` has setup, commands and the list of stubbed routes.
@@ -67,7 +67,7 @@ npm run api:generate   # regenerate src/api/generated/ from assets/livrabil05/op
 - **SSO, admin 2FA and the external OTP flow are commented out, not deleted:** `oidc.service.ts`, `auth-flows.service.ts`, `otp.service.ts`, the handlers in `auth.controller.ts`, the `oidc` config, the operations in `openapi.yaml`, `TwoFactorPage.tsx`, the `/auth/2fa` route, and Keycloak in the compose files. The login pages also comment out the development-sign-in panel and the admin link. Restoring one means uncommenting it everywhere and regenerating `openapi.json`.
 - Slot times are shown in the facility time zone (`features/user/lib.ts`, `FACILITY_TZ`); always send the slot's own ISO `start` back to the API.
 - i18n: `src/i18n/ro.json`/`en.json` (admin + common) and `member.ro.json`/`member.en.json` (`user`, `login`, `auth`). `i18n.test.ts` checks parity, that every static key exists, and Romanian plurals (`_one/_few/_other`).
-- MSW handlers: `mocks/authHandlers.ts`, `mocks/memberHandlers.ts`, `mocks/handlers.ts` (admin + catalog), registered in that order. Keep them on the spec's paths and shapes. Tests sign in with `signInAs()` from `src/test/session.ts`.
+- MSW handlers: `mocks/authHandlers.ts`, `mocks/memberHandlers.ts`, `mocks/handlers.ts` (admin + catalog), registered in that order. Mock photos are `data:` URLs (`mocks/avatars.ts`). Upload tests must use Node's `File`/`FormData` (see `test/userManagement.test.tsx`), because jsdom's don't reach MSW. Keep them on the spec's paths and shapes. Tests sign in with `signInAs()` from `src/test/session.ts`.
 
 ## Toolchain quirks
 
@@ -79,6 +79,7 @@ npm run api:generate   # regenerate src/api/generated/ from assets/livrabil05/op
 - BullMQ 6 rejects `:` in custom job ids, so ids use `_`.
 - **Running without Redis (development):** `RedisModule` pings Redis at startup and, outside production, falls back to `MemoryKvStore`, so sign-in works but sessions are lost when the API restarts. `MailService` prints undelivered emails to the log outside production.
 - **Passwords:** `modules/auth/password.ts` hashes with `node:crypto` scrypt (`scrypt$N$r$p$salt$hash` in `users.password_hash`, selected only on demand). Login always runs one scrypt, also for unknown emails. The seed gives every example user `EXAMPLE_PASSWORD` (`parola123`) and keeps a password that was changed since. Migration `1764100000000-PasswordAuth` adds the column and drops `users_sso_ck` on databases created before it.
+- **User administration and photos:** `POST/PATCH/DELETE /admin/users[/{id}]` (UsersService `createByAdmin`, `updateByAdmin`, `deleteByAdmin`; deletion reuses the DELETE /me anonymization). An admin can't delete themselves or drop their own admin role. An account referenced as `actor_id` in the insert-only `audit_log` can't be deleted (409 `USER_HAS_HISTORY`). Photos live in PostgreSQL (`user_avatars`, `AvatarsService`): multipart field `file`, type detected from the bytes (JPEG/PNG/WebP), at most 2 MB, served by the public `GET /users/{id}/avatar` with long-lived caching because `User.avatar_url` carries the version (`users.avatar_updated_at`). The PWA crops and shrinks photos to 512 px before uploading (`frontend/src/lib/image.ts`, `components/ui/AvatarPicker.tsx`).
 - `/auth/register` and `/auth/login` allow 5 requests per minute per caller, also in controller tests: keep each `describe` at 5 calls or fewer.
 - **Container stack:** `migrate` and `seed` are one-shot services that `api`/`worker` wait for; `seed` runs only when `SEED_EXAMPLE_DATA=true` (and passes `SEED_ALLOW_PRODUCTION`, which the seeder requires under `NODE_ENV=production`). Keycloak, its `web` network alias, the Caddy auth host and the Postgres init that created its database are commented out with SSO.
 - **Windows dev server:** Vite binds `127.0.0.1` explicitly (Node resolves `localhost` to `::1` only); `VITE_DEV_HOST` overrides.

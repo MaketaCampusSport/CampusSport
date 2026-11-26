@@ -11,11 +11,13 @@ interface SessionState {
   expired: boolean;
   /** Reface sesiunea din cookie-ul de refresh, o singură dată per încărcare a paginii. */
   ensure: () => Promise<User | null>;
-  /** După login (SSO + 2FA, OTP extern sau dev login). */
+  /** După login (email și parolă, cont nou sau dev login). */
   signIn: (session: SessionPayload) => void;
   /** Local: uită tokenul și utilizatorul (logout-ul pe server îl face apelantul). */
   clear: () => void;
   markExpired: () => void;
+  /** Profilul s-a schimbat (ex. fotografia nouă), sesiunea rămâne aceeași. */
+  setUser: (user: User) => void;
 }
 
 let pending: Promise<User | null> | null = null;
@@ -52,6 +54,10 @@ export const useSession = create<SessionState>((set, get) => ({
   markExpired() {
     setAccessToken(null);
     set({ status: 'anonymous', user: null, expired: true });
+  },
+
+  setUser(user) {
+    if (get().user?.id === user.id) set({ user });
   },
 }));
 

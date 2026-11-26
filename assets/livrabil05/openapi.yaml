@@ -21,9 +21,9 @@ info:
     | 401 | `UNAUTHENTICATED`, `INVALID_CREDENTIALS`, `OTP_INVALID` |
     | 403 | `FORBIDDEN`, `ACCOUNT_SUSPENDED` |
     | 404 | `NOT_FOUND` |
-    | 409 | `SLOT_TAKEN`, `SLOT_BLOCKED`, `EMAIL_ALREADY_USED`, `BOOKING_NOT_CANCELLABLE`, `BOOKING_NOT_ACTIVE`, `ALREADY_CHECKED_IN`, `ALREADY_ON_WAITLIST`, `OFFER_TAKEN`, `BLOCK_CONFLICT`, `CONFLICTS_NEED_CONFIRMATION` |
+    | 409 | `SLOT_TAKEN`, `SLOT_BLOCKED`, `EMAIL_ALREADY_USED`, `BOOKING_NOT_CANCELLABLE`, `BOOKING_NOT_ACTIVE`, `ALREADY_CHECKED_IN`, `ALREADY_ON_WAITLIST`, `OFFER_TAKEN`, `BLOCK_CONFLICT`, `CONFLICTS_NEED_CONFIRMATION`, `USER_HAS_HISTORY` |
     | 410 | `OFFER_EXPIRED` |
-    | 422 | `VALIDATION_FAILED`, `QUOTA_EXHAUSTED`, `ACTIVE_LIMIT_REACHED`, `WINDOW_EXCEEDED`, `EXTERNAL_ACCESS_DENIED`, `OUTSIDE_OPENING_HOURS`, `INVALID_SLOT`, `RESOURCE_INACTIVE`, `QR_INVALID`, `CHECKIN_WINDOW_CLOSED`, `SCHEDULE_FILE_INVALID` |
+    | 422 | `VALIDATION_FAILED`, `QUOTA_EXHAUSTED`, `ACTIVE_LIMIT_REACHED`, `WINDOW_EXCEEDED`, `EXTERNAL_ACCESS_DENIED`, `OUTSIDE_OPENING_HOURS`, `INVALID_SLOT`, `RESOURCE_INACTIVE`, `QR_INVALID`, `CHECKIN_WINDOW_CLOSED`, `SCHEDULE_FILE_INVALID`, `IMAGE_INVALID` |
     | 429 | `RATE_LIMITED` |
 
     ## Autentificare
@@ -53,7 +53,7 @@ servers:
     description: Dezvoltare locală
 tags:
   - name: Auth
-    description: Înregistrare și login cu email și parolă, sesiuni, cont, suspendare (FR-01, FR-02, FR-05, NFR-11).
+    description: Înregistrare și login cu email și parolă, sesiuni, cont, fotografie de profil, administrarea conturilor (FR-01, FR-02, FR-05, NFR-11).
   - name: Catalog
     description: Sporturi, resurse, dotări, program de funcționare, filtrare după sport (FR-04, FR-06 – FR-08, FR-39).
   - name: Disponibilitate
@@ -447,6 +447,52 @@ paths:
                 additionalProperties: true
         '401':
           $ref: '#/components/responses/Unauthorized'
+  /me/avatar:
+    post:
+      tags: [Auth]
+      operationId: uploadMyAvatar
+      summary: Încarcă fotografia de profil
+      description: Înlocuiește fotografia existentă. Clientul o micșorează înainte de trimitere.
+      x-min-role: utilizator
+      x-srs: [FR-01]
+      x-sdd-route: false
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AvatarUpload'
+      responses:
+        '200':
+          description: Profilul cu noul `avatar_url`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Imagine nevalidă (`IMAGE_INVALID`) – doar JPEG, PNG sau WebP, cel mult 2 MB.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Auth]
+      operationId: deleteMyAvatar
+      summary: Șterge fotografia de profil
+      x-min-role: utilizator
+      x-srs: [FR-01]
+      x-sdd-route: false
+      responses:
+        '200':
+          description: Profilul, fără fotografie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /admin/users:
     get:
       tags: [Auth]
@@ -490,6 +536,39 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Auth]
+      operationId: createUser
+      summary: Creează un cont
+      description: Administratorul poate crea orice rol, inclusiv `admin` și `external` (externii au nevoie de telefon).
+      x-min-role: admin
+      x-srs: [FR-05, FR-45]
+      x-sdd-route: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: Cont creat.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Există deja un cont cu acest email (`EMAIL_ALREADY_USED`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
   /admin/users/{id}/suspend:
     post:
       tags: [Auth]
@@ -550,6 +629,165 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /admin/users/{id}:
+    patch:
+      tags: [Auth]
+      operationId: updateUser
+      summary: Modifică un cont
+      description: |
+        Se trimit doar câmpurile schimbate. `password` setează o parolă nouă. Schimbarea rolului, a emailului sau a parolei închide sesiunile contului.
+        Administratorul nu își poate scoate singur rolul `admin` (`FORBIDDEN`).
+      x-min-role: admin
+      x-srs: [FR-05, FR-45]
+      x-sdd-route: false
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Contul modificat.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Există deja un cont cu acest email (`EMAIL_ALREADY_USED`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+    delete:
+      tags: [Auth]
+      operationId: deleteUser
+      summary: Șterge un cont
+      description: |
+        Ca la `DELETE /me`: rezervările viitoare se anulează, iar istoricul rămâne anonimizat (SDD 5.3).
+        Propriul cont nu se poate șterge de aici (`FORBIDDEN`). Un cont care apare ca autor în jurnalul de audit nu se poate șterge (`USER_HAS_HISTORY`); se suspendă.
+      x-min-role: admin
+      x-srs: [FR-05, FR-45, NFR-11]
+      x-sdd-route: false
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Cont șters.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Contul apare în jurnalul de audit (`USER_HAS_HISTORY`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /admin/users/{id}/avatar:
+    post:
+      tags: [Auth]
+      operationId: uploadUserAvatar
+      summary: Încarcă fotografia unui utilizator
+      x-min-role: admin
+      x-srs: [FR-05, FR-45]
+      x-sdd-route: false
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AvatarUpload'
+      responses:
+        '200':
+          description: Contul cu noul `avatar_url`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Imagine nevalidă (`IMAGE_INVALID`) – doar JPEG, PNG sau WebP, cel mult 2 MB.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Auth]
+      operationId: deleteUserAvatar
+      summary: Șterge fotografia unui utilizator
+      x-min-role: admin
+      x-srs: [FR-05, FR-45]
+      x-sdd-route: false
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Contul, fără fotografie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /users/{id}/avatar:
+    get:
+      tags: [Auth]
+      operationId: getUserAvatar
+      summary: Fotografia de profil a unui utilizator
+      description: Publică, pentru că `<img>` nu poate trimite tokenul. Se folosește `avatar_url` din `User`, care conține versiunea (`v`), deci răspunsul se poate păstra în cache.
+      x-min-role: public
+      x-srs: [FR-01]
+      x-sdd-route: false
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: v
+          in: query
+          description: Versiunea fotografiei, doar pentru cache.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Imaginea.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
         '404':
           $ref: '#/components/responses/NotFound'
   /sports:
@@ -2133,6 +2371,8 @@ components:
         - BLOCK_CONFLICT
         - CONFLICTS_NEED_CONFIRMATION
         - SCHEDULE_FILE_INVALID
+        - IMAGE_INVALID
+        - USER_HAS_HISTORY
     SlotConflictError:
       allOf:
         - $ref: '#/components/schemas/Error'
@@ -2217,10 +2457,73 @@ components:
           type: string
           format: date-time
           nullable: true
+        avatar_url:
+          type: string
+          nullable: true
+          readOnly: true
+          description: Calea fotografiei de profil (`GET /users/{id}/avatar`), cu versiunea în `v`; `null` fără fotografie.
+          example: /api/v1/users/3c7d1e94-52af-4b08-9e61-a8f02d6b7c15/avatar?v=1764158400000
         created_at:
           type: string
           format: date-time
           readOnly: true
+    UserCreate:
+      type: object
+      required: [full_name, email, role, password]
+      properties:
+        full_name:
+          type: string
+          maxLength: 120
+          example: Elena Munteanu
+        email:
+          type: string
+          format: email
+          example: elena.munteanu@example.edu
+        phone:
+          type: string
+          nullable: true
+          pattern: '^\+[1-9]\d{7,14}$'
+          description: Format E.164; obligatoriu pentru `external`.
+          example: '+37360000002'
+        role:
+          $ref: '#/components/schemas/Role'
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          example: parola123
+    UserUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        full_name:
+          type: string
+          maxLength: 120
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          nullable: true
+          pattern: '^\+[1-9]\d{7,14}$'
+          description: Format E.164; `null` șterge telefonul (nu și pentru `external`).
+        role:
+          $ref: '#/components/schemas/Role'
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          description: Parola nouă.
+    AvatarUpload:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+          description: JPEG, PNG sau WebP, cel mult 2 MB.
     Session:
       type: object
       required: [access_token, token_type, expires_in, user]

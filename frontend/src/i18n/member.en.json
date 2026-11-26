@@ -162,7 +162,10 @@
       "deleteTitle": "Delete your account?",
       "deleteBody": "Upcoming bookings are cancelled and personal data is anonymised. This cannot be undone.",
       "deleteConfirm": "Delete permanently",
-      "deleted": "Your account was deleted."
+      "deleted": "Your account was deleted.",
+      "photoTitle": "Profile photo",
+      "photoSaved": "Your photo was saved.",
+      "photoRemoved": "Your photo was removed."
     }
   },
   "login": {

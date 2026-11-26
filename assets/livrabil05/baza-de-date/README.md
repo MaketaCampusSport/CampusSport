@@ -46,6 +46,8 @@ Nu se pot reprezenta în Data Modeler și există doar în `schema-postgresql.sq
 
 **O corectură.** Regula din SDD 5.2, `CHECK (kind = 'booking') = (user_id IS NOT NULL)`, contrazice SDD 5.3, care pune `user_id` pe NULL la anonimizare. Am adăugat `anonymized_at` și am schimbat regula: o rezervare are titular sau este anonimizată.
 
+**Tabel adăugat:** `user_avatars` păstrează fotografia de profil (`bytea`, JPEG/PNG/WebP, cel mult 2 MB), separat de `users`, ca listele de utilizatori să nu încarce imaginile.
+
 **Coloane adăugate**, pentru că o cerință sau API-ul din acest livrabil au nevoie de ele:
 
 | Tabel | Coloane | Motiv |
@@ -53,6 +55,7 @@ Nu se pot reprezenta în Data Modeler și există doar în `schema-postgresql.sq
 | `users` | `email_verified_at`, `phone_verified_at` | Verificarea externilor (FR-02) |
 | `users` | `totp_secret` | 2FA pentru administratori (NFR-08); nefolosit cât timp 2FA este dezactivat |
 | `users` | `password_hash` | Hash scrypt al parolei (autentificare cu email și parolă) |
+| `users` | `avatar_updated_at` | Versiunea fotografiei de profil, pentru `avatar_url` |
 | `users` | `calendar_token` | Abonamentul iCal personal (FR-17) |
 | `users` | `notification_preferences` | Canale preferate (FR-37, SRS 9.3) |
 | `users` | `last_active_at` | Ștergerea conturilor externe inactive (SDD 5.3) |

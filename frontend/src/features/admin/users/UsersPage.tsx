@@ -1,9 +1,11 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Users } from 'lucide-react';
+import { Pencil, Trash2, UserPlus, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { client, type AccountStatus, type ListUsersData, type Role, type User } from '@/api/client';
 import { keys } from '@/api/keys';
+import { useSession } from '@/auth/sessionStore';
+import { Avatar } from '@/components/ui/Avatar';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -15,6 +17,7 @@ import { fmtShortDay } from '@/lib/dates';
 import { toast } from '@/stores/toastStore';
 import { errorMessage } from '../shared/errors';
 import { Pagination } from '../shared/Pagination';
+import { UserFormModal } from './UserFormModal';
 
 const ROLES: Role[] = ['student', 'teacher', 'external', 'admin'];
 const STATUSES: AccountStatus[] = ['active', 'suspended'];
@@ -26,7 +29,7 @@ export function suspensionUntil(days: number, now = new Date()): string {
   return new Date(now.getTime() + days * 86_400_000).toISOString();
 }
 
-/** Conturi de utilizatori: căutare și suspendare/reactivare (FR-05, BR-06). */
+/** Conturi de utilizatori: căutare, creare, editare (cu fotografie), ștergere și suspendare/reactivare (FR-05, BR-06). */
 export default function UsersPage() {
   const { t } = useTranslation();
   const qc = useQueryClient();
@@ -39,6 +42,11 @@ export default function UsersPage() {
   const [days, setDays] = useState('14');
   const [reason, setReason] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  /** `undefined` = închis, `null` = cont nou, altfel contul editat. */
+  const [editing, setEditing] = useState<User | null | undefined>(undefined);
+  const [deleting, setDeleting] = useState<User | null>(null);
+  const me = useSession((s) => s.user);
+  const setSessionUser = useSession((s) => s.setUser);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -77,6 +85,23 @@ export default function UsersPage() {
     onError: (e) => toast.error(errorMessage(e, t)),
   });
 
+  const remove = useMutation({
+    mutationFn: (u: User) => client.admin.deleteUser(u.id),
+    onSuccess: async (_, u) => {
+      await refresh();
+      toast.success(t('users.toast.deleted', { name: u.full_name }));
+      setDeleting(null);
+    },
+  });
+
+  async function saved(u: User, kind: 'created' | 'updated' | 'photo') {
+    setSessionUser(u); // propriul cont: meniul arată imediat numele și fotografia noi
+    await refresh();
+    if (kind === 'photo') return;
+    toast.success(t(kind === 'created' ? 'users.toast.created' : 'users.toast.updated', { name: u.full_name }));
+    setEditing(undefined);
+  }
+
   const daysNum = Number(days);
   const daysOk = Number.isInteger(daysNum) && daysNum >= 1 && daysNum <= 365;
   const reasonOk = reason.trim().length > 0;
@@ -99,7 +124,15 @@ export default function UsersPage() {
 
   return (
     <>
-      <PageHeader title={t('users.title')} subtitle={t('users.subtitle')} />
+      <PageHeader
+        title={t('users.title')}
+        subtitle={t('users.subtitle')}
+        actions={
+          <Button variant="primary" leftIcon={<UserPlus className="h-4 w-4" aria-hidden />} onClick={() => setEditing(null)}>
+            {t('users.add')}
+          </Button>
+        }
+      />
 
       <div className="mb-4 grid grid-cols-[minmax(0,1fr)_200px_200px] gap-4">
         <Field label={t('users.search')} srOnlyLabel>
@@ -169,8 +202,13 @@ export default function UsersPage() {
               {d.items.map((u) => (
                 <tr key={u.id} className="border-b border-line last:border-b-0">
                   <td className="py-3 pl-6 pr-3">
-                    <p className="text-[15px] font-bold text-ink">{u.full_name}</p>
-                    <p className="text-sm text-muted">{u.email}</p>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={u.full_name} src={u.avatar_url} tone="soft" size="sm" />
+                      <div className="min-w-0">
+                        <p className="truncate text-[15px] font-bold text-ink">{u.full_name}</p>
+                        <p className="truncate text-sm text-muted">{u.email}</p>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <Badge tone={ROLE_TONE[u.role]}>{t(`users.roles.${u.role}`)}</Badge>
@@ -182,7 +220,17 @@ export default function UsersPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-[15px] text-muted">{u.phone ?? '—'}</td>
-                  <td className="py-3 pl-4 pr-6 text-right">
+                  <td className="py-3 pl-4 pr-6">
+                    <div className="flex items-center justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditing(u)}
+                      leftIcon={<Pencil className="h-4 w-4" aria-hidden />}
+                      aria-label={`${t('common.edit')} ${u.full_name}`}
+                    >
+                      {t('common.edit')}
+                    </Button>
                     {u.role === 'admin' ? null : u.status === 'active' ? (
                       <Button variant="outline" size="sm" onClick={() => openSuspend(u)} aria-label={`${t('users.suspend')} ${u.full_name}`}>
                         {t('users.suspend')}
@@ -198,6 +246,21 @@ export default function UsersPage() {
                         {t('users.reactivate')}
                       </Button>
                     )}
+                    {u.id !== me?.id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          remove.reset();
+                          setDeleting(u);
+                        }}
+                        aria-label={`${t('users.delete')} ${u.full_name}`}
+                        className="text-danger-ink hover:bg-danger-soft"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                      </Button>
+                    )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -251,6 +314,42 @@ export default function UsersPage() {
             </p>
           )}
         </form>
+      </Modal>
+
+      <UserFormModal
+        open={editing !== undefined}
+        user={editing ?? null}
+        selfId={me?.id}
+        onClose={() => setEditing(undefined)}
+        onSaved={(u, kind) => void saved(u, kind)}
+      />
+
+      <Modal
+        open={deleting !== null}
+        onOpenChange={(o) => {
+          if (!o) setDeleting(null);
+        }}
+        size="sm"
+        tone="danger"
+        icon={<Trash2 className="h-5 w-5" aria-hidden />}
+        title={t('users.deleteTitle', { name: deleting?.full_name ?? '' })}
+        description={t('users.deleteBody')}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setDeleting(null)}>
+              {t('common.cancelAction')}
+            </Button>
+            <Button variant="danger" loading={remove.isPending} onClick={() => deleting && remove.mutate(deleting)}>
+              {t('users.delete')}
+            </Button>
+          </>
+        }
+      >
+        {remove.isError && (
+          <p role="alert" className="text-sm font-semibold text-danger-ink">
+            {errorMessage(remove.error, t)}
+          </p>
+        )}
       </Modal>
     </>
   );

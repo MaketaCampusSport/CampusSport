@@ -47,6 +47,8 @@ import type {
   Sport,
   SportInput,
   User,
+  UserCreate,
+  UserUpdate,
   WaitlistEntry,
   WaitlistJoin,
 } from './generated';
@@ -68,6 +70,13 @@ export interface DevLoginUser {
 }
 
 const enc = encodeURIComponent;
+
+/** Corpul `AvatarUpload`: un singur câmp `file`. */
+function imageForm(image: Blob): FormData {
+  const form = new FormData();
+  form.append('file', image, image instanceof File ? image.name : 'avatar');
+  return form;
+}
 
 export const client = {
   auth: {
@@ -92,6 +101,9 @@ export const client = {
   me: {
     get: () => http.get<User>('/me'),
     remove: () => http.delete<void>('/me'),
+    /** POST /me/avatar (multipart, câmpul `file`). */
+    uploadAvatar: (image: Blob) => http.upload<User>('/me/avatar', imageForm(image)),
+    deleteAvatar: () => http.delete<User>('/me/avatar'),
     quota: () => http.get<Quota>('/me/quota'),
     bookings: (q: ListMyBookingsData['query'] = {}) => http.get<BookingPage>('/me/bookings', q),
     waitlist: () => http.get<WaitlistEntry[]>('/me/waitlist'),
@@ -133,6 +145,11 @@ export const client = {
     suspendUser: (id: string, input: { until: string; reason: string }) =>
       http.post<User>(`/admin/users/${enc(id)}/suspend`, input),
     reactivateUser: (id: string) => http.post<User>(`/admin/users/${enc(id)}/reactivate`),
+    createUser: (input: UserCreate) => http.post<User>('/admin/users', input),
+    updateUser: (id: string, input: UserUpdate) => http.patch<User>(`/admin/users/${enc(id)}`, input),
+    deleteUser: (id: string) => http.delete<void>(`/admin/users/${enc(id)}`),
+    uploadUserAvatar: (id: string, image: Blob) => http.upload<User>(`/admin/users/${enc(id)}/avatar`, imageForm(image)),
+    deleteUserAvatar: (id: string) => http.delete<User>(`/admin/users/${enc(id)}/avatar`),
 
     createSport: (input: SportInput) => http.post<Sport>('/admin/sports', input),
     updateSport: (id: string, input: SportInput) => http.put<Sport>(`/admin/sports/${enc(id)}`, input),

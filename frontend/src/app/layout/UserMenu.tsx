@@ -43,7 +43,7 @@ export function UserMenu({ user }: { user: User }) {
         className="flex w-full items-center gap-3 rounded-2xl bg-navy-2 px-3 py-3 text-left transition-colors hover:brightness-125"
         aria-label={t('menu.open')}
       >
-        <Avatar name={user.full_name} />
+        <Avatar name={user.full_name} src={user.avatar_url} />
         <span className="min-w-0 flex-1 leading-tight">
           <span className="block truncate text-[15px] font-bold text-white">{user.full_name}</span>
           <span className="block text-[13px] text-slate-400">{t('menu.role')}</span>

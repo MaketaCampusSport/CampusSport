@@ -15,9 +15,12 @@ import type {
   Sport,
   SportInput,
   User,
+  UserCreate,
+  UserUpdate,
 } from '@/api/client';
 import { toCsv } from '@/lib/csv';
 import { addAudit, ADMIN, blockOverlaps, dateKey, db, hash, iso, nextId, parseDay, rng, type MockBooking, type MockResource } from './db';
+import { imageInvalid, readAvatar, setAvatar } from './avatars';
 import { availabilityFor, BLOCK_LEVEL, blocksOverlapping, bookingsOverlapping, cancelOverlapping } from './occupancy';
 import { currentUser } from './session';
 
@@ -565,4 +568,106 @@ export const handlers = [
     addAudit('user.reactivate', 'user', u.id, { status: 'active' }, { status: 'suspended' });
     return HttpResponse.json(u);
   }),
+  http.post(url('/admin/users'), async ({ request }) => {
+    await lag();
+    const denied = guard();
+    if (denied) return denied;
+    const body = (await request.json()) as UserCreate;
+    const email = body.email.trim().toLowerCase();
+    const fields = userFieldErrors(body, true);
+    if (Object.keys(fields).length) return invalid(fields);
+    if (db.users.some((u) => u.email === email)) return emailUsed();
+    const user: User = {
+      id: nextId('u'),
+      full_name: body.full_name.trim(),
+      email,
+      phone: body.phone?.trim() || null,
+      role: body.role,
+      status: 'active',
+      suspended_until: null,
+      avatar_url: null,
+      created_at: iso(new Date()),
+    };
+    db.users.unshift(user);
+    addAudit('user.create', 'user', user.id, { full_name: user.full_name, email, role: user.role });
+    return HttpResponse.json(user, { status: 201 });
+  }),
+  http.patch(url('/admin/users/:id'), async ({ request, params }) => {
+    await lag();
+    const denied = guard();
+    if (denied) return denied;
+    const u = db.users.find((x) => x.id === params.id);
+    if (!u) return notFound();
+    const body = (await request.json()) as UserUpdate;
+    if (u.id === ADMIN.id && body.role !== undefined && body.role !== 'admin') {
+      return err(403, 'FORBIDDEN', 'Nu ai acces la această acțiune.', 'You do not have access to this action.');
+    }
+    const next = { ...u, ...body, phone: body.phone === undefined ? u.phone : body.phone?.trim() || null };
+    const fields = userFieldErrors({ ...next, password: body.password }, false);
+    if (Object.keys(fields).length) return invalid(fields);
+    const email = next.email.trim().toLowerCase();
+    if (email !== u.email && db.users.some((x) => x.email === email)) return emailUsed();
+    Object.assign(u, { full_name: next.full_name.trim(), email, phone: next.phone, role: next.role });
+    addAudit('user.update', 'user', u.id, { full_name: u.full_name, email, role: u.role });
+    return HttpResponse.json(u);
+  }),
+  http.delete(url('/admin/users/:id'), async ({ params }) => {
+    await lag();
+    const denied = guard();
+    if (denied) return denied;
+    const i = db.users.findIndex((x) => x.id === params.id);
+    if (i < 0) return notFound();
+    if (params.id === ADMIN.id) return err(403, 'FORBIDDEN', 'Nu ai acces la această acțiune.', 'You do not have access to this action.');
+    if (db.audit.some((a) => a.actor_id === params.id)) {
+      return err(
+        409,
+        'USER_HAS_HISTORY',
+        'Contul apare în jurnalul de audit și nu poate fi șters. Suspendă-l în schimb.',
+        'The account appears in the audit log and cannot be deleted. Suspend it instead.',
+      );
+    }
+    const [gone] = db.users.splice(i, 1);
+    for (const b of db.bookings) if (b.user_id === gone.id) b.user_id = null as never;
+    addAudit('user.delete', 'user', gone.id, { self_service: false }, { full_name: gone.full_name, email: gone.email });
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.post(url('/admin/users/:id/avatar'), async ({ request, params }) => {
+    await lag();
+    const denied = guard();
+    if (denied) return denied;
+    const u = db.users.find((x) => x.id === params.id);
+    if (!u) return notFound();
+    const image = await readAvatar(request);
+    if (!image) return imageInvalid();
+    setAvatar(u, image);
+    return HttpResponse.json(u);
+  }),
+  http.delete(url('/admin/users/:id/avatar'), async ({ params }) => {
+    await lag();
+    const denied = guard();
+    if (denied) return denied;
+    const u = db.users.find((x) => x.id === params.id);
+    if (!u) return notFound();
+    setAvatar(u, null);
+    return HttpResponse.json(u);
+  }),
 ];
+
+const emailUsed = () =>
+  err(409, 'EMAIL_ALREADY_USED', 'Există deja un cont cu acest email.', 'An account with this email already exists.');
+
+/** Aceleași reguli ca `UserCreate` / `UserUpdate` din contract. */
+function userFieldErrors(
+  u: { full_name: string; email: string; phone?: string | null; role: string; password?: string },
+  creating: boolean,
+): Record<string, string[]> {
+  const fields: Record<string, string[]> = {};
+  if ((u.full_name ?? '').trim().length < 2) fields.full_name = ['at least 2 characters'];
+  if (!/^\S+@\S+\.\S+$/.test((u.email ?? '').trim())) fields.email = ['must be an email'];
+  const phone = u.phone?.trim();
+  if (phone && !/^\+[1-9]\d{7,14}$/.test(phone)) fields.phone = ['must be E.164'];
+  if (!phone && u.role === 'external') fields.phone = ['required for the external role'];
+  if (!['student', 'teacher', 'external', 'admin'].includes(u.role)) fields.role = ['unknown role'];
+  if ((creating || u.password !== undefined) && (u.password ?? '').length < 8) fields.password = ['at least 8 characters'];
+  return fields;
+}

@@ -8,6 +8,7 @@ import type { NotificationPreferences } from '@/api/generated';
 import { ApiError } from '@/api/http';
 import { useSession } from '@/auth/sessionStore';
 import { Avatar } from '@/components/ui/Avatar';
+import { AvatarPicker } from '@/components/ui/AvatarPicker';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -101,6 +102,15 @@ export default function ProfilePage() {
     },
   });
 
+  const setUser = useSession((s) => s.setUser);
+  const photo = useMutation({
+    mutationFn: (image: Blob | null) => (image ? client.me.uploadAvatar(image) : client.me.deleteAvatar()),
+    onSuccess: (saved, image) => {
+      setUser(saved);
+      toast.success(t(image ? 'user.profile.photoSaved' : 'user.profile.photoRemoved'));
+    },
+  });
+
   if (!user) return null;
 
   return (
@@ -108,12 +118,25 @@ export default function ProfilePage() {
       <ScreenHeader eyebrow={t('user.profile.eyebrow')} title={t('user.profile.title')} />
       <div className="space-y-4 px-4 pt-2">
         <Card className="flex items-center gap-3 border border-line/60 p-4">
-          <Avatar name={user.full_name} tone="accent" size="md" />
+          <Avatar name={user.full_name} src={user.avatar_url} tone="accent" size="md" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-base font-bold text-ink">{user.full_name}</p>
             <p className="truncate text-xs text-muted">{user.email}</p>
           </div>
           <Badge tone="brand">{t(`auth.roles.${user.role}`)}</Badge>
+        </Card>
+
+        <Card className="border border-line/60 p-4">
+          <h2 className="mb-3 text-sm font-bold text-ink">{t('user.profile.photoTitle')}</h2>
+          <AvatarPicker
+            name={user.full_name}
+            src={user.avatar_url}
+            tone="accent"
+            busy={photo.isPending}
+            error={photo.isError ? (photo.error instanceof ApiError ? photo.error.message : t('errors.generic')) : undefined}
+            onPick={(image) => photo.mutate(image)}
+            onRemove={() => photo.mutate(null)}
+          />
         </Card>
 
         {user.role === 'student' && quota.data && (

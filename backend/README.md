@@ -66,7 +66,7 @@ Prometheus alerts when the p95 notification lag exceeds 2 minutes (NFR-03), when
 
 ## Implemented vs. not yet
 
-All 56 operations of the spec exist, and `npm run spec:check` verifies paths, methods and roles.
+All 64 operations of the spec exist, and `npm run spec:check` verifies paths, methods and roles.
 
 These return `501 NOT_IMPLEMENTED`, a temporary code that isn't in the spec:
 

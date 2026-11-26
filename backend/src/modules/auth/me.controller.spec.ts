@@ -3,6 +3,7 @@ import { createTestApp, TEST_CONFIG, TEST_USERS, TestApp } from '../../testing/t
 import { userEntity } from '../../testing/fixtures';
 import { toUserResponse } from './dto/user.dto';
 import { OccupancyEventsService } from '../events/occupancy-events.service';
+import { AvatarsService } from './avatars.service';
 import { MeController } from './me.controller';
 import { SessionsService } from './sessions.service';
 import { UsersService } from './users.service';
@@ -16,6 +17,7 @@ describe('MeController', () => {
   };
   const sessions = { revokeAll: jest.fn() };
   const events = { bookingsCancelled: jest.fn() };
+  const avatars = { set: jest.fn(), remove: jest.fn() };
 
   beforeAll(async () => {
     t = await createTestApp({
@@ -24,6 +26,7 @@ describe('MeController', () => {
         { provide: UsersService, useValue: users },
         { provide: SessionsService, useValue: sessions },
         { provide: OccupancyEventsService, useValue: events },
+        { provide: AvatarsService, useValue: avatars },
       ],
     });
   });
@@ -46,6 +49,7 @@ describe('MeController', () => {
         role: 'student',
         status: 'active',
         suspended_until: null,
+        avatar_url: null,
         created_at: '2026-09-01T09:00:00+03:00',
       });
       expect(users.getById).toHaveBeenCalledWith(TEST_USERS.student.id);
@@ -102,6 +106,37 @@ describe('MeController', () => {
 
     it('401 without a token', async () => {
       await t.http().delete('/api/v1/me').expect(401);
+    });
+  });
+
+  describe('POST/DELETE /me/avatar', () => {
+    it('stores the photo for the caller only', async () => {
+      avatars.set.mockResolvedValue(toUserResponse(userEntity('student'), TEST_CONFIG.facilityTimezone));
+      const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(16)]);
+      await t
+        .http()
+        .post('/api/v1/me/avatar')
+        .set('Authorization', await t.bearer('student'))
+        .attach('file', jpeg, { filename: 'eu.jpg', contentType: 'image/jpeg' })
+        .expect(200);
+      expect(avatars.set).toHaveBeenCalledWith(TEST_USERS.student.id, expect.objectContaining({ size: 20 }));
+      expect(avatars.set.mock.calls[0]).toHaveLength(2); // no actor: not an admin action
+    });
+
+    it('422 IMAGE_INVALID from the service; DELETE 200; 401 anonymously', async () => {
+      avatars.set.mockRejectedValue(new AppException('IMAGE_INVALID'));
+      const student = await t.bearer('student');
+      const res = await t
+        .http()
+        .post('/api/v1/me/avatar')
+        .set('Authorization', student)
+        .attach('file', Buffer.from('not an image'), 'x.txt')
+        .expect(422);
+      expect(res.body.code).toBe('IMAGE_INVALID');
+      avatars.remove.mockResolvedValue(toUserResponse(userEntity('student'), TEST_CONFIG.facilityTimezone));
+      await t.http().delete('/api/v1/me/avatar').set('Authorization', student).expect(200);
+      expect(avatars.remove).toHaveBeenCalledWith(TEST_USERS.student.id);
+      await t.http().delete('/api/v1/me/avatar').expect(401);
     });
   });
 

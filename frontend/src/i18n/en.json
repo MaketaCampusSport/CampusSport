@@ -599,7 +599,7 @@
   },
   "users": {
     "title": "Users",
-    "subtitle": "Search accounts and temporarily suspend users (e.g. after repeated no-shows).",
+    "subtitle": "Create, edit and delete accounts; suspend users temporarily (e.g. after repeated no-shows).",
     "search": "Search by name or email",
     "filters": {
       "role": "Role",
@@ -633,17 +633,47 @@
     "suspendBody": "The user will not be able to book while suspended.",
     "fields": {
       "days": "Duration (days)",
-      "reason": "Reason"
+      "reason": "Reason",
+      "fullName": "Full name",
+      "email": "Email",
+      "role": "Role",
+      "phone": "Phone",
+      "password": "Password",
+      "newPassword": "New password"
     },
     "errors": {
       "days": "Enter a number between 1 and 365.",
-      "reason": "The reason is required."
+      "reason": "The reason is required.",
+      "fullName": "The name needs at least 2 characters.",
+      "email": "Enter a valid email address.",
+      "phone": "Use the international format, e.g. +37360000001.",
+      "phoneExternal": "Externals need a phone number.",
+      "password": "The password needs at least 8 characters."
     },
     "toast": {
       "suspended": "{{name}}’s account was suspended.",
-      "reactivated": "{{name}}’s account was reactivated."
+      "reactivated": "{{name}}’s account was reactivated.",
+      "created": "The account of {{name}} was created.",
+      "updated": "The account of {{name}} was updated.",
+      "deleted": "The account of {{name}} was deleted."
     },
-    "untilHint": "Suspended until {{date}}."
+    "untilHint": "Suspended until {{date}}.",
+    "add": "Add user",
+    "delete": "Delete",
+    "deleteTitle": "Delete the account of {{name}}?",
+    "deleteBody": "Future bookings are cancelled and the history stays anonymized. This cannot be undone. Accounts that appear in the audit log cannot be deleted; suspend them instead.",
+    "form": {
+      "createTitle": "New user",
+      "createBody": "The account is active right away; the user signs in with the email and password set here.",
+      "editTitle": "Edit the account of {{name}}",
+      "editBody": "Changing the role, email or password signs the user out.",
+      "create": "Create account",
+      "ownRole": "You cannot change your own role.",
+      "phoneRequired": "Required for externals. International format, e.g. +37360000001.",
+      "phoneOptional": "Optional. International format, e.g. +37360000001.",
+      "passwordHint": "At least 8 characters.",
+      "newPasswordHint": "Leave empty to keep the current password."
+    }
   },
   "adminBookings": {
     "title": "Bookings",
@@ -724,5 +754,15 @@
     "twofaTitle": "Two-step sign-in (TOTP)",
     "twofaBody": "The second factor is set up on the server. Run the command below and scan the printed otpauth:// URI with an authenticator app.",
     "twofaNote": "Once set up, every SSO sign-in asks for the 6-digit code from the app."
+  },
+  "avatar": {
+    "add": "Add photo",
+    "change": "Change photo",
+    "remove": "Remove photo",
+    "hint": "JPEG, PNG or WebP. It is cropped square and resized automatically.",
+    "errors": {
+      "type": "Choose a JPEG, PNG or WebP image.",
+      "size": "The image is too large (2 MB at most)."
+    }
   }
 }

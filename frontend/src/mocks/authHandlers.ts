@@ -1,6 +1,7 @@
 import { delay, http, HttpResponse } from 'msw';
 import { API_BASE, MOCK_LATENCY } from '@/api/config';
 import type { PasswordLogin, PasswordRegistration, User } from '@/api/generated';
+import { imageInvalid, readAvatar, setAvatar } from './avatars';
 import { currentUser, MOCK_PASSWORD, MOCK_USERS, sessionFor, setCurrentUser } from './session';
 
 const url = (p: string) => `${API_BASE}${p}`;
@@ -32,6 +33,22 @@ export const authHandlers = [
     await lag();
     const user = currentUser();
     return user ? HttpResponse.json(user) : unauthenticated();
+  }),
+  http.post(url('/me/avatar'), async ({ request }) => {
+    await lag();
+    const user = currentUser();
+    if (!user) return unauthenticated();
+    const image = await readAvatar(request);
+    if (!image) return imageInvalid();
+    setAvatar(user, image);
+    return HttpResponse.json(user);
+  }),
+  http.delete(url('/me/avatar'), async () => {
+    await lag();
+    const user = currentUser();
+    if (!user) return unauthenticated();
+    setAvatar(user, null);
+    return HttpResponse.json(user);
   }),
   http.post(url('/auth/refresh'), async () => {
     const user = currentUser();

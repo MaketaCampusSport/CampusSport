@@ -1,6 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsIn, IsISO8601, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsISO8601,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+  ValidateIf,
+} from 'class-validator';
+import { API_PREFIX } from '../../../app.setup';
 import { PageQueryDto } from '../../../common/http/pagination';
 import { toIsoInZone, toIsoOrNull } from '../../../common/time';
 import type { User } from '../../../database/entities';
@@ -30,8 +41,20 @@ export class UserResponse {
   @ApiProperty({ format: 'date-time', nullable: true })
   suspended_until: string | null;
 
+  @ApiProperty({
+    nullable: true,
+    readOnly: true,
+    description: 'Calea fotografiei de profil (`GET /users/{id}/avatar`), cu versiunea în `v`.',
+  })
+  avatar_url: string | null;
+
   @ApiProperty({ format: 'date-time', readOnly: true })
   created_at: string;
+}
+
+/** Same-origin path of the photo; `v` changes with every upload, so browsers may cache it for good. */
+export function avatarUrl(u: Pick<User, 'id' | 'avatarUpdatedAt'>): string | null {
+  return u.avatarUpdatedAt ? `/${API_PREFIX}/users/${u.id}/avatar?v=${u.avatarUpdatedAt.getTime()}` : null;
 }
 
 export function toUserResponse(u: User, zone: string): UserResponse {
@@ -43,6 +66,7 @@ export function toUserResponse(u: User, zone: string): UserResponse {
     role: u.role,
     status: u.status,
     suspended_until: toIsoOrNull(u.suspendedUntil, zone),
+    avatar_url: avatarUrl(u),
     created_at: toIsoInZone(u.createdAt, zone),
   };
 }
@@ -90,4 +114,79 @@ export class SuspendUserDto {
   @MinLength(1)
   @MaxLength(500)
   reason: string;
+}
+
+const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
+const lower = ({ value }: { value: unknown }) =>
+  typeof value === 'string' ? value.trim().toLowerCase() : value;
+/** Empty string means "no phone". */
+const phone = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() || null : value);
+const E164 = /^\+[1-9]\d{7,14}$/;
+
+/** `UserCreate` schema: an administrator creates any role. */
+export class CreateUserDto {
+  @ApiProperty({ maxLength: 120, example: 'Elena Munteanu' })
+  @Transform(trim)
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  full_name: string;
+
+  @ApiProperty({ format: 'email', example: 'elena.munteanu@example.edu' })
+  @Transform(lower)
+  @IsEmail()
+  @MaxLength(254)
+  email: string;
+
+  @ApiPropertyOptional({ nullable: true, pattern: E164.source, example: '+37360000002' })
+  @Transform(phone)
+  @IsOptional()
+  @Matches(E164)
+  phone?: string | null;
+
+  @ApiProperty({ enum: ROLES })
+  @IsIn(ROLES)
+  role: Role;
+
+  @ApiProperty({ format: 'password', minLength: 8, maxLength: 128, example: 'parola123' })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  password: string;
+}
+
+/** `UserUpdate` schema: only the fields that change. `phone: null` clears it. */
+export class UpdateUserDto {
+  @ApiPropertyOptional({ maxLength: 120 })
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  full_name?: string;
+
+  @ApiPropertyOptional({ format: 'email' })
+  @Transform(lower)
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(254)
+  email?: string;
+
+  @ApiPropertyOptional({ nullable: true, pattern: E164.source })
+  @Transform(phone)
+  @ValidateIf((_, v) => v !== null && v !== undefined)
+  @Matches(E164)
+  phone?: string | null;
+
+  @ApiPropertyOptional({ enum: ROLES })
+  @IsOptional()
+  @IsIn(ROLES)
+  role?: Role;
+
+  @ApiPropertyOptional({ format: 'password', minLength: 8, maxLength: 128 })
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  password?: string;
 }

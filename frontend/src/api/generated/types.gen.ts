@@ -16,7 +16,7 @@ export type Error = {
     };
 };
 
-export type ErrorCode = 'BAD_REQUEST' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'VALIDATION_FAILED' | 'RATE_LIMITED' | 'INVALID_CREDENTIALS' | 'OTP_INVALID' | 'EMAIL_ALREADY_USED' | 'ACCOUNT_SUSPENDED' | 'EXTERNAL_ACCESS_DENIED' | 'SLOT_TAKEN' | 'SLOT_BLOCKED' | 'QUOTA_EXHAUSTED' | 'ACTIVE_LIMIT_REACHED' | 'WINDOW_EXCEEDED' | 'OUTSIDE_OPENING_HOURS' | 'INVALID_SLOT' | 'RESOURCE_INACTIVE' | 'BOOKING_NOT_CANCELLABLE' | 'BOOKING_NOT_ACTIVE' | 'ALREADY_CHECKED_IN' | 'QR_INVALID' | 'CHECKIN_WINDOW_CLOSED' | 'ALREADY_ON_WAITLIST' | 'OFFER_TAKEN' | 'OFFER_EXPIRED' | 'BLOCK_CONFLICT' | 'CONFLICTS_NEED_CONFIRMATION' | 'SCHEDULE_FILE_INVALID';
+export type ErrorCode = 'BAD_REQUEST' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'VALIDATION_FAILED' | 'RATE_LIMITED' | 'INVALID_CREDENTIALS' | 'OTP_INVALID' | 'EMAIL_ALREADY_USED' | 'ACCOUNT_SUSPENDED' | 'EXTERNAL_ACCESS_DENIED' | 'SLOT_TAKEN' | 'SLOT_BLOCKED' | 'QUOTA_EXHAUSTED' | 'ACTIVE_LIMIT_REACHED' | 'WINDOW_EXCEEDED' | 'OUTSIDE_OPENING_HOURS' | 'INVALID_SLOT' | 'RESOURCE_INACTIVE' | 'BOOKING_NOT_CANCELLABLE' | 'BOOKING_NOT_ACTIVE' | 'ALREADY_CHECKED_IN' | 'QR_INVALID' | 'CHECKIN_WINDOW_CLOSED' | 'ALREADY_ON_WAITLIST' | 'OFFER_TAKEN' | 'OFFER_EXPIRED' | 'BLOCK_CONFLICT' | 'CONFLICTS_NEED_CONFIRMATION' | 'SCHEDULE_FILE_INVALID' | 'IMAGE_INVALID' | 'USER_HAS_HISTORY';
 
 export type SlotConflictError = Error & {
     waitlist_offer: SlotReference;
@@ -55,7 +55,43 @@ export type User = {
     role: Role;
     status: AccountStatus;
     suspended_until?: string | null;
+    /**
+     * Calea fotografiei de profil (`GET /users/{id}/avatar`), cu versiunea în `v`; `null` fără fotografie.
+     */
+    readonly avatar_url?: string | null;
     readonly created_at?: string;
+};
+
+export type UserCreate = {
+    full_name: string;
+    email: string;
+    /**
+     * Format E.164; obligatoriu pentru `external`.
+     */
+    phone?: string | null;
+    role: Role;
+    password: string;
+};
+
+export type UserUpdate = {
+    full_name?: string;
+    email?: string;
+    /**
+     * Format E.164; `null` șterge telefonul (nu și pentru `external`).
+     */
+    phone?: string | null;
+    role?: Role;
+    /**
+     * Parola nouă.
+     */
+    password?: string;
+};
+
+export type AvatarUpload = {
+    /**
+     * JPEG, PNG sau WebP, cel mult 2 MB.
+     */
+    file: Blob | File;
 };
 
 export type Session = {
@@ -880,6 +916,60 @@ export type ExportCurrentUserDataResponses = {
 
 export type ExportCurrentUserDataResponse = ExportCurrentUserDataResponses[keyof ExportCurrentUserDataResponses];
 
+export type DeleteMyAvatarData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/me/avatar';
+};
+
+export type DeleteMyAvatarErrors = {
+    /**
+     * Lipsește autentificarea sau a expirat (`UNAUTHENTICATED`).
+     */
+    401: Error;
+};
+
+export type DeleteMyAvatarError = DeleteMyAvatarErrors[keyof DeleteMyAvatarErrors];
+
+export type DeleteMyAvatarResponses = {
+    /**
+     * Profilul, fără fotografie.
+     */
+    200: User;
+};
+
+export type DeleteMyAvatarResponse = DeleteMyAvatarResponses[keyof DeleteMyAvatarResponses];
+
+export type UploadMyAvatarData = {
+    body: AvatarUpload;
+    path?: never;
+    query?: never;
+    url: '/me/avatar';
+};
+
+export type UploadMyAvatarErrors = {
+    /**
+     * Lipsește autentificarea sau a expirat (`UNAUTHENTICATED`).
+     */
+    401: Error;
+    /**
+     * Imagine nevalidă (`IMAGE_INVALID`) – doar JPEG, PNG sau WebP, cel mult 2 MB.
+     */
+    422: Error;
+};
+
+export type UploadMyAvatarError = UploadMyAvatarErrors[keyof UploadMyAvatarErrors];
+
+export type UploadMyAvatarResponses = {
+    /**
+     * Profilul cu noul `avatar_url`.
+     */
+    200: User;
+};
+
+export type UploadMyAvatarResponse = UploadMyAvatarResponses[keyof UploadMyAvatarResponses];
+
 export type ListUsersData = {
     body?: never;
     path?: never;
@@ -919,6 +1009,43 @@ export type ListUsersResponses = {
 };
 
 export type ListUsersResponse = ListUsersResponses[keyof ListUsersResponses];
+
+export type CreateUserData = {
+    body: UserCreate;
+    path?: never;
+    query?: never;
+    url: '/admin/users';
+};
+
+export type CreateUserErrors = {
+    /**
+     * Lipsește autentificarea sau a expirat (`UNAUTHENTICATED`).
+     */
+    401: Error;
+    /**
+     * Rolul sau starea contului nu permite operația (`FORBIDDEN`, `ACCOUNT_SUSPENDED`).
+     */
+    403: Error;
+    /**
+     * Există deja un cont cu acest email (`EMAIL_ALREADY_USED`).
+     */
+    409: Error;
+    /**
+     * Datele nu sunt valide sau încalcă o regulă (`VALIDATION_FAILED`); `details` indică câmpurile.
+     */
+    422: Error;
+};
+
+export type CreateUserError = CreateUserErrors[keyof CreateUserErrors];
+
+export type CreateUserResponses = {
+    /**
+     * Cont creat.
+     */
+    201: User;
+};
+
+export type CreateUserResponse = CreateUserResponses[keyof CreateUserResponses];
 
 export type SuspendUserData = {
     body: {
@@ -992,6 +1119,194 @@ export type ReactivateUserResponses = {
 };
 
 export type ReactivateUserResponse = ReactivateUserResponses[keyof ReactivateUserResponses];
+
+export type DeleteUserData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/users/{id}';
+};
+
+export type DeleteUserErrors = {
+    /**
+     * Lipsește autentificarea sau a expirat (`UNAUTHENTICATED`).
+     */
+    401: Error;
+    /**
+     * Rolul sau starea contului nu permite operația (`FORBIDDEN`, `ACCOUNT_SUSPENDED`).
+     */
+    403: Error;
+    /**
+     * Nu există sau nu este vizibil pentru apelant (`NOT_FOUND`).
+     */
+    404: Error;
+    /**
+     * Contul apare în jurnalul de audit (`USER_HAS_HISTORY`).
+     */
+    409: Error;
+};
+
+export type DeleteUserError = DeleteUserErrors[keyof DeleteUserErrors];
+
+export type DeleteUserResponses = {
+    /**
+     * Cont șters.
+     */
+    204: void;
+};
+
+export type DeleteUserResponse = DeleteUserResponses[keyof DeleteUserResponses];
+
+export type UpdateUserData = {
+    body: UserUpdate;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/users/{id}';
+};
+
+export type UpdateUserErrors = {
+    /**
+     * Lipsește autentificarea sau a expirat (`UNAUTHENTICATED`).
+     */
+    401: Error;
+    /**
+     * Rolul sau starea contului nu permite operația (`FORBIDDEN`, `ACCOUNT_SUSPENDED`).
+     */
+    403: Error;
+    /**
+     * Nu există sau nu este vizibil pentru apelant (`NOT_FOUND`).
+     */
+    404: Error;
+    /**
+     * Există deja un cont cu acest email (`EMAIL_ALREADY_USED`).
+     */
+    409: Error;
+    /**
+     * Datele nu sunt valide sau încalcă o regulă (`VALIDATION_FAILED`); `details` indică câmpurile.
+     */
+    422: Error;
+};
+
+export type UpdateUserError = UpdateUserErrors[keyof UpdateUserErrors];
+
+export type UpdateUserResponses = {
+    /**
+     * Contul modificat.
+     */
+    200: User;
+};
+
+export type UpdateUserResponse = UpdateUserResponses[keyof UpdateUserResponses];
+
+export type DeleteUserAvatarData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/users/{id}/avatar';
+};
+
+export type DeleteUserAvatarErrors = {
+    /**
+     * Lipsește autentificarea sau a expirat (`UNAUTHENTICATED`).
+     */
+    401: Error;
+    /**
+     * Rolul sau starea contului nu permite operația (`FORBIDDEN`, `ACCOUNT_SUSPENDED`).
+     */
+    403: Error;
+    /**
+     * Nu există sau nu este vizibil pentru apelant (`NOT_FOUND`).
+     */
+    404: Error;
+};
+
+export type DeleteUserAvatarError = DeleteUserAvatarErrors[keyof DeleteUserAvatarErrors];
+
+export type DeleteUserAvatarResponses = {
+    /**
+     * Contul, fără fotografie.
+     */
+    200: User;
+};
+
+export type DeleteUserAvatarResponse = DeleteUserAvatarResponses[keyof DeleteUserAvatarResponses];
+
+export type UploadUserAvatarData = {
+    body: AvatarUpload;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/admin/users/{id}/avatar';
+};
+
+export type UploadUserAvatarErrors = {
+    /**
+     * Lipsește autentificarea sau a expirat (`UNAUTHENTICATED`).
+     */
+    401: Error;
+    /**
+     * Rolul sau starea contului nu permite operația (`FORBIDDEN`, `ACCOUNT_SUSPENDED`).
+     */
+    403: Error;
+    /**
+     * Nu există sau nu este vizibil pentru apelant (`NOT_FOUND`).
+     */
+    404: Error;
+    /**
+     * Imagine nevalidă (`IMAGE_INVALID`) – doar JPEG, PNG sau WebP, cel mult 2 MB.
+     */
+    422: Error;
+};
+
+export type UploadUserAvatarError = UploadUserAvatarErrors[keyof UploadUserAvatarErrors];
+
+export type UploadUserAvatarResponses = {
+    /**
+     * Contul cu noul `avatar_url`.
+     */
+    200: User;
+};
+
+export type UploadUserAvatarResponse = UploadUserAvatarResponses[keyof UploadUserAvatarResponses];
+
+export type GetUserAvatarData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: {
+        /**
+         * Versiunea fotografiei, doar pentru cache.
+         */
+        v?: string;
+    };
+    url: '/users/{id}/avatar';
+};
+
+export type GetUserAvatarErrors = {
+    /**
+     * Nu există sau nu este vizibil pentru apelant (`NOT_FOUND`).
+     */
+    404: Error;
+};
+
+export type GetUserAvatarError = GetUserAvatarErrors[keyof GetUserAvatarErrors];
+
+export type GetUserAvatarResponses = {
+    /**
+     * Imaginea.
+     */
+    200: Blob | File;
+};
+
+export type GetUserAvatarResponse = GetUserAvatarResponses[keyof GetUserAvatarResponses];
 
 export type ListSportsData = {
     body?: never;

@@ -609,7 +609,7 @@
   },
   "users": {
     "title": "Utilizatori",
-    "subtitle": "Caută conturi și suspendă temporar utilizatorii (de ex. după no-show-uri repetate).",
+    "subtitle": "Creează, modifică și șterge conturi; suspendă temporar utilizatorii (de ex. după no-show-uri repetate).",
     "search": "Caută după nume sau email",
     "filters": {
       "role": "Rol",
@@ -643,17 +643,47 @@
     "suspendBody": "Utilizatorul nu va putea face rezervări pe perioada suspendării.",
     "fields": {
       "days": "Durată (zile)",
-      "reason": "Motiv"
+      "reason": "Motiv",
+      "fullName": "Nume complet",
+      "email": "Email",
+      "role": "Rol",
+      "phone": "Telefon",
+      "password": "Parolă",
+      "newPassword": "Parolă nouă"
     },
     "errors": {
       "days": "Introdu un număr între 1 și 365.",
-      "reason": "Motivul este obligatoriu."
+      "reason": "Motivul este obligatoriu.",
+      "fullName": "Numele trebuie să aibă cel puțin 2 caractere.",
+      "email": "Introdu o adresă de email validă.",
+      "phone": "Folosește formatul internațional, ex. +37360000001.",
+      "phoneExternal": "Externii au nevoie de un număr de telefon.",
+      "password": "Parola trebuie să aibă cel puțin 8 caractere."
     },
     "toast": {
       "suspended": "Contul lui {{name}} a fost suspendat.",
-      "reactivated": "Contul lui {{name}} a fost reactivat."
+      "reactivated": "Contul lui {{name}} a fost reactivat.",
+      "created": "Contul lui {{name}} a fost creat.",
+      "updated": "Contul lui {{name}} a fost modificat.",
+      "deleted": "Contul lui {{name}} a fost șters."
     },
-    "untilHint": "Suspendat până la {{date}}."
+    "untilHint": "Suspendat până la {{date}}.",
+    "add": "Adaugă utilizator",
+    "delete": "Șterge",
+    "deleteTitle": "Ștergi contul lui {{name}}?",
+    "deleteBody": "Rezervările viitoare se anulează, iar istoricul rămâne anonimizat. Acțiunea nu se poate anula. Conturile care apar în jurnalul de audit nu se pot șterge; suspendă-le.",
+    "form": {
+      "createTitle": "Utilizator nou",
+      "createBody": "Contul este activ imediat; utilizatorul intră cu emailul și parola de aici.",
+      "editTitle": "Modifică contul lui {{name}}",
+      "editBody": "Schimbarea rolului, a emailului sau a parolei îl deconectează pe utilizator.",
+      "create": "Creează contul",
+      "ownRole": "Nu îți poți schimba propriul rol.",
+      "phoneRequired": "Obligatoriu pentru externi. Format internațional, ex. +37360000001.",
+      "phoneOptional": "Opțional. Format internațional, ex. +37360000001.",
+      "passwordHint": "Cel puțin 8 caractere.",
+      "newPasswordHint": "Lasă gol ca să păstrezi parola actuală."
+    }
   },
   "adminBookings": {
     "title": "Rezervări",
@@ -735,5 +765,15 @@
     "twofaTitle": "Autentificare în doi pași (TOTP)",
     "twofaBody": "Al doilea factor se configurează pe server. Rulează comanda de mai jos și scanează URI-ul otpauth:// afișat cu o aplicație de autentificare.",
     "twofaNote": "După configurare, fiecare autentificare SSO cere codul de 6 cifre din aplicație."
+  },
+  "avatar": {
+    "add": "Adaugă fotografie",
+    "change": "Schimbă fotografia",
+    "remove": "Șterge fotografia",
+    "hint": "JPEG, PNG sau WebP. Se decupează pătrat și se micșorează automat.",
+    "errors": {
+      "type": "Alege o imagine JPEG, PNG sau WebP.",
+      "size": "Imaginea este prea mare (cel mult 2 MB)."
+    }
   }
 }

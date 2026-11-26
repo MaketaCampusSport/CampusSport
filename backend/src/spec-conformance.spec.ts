@@ -9,6 +9,7 @@ import { AdminController } from './modules/admin/admin.controller';
 import { AdminUsersController } from './modules/auth/admin-users.controller';
 import { AuthController } from './modules/auth/auth.controller';
 import { MeController } from './modules/auth/me.controller';
+import { UserAvatarController } from './modules/auth/user-avatar.controller';
 import { AvailabilityController } from './modules/availability/availability.controller';
 import { BlocksController } from './modules/blocks/blocks.controller';
 import {
@@ -25,6 +26,7 @@ const CONTROLLERS = [
   AuthController,
   MeController,
   AdminUsersController,
+  UserAvatarController,
   CatalogController,
   AdminCatalogController,
   AvailabilityController,
@@ -79,10 +81,10 @@ describe('API conformance with assets/livrabil05/openapi.json', () => {
   });
   afterAll(() => app.close());
 
-  it('implements all 56 operations with the same method and path', () => {
+  it('implements all 64 operations with the same method and path', () => {
     const expected = operations(spec);
     const actual = operations(generated);
-    expect(expected.size).toBe(56);
+    expect(expected.size).toBe(64);
     const missing = [...expected]
       .filter(([id, route]) => actual.get(id) !== route)
       .map(([id, route]) => `${id}: ${route} (got ${actual.get(id) ?? 'nothing'})`);
@@ -127,6 +129,6 @@ describe('API conformance with assets/livrabil05/openapi.json', () => {
       }
     }
     expect(problems).toEqual([]);
-    expect(checked).toBe(56);
+    expect(checked).toBe(64);
   });
 });

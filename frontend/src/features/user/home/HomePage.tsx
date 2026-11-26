@@ -76,7 +76,7 @@ export default function HomePage() {
           aria-label={t('user.home.myProfile')}
           className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
         >
-          <Avatar name={user?.full_name ?? ''} tone="accent" size="md" />
+          <Avatar name={user?.full_name ?? ''} src={user?.avatar_url} tone="accent" size="md" />
         </Link>
       </header>
 
