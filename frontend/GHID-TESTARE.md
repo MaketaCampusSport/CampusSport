@@ -4,7 +4,7 @@ Ghidul pornește de la zero. Front-end-ul are două moduri:
 
 | Mod | Comandă | Ce îți trebuie |
 |---|---|---|
-| **Cu serverul real** (implicit) | `npm run dev` din rădăcina proiectului | Node.js 24, PostgreSQL 18, baza creată cu `npm run setup` (vezi `../INSTALL.md`). Redis și Keycloak nu sunt necesare. |
+| **Cu serverul real** (implicit) | `npm run dev` din rădăcina proiectului | Node.js 24, PostgreSQL 18, baza creată cu `npm run setup` (vezi `../INSTALL.md`). Redis nu este necesar. |
 | **Demo, fără backend** | `npm run dev:mock` | Doar Node.js. Un server simulat (MSW) răspunde în browser, cu date demo. |
 
 ## 1. Ce îți trebuie
@@ -38,15 +38,15 @@ Deschide **<http://localhost:5173>**. Utilizatorii ajung în aplicația mobilă 
 ## 3. Autentificare
 
 ### Cu serverul real
-- Pe **/login** și pe **/admin/login** există panoul **Autentificare de dezvoltare**: alege un utilizator din datele de exemplu (Ion Popescu – student, Maria Ionescu – profesor, Ana Rusu – extern, Andrei Rusu – admin). Serverul emite o sesiune reală, deci reîncărcarea paginii (F5) te păstrează autentificat.
-- Panoul există doar când API-ul rulează cu `NODE_ENV=development` și `DEV_LOGIN=true` (implicit în `backend/.env.example`).
-- Fără Redis, sesiunile stau în memoria API-ului: dacă repornești API-ul, te autentifici din nou.
-- **SSO real** (Keycloak, cu Docker): butonul „Continuă cu contul universității” / „Autentificare cu SSO universitar”. Administratorii trec apoi prin **/auth/2fa** (cod TOTP; se configurează cu `npm run admin:enroll-totp -- <email>` în `backend/`).
-- **Extern:** fila *Extern* pe /login → email → codul primit. Fără Mailpit, codul din email apare în jurnalul API-ului, iar codul SMS tot acolo.
+- Pe **/login** intri cu emailul și parola. Utilizatorii din datele de exemplu au parola **parola123**: Ion Popescu (student, `ion.popescu@student.example.edu`), Maria Ionescu (profesor, `maria.ionescu@example.edu`), Ana Rusu (extern, `ana.rusu@example.com`) și Andrei Rusu (admin, `andrei.rusu@example.edu`).
+- Fila **Cont nou** creează un cont de student sau profesor și te autentifică imediat.
+- Administratorii intră pe **/admin/login** cu email și parolă, fără al doilea pas.
+- Serverul emite o sesiune reală, deci reîncărcarea paginii (F5) te păstrează autentificat. Fără Redis, sesiunile stau în memoria API-ului: dacă repornești API-ul, te autentifici din nou.
+- Dacă baza a fost creată înainte de această schimbare, rulează o dată `npm run db:setup` în `backend/` (coloana `password_hash` și parolele de exemplu).
+- **Dezactivate:** SSO (Keycloak), 2FA pentru administratori și OTP pentru externi; panoul „Autentificare de dezvoltare” nu mai apare pe paginile de autentificare.
 
 ### În demo (`dev:mock`)
-- Alege un cont din panoul de dezvoltare sau apasă SSO: utilizatorii intră ca student, administratorii trec prin pasul TOTP cu codul **123456**.
-- Codurile OTP pentru externi sunt tot **123456**.
+- Conturile demo au parola **parola123**. Un cont creat în demo rămâne până la reîncărcarea paginii.
 - Datele demo se resetează la reîncărcare; sesiunea rămâne până închizi fila.
 
 ## 4. Aplicația utilizatorilor (`/user`)

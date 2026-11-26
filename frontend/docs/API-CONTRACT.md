@@ -1,6 +1,6 @@
 # Alinierea front-end-ului la contractul API
 
-Contractul este `assets/livrabil05/openapi.yaml` (60 de operații sub `/api/v1`). Front-end-ul nu mai folosește rute „presupuse”:
+Contractul este `assets/livrabil05/openapi.yaml` (56 de operații sub `/api/v1`). Front-end-ul nu mai folosește rute „presupuse”:
 
 - tipurile se generează din contract în `src/api/generated/` (`npm run api:generate`, rezultatul se versionează);
 - `src/api/client.ts` are o metodă pentru fiecare operație, cu JSON snake_case exact ca în specificație;
@@ -13,9 +13,9 @@ Singurele rute în afara contractului sunt `GET /auth/dev/users` și `POST /auth
 | Pas | Rută |
 |---|---|
 | Pornire la încărcare | `POST /auth/refresh` (cookie HttpOnly `refresh_token`, path `/api/v1/auth`) → `Session` |
-| Membri (student, profesor) | navigare la `GET /auth/sso/login?return_to=/user`; serverul revine la `return_to` cu cookie-ul setat |
-| Administratori | același SSO, apoi serverul trimite la `/auth/2fa?challenge_id=…&return_to=…` → `POST /auth/2fa/verify` |
-| Externi | `POST /auth/external/register` sau `/login` → `POST /auth/external/verify` |
+| Autentificare (toate rolurile, inclusiv administratori) | `POST /auth/login` `{email, password}` → `Session` + cookie |
+| Cont nou (student sau profesor) | `POST /auth/register` `{full_name, email, password, role}` → `Session` + cookie |
+| Dezactivate | SSO (`/auth/sso/*`), 2FA (`/auth/2fa/verify`) și OTP pentru externi (`/auth/external/*`), comentate în spec și în cod |
 | Ieșire | `POST /auth/logout` |
 
 Tokenul de acces stă doar în memorie. La un `401`, `http.ts` încearcă o singură dată `POST /auth/refresh`; dacă nici acesta nu reușește, gărzile de rută trimit la `/login` sau `/admin/login`.

@@ -12,7 +12,7 @@ npm run setup        # installs backend + frontend, creates and seeds the databa
 npm run dev          # API on :3000 and the web app on :5173, in one terminal
 ```
 
-Open http://localhost:5173 and use **Development sign-in** to enter as one of the example users (section 8). Redis and Keycloak are not needed for this.
+Open http://localhost:5173 and sign in with an example user and the password `parola123`, or create an account (section 8). Redis is not needed for this.
 
 | Root script | What it does |
 |---|---|
@@ -80,7 +80,7 @@ DB_PASSWORD=your-password
 DB_NAME=CampusSport
 ```
 
-Instead of the five `DB_*` lines you can set a single `DATABASE_URL=postgres://user:password@localhost:5432/CampusSport`; it takes precedence. Every other value has a working default for development (Redis on `localhost:6379`, Keycloak, Mailpit, development secrets). `.env` is ignored by Git, so never commit it.
+Instead of the five `DB_*` lines you can set a single `DATABASE_URL=postgres://user:password@localhost:5432/CampusSport`; it takes precedence. Every other value has a working default for development (Redis on `localhost:6379`, Mailpit, development secrets). `.env` is ignored by Git, so never commit it.
 
 ## 4. Create the database
 
@@ -136,7 +136,7 @@ The worker sends notifications, offers freed slots to the waiting list, marks no
 
 ## 7. Call the API
 
-Most routes need a bearer token. Real sign-in goes through the university SSO (see section 8). For local testing, generate tokens for the example users:
+Most routes need a bearer token. Real sign-in is `POST /api/v1/auth/login` with email and password (see section 8). For local testing, generate tokens for the example users:
 
 ```bash
 cd backend
@@ -165,14 +165,20 @@ This command is for development only and refuses to run in production.
 
 ## 8. Sign-in
 
-**Development sign-in (no SSO, no Redis).** When `NODE_ENV=development` and `DEV_LOGIN` is not `false` (see `backend/.env.example`), the API exposes `GET /api/v1/auth/dev/users` and `POST /api/v1/auth/dev/login {"email": …}`. The login pages of the web app (`/login` and `/admin/login`) show a **Development sign-in** panel that uses them. They issue a real session (refresh cookie + access token), so reloading the page keeps you signed in. In any other environment the routes answer 404. They are not part of the API contract and are hidden from Swagger.
+**Email and password.** Everyone signs in with email and password on http://localhost:5173/login (`POST /api/v1/auth/login`). Administrators use the same form on `/admin/login`; there is no second step. The **Cont nou** tab creates an account (`POST /api/v1/auth/register`) with the role **student** or **teacher**; external and admin accounts can't be created this way. The seeded example users all have the password `parola123`:
 
-**Real flows** (optional; without Redis their state is kept in API memory):
+| Role | Email |
+|---|---|
+| student | `ion.popescu@student.example.edu` |
+| teacher | `maria.ionescu@example.edu` |
+| admin | `andrei.rusu@example.edu` |
+| external | `ana.rusu@example.com` |
 
-- **SSO with Keycloak** (needs Docker): run `docker compose up -d keycloak` in `backend/`. Then open http://localhost:3000/api/v1/auth/sso/login and sign in as `student1`, `teacher1` or `admin1` (password `parola123`).
-- **Administrator 2FA:** run `npm run admin:enroll-totp -- <admin email>`, then scan the printed `otpauth://` URI with an authenticator app.
-- **External users:** use the **External** tab on http://localhost:5173/login, or call `POST /api/v1/auth/external/register`. In development the SMS code is printed in the API log. The email code goes to SMTP on `localhost:1025`; `docker compose up -d mailpit` shows it at http://localhost:8025. Without Mailpit, the API prints the email (with the code) in its log.
-- After SSO, the API redirects members to `PWA_URL` + `return_to`, and administrators to `PWA_URL/auth/2fa` for the TOTP code.
+A database created before this change needs `npm run db:setup` once: it applies the `PasswordAuth` migration (the `password_hash` column) and sets the example passwords. Without it, registration fails with a 500 error.
+
+**Development sign-in.** When `NODE_ENV=development` and `DEV_LOGIN` is not `false`, the API still exposes `GET /api/v1/auth/dev/users` and `POST /api/v1/auth/dev/login {"email": …}` (outside the contract, hidden from Swagger, 404 elsewhere). The login pages no longer show the panel that used them.
+
+**Disabled:** university SSO (Keycloak/OIDC), administrator 2FA (TOTP) and external sign-in with OTP codes. Their code is commented out, not deleted.
 
 ## 9. Tests
 
@@ -194,7 +200,7 @@ npm run typecheck
 
 ### The whole application in containers (repo root)
 
-The root `docker-compose.yml` runs everything: PostgreSQL, Redis, the migrations and the example data (one-shot `migrate` and `seed` services), the API, the worker, and Caddy serving the built web app with `/api` proxied to the API. Keycloak (profile `sso`) and Mailpit (profile `mail`) are optional.
+The root `docker-compose.yml` runs everything: PostgreSQL, Redis, the migrations and the example data (one-shot `migrate` and `seed` services), the API, the worker, and Caddy serving the built web app with `/api` proxied to the API. Mailpit (profile `mail`) is optional. Keycloak (profile `sso`) is commented out with SSO.
 
 ```bash
 cp .env.docker.example .env        # demo mode on http://localhost; read the comments in the file
@@ -203,10 +209,9 @@ docker compose ps                  # migrate and seed show "exited (0)", the res
 ```
 
 - Web app: http://localhost (Development sign-in on `/login` and `/admin/login`)
-- Keycloak: http://auth.localhost (console user `admin`, password `KEYCLOAK_ADMIN_PASSWORD`; test users `student1`, `teacher1`, `admin1` with `DEMO_USER_PASSWORD`)
 - Mailpit: http://127.0.0.1:8025
 
-`.env` switches between **demo** (`NODE_ENV=development`, `DEV_LOGIN=true`, `SEED_EXAMPLE_DATA=true`, `KEYCLOAK_REALM=demo`) and **production** (`production`, `false`, `false`, `production`). Ports 80 and 443 must be free. To reload the example data: `docker compose run --rm seed`. To start from an empty database: `docker compose down -v`.
+`.env` switches between **demo** (`NODE_ENV=development`, `DEV_LOGIN=true`, `SEED_EXAMPLE_DATA=true`) and **production** (`production`, `false`, `false`). In demo mode the example users sign in with `parola123`; don't seed example data in production. Ports 80 and 443 must be free. To reload the example data: `docker compose run --rm seed`. To start from an empty database: `docker compose down -v`.
 
 For a VPS with a domain and HTTPS, use the Ansible playbooks in [`ansible/`](ansible/README.md): they prepare the server and write this `.env` for you.
 
@@ -215,7 +220,7 @@ For a VPS with a domain and HTTPS, use the Ansible playbooks in [`ansible/`](ans
 From `backend/`:
 
 ```bash
-docker compose up -d postgres redis keycloak mailpit    # infrastructure only, then follow sections 4–7
+docker compose up -d postgres redis mailpit             # infrastructure only, then follow sections 4–7
 docker compose --profile app up -d --build              # also the API and the worker in containers
 docker compose --profile monitoring up -d               # Prometheus :9090, Grafana :3001 (admin/admin), Loki
 ```
@@ -232,7 +237,6 @@ Docker Compose reads `backend/.env`, and a `$` inside a value (for example in a 
 | 9101 | Worker metrics |
 | 5432 | PostgreSQL |
 | 6379 | Redis |
-| 8080 | Keycloak |
 | 1025 / 8025 | Mailpit SMTP / web UI |
 | 9090 / 3001 / 3100 | Prometheus / Grafana / Loki |
 
@@ -245,7 +249,7 @@ Docker Compose reads `backend/.env`, and a `$` inside a value (for example in a 
 | The web app says "The server is not answering" on sign-in | The API isn't running on :3000. Start both with `npm run dev` from the root. |
 | Development sign-in panel says the server does not allow it | Set `NODE_ENV=development` and `DEV_LOGIN=true` in `backend/.env`, then restart the API. |
 | Signed out after restarting the API | Without Redis, sessions live in API memory. Sign in again. |
-| SSO routes answer 500 | The identity provider isn't reachable. Start Keycloak, or set the `OIDC_*` variables. |
+| Registration answers 500 ("A apărut o eroare") | The database lacks `users.password_hash`. Run `npm run db:setup` in `backend/`. |
 | Requests answer `501 NOT_IMPLEMENTED` | The route exists but isn't implemented yet; the list is in `backend/README.md`. |
 | `401 UNAUTHENTICATED` in Postman | Tokens expire after 12 h. Run `npm run dev:token -- --postman` again and re-import the environment. |
 | `npx jest` fails with "Must use import to load ES Module" | Use `npm test`, which starts Jest with the flags NestJS 12 needs. |

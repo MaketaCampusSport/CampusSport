@@ -4,7 +4,7 @@ Sistem de rezervare a bazei sportive universitare. Acest depozit conține:
 
 - **Aplicația pentru utilizatori (PWA mobilă)** – studenți, profesori și externi, în `src/features/user` (rute `/user/*`).
 - **Panoul de administrare (desktop)** – în `src/features/admin` (rute `/admin/*`).
-- **Autentificarea** – `src/features/auth` (`/login`, `/auth/2fa`) și `src/auth` (sesiune, gărzi de rută).
+- **Autentificarea** – `src/features/auth` (`/login`, email și parolă) și `src/auth` (sesiune, gărzi de rută).
 
 Ambele vorbesc cu serverul NestJS din `../backend` după contractul `assets/livrabil05/openapi.yaml`.
 
@@ -18,7 +18,7 @@ npm install && npm run setup
 npm run dev        # http://localhost:5173 – „Autentificare de dezvoltare” pe /login și /admin/login
 
 # doar front-end-ul, cu serverul simulat
-npm run dev:mock   # coduri demo TOTP/OTP: 123456
+npm run dev:mock   # conturile demo au parola parola123
 ```
 
 ## Stack (conform documentației tehnice)
@@ -36,7 +36,7 @@ src/
   features/
     admin/      auth, dashboard, resources, schedule, events, blocks,
                 announcements, reports, rules, audit, shared, sports, users, checkin, account.
-    auth/       login membri (SSO + OTP extern), pasul 2FA, autentificare de dezvoltare
+    auth/       login și cont nou cu email și parolă (SSO, OTP extern și 2FA sunt comentate)
     user/       acasă, căutare, confirmare, rezervările mele, profil
   i18n/         ro.json, en.json (admin + comun), member.ro.json, member.en.json (aplicație + autentificare)
   lib/          date, format, CSV, validări (reguli partajate)
@@ -60,7 +60,7 @@ openapi/        cum se regenerează tipurile
 | FR-46 reguli BR-01…BR-07 configurabile | `rules/` |
 | SDD 7.3 raport „anunțați / livrați” | `blocks/DeliveryReportCard`, `dashboard/EmergencyBanner` |
 | NFR-07 WCAG AA | Radix, etichete aria, tabele alternative pentru grafice, focus vizibil, contrast verificat pe tokens |
-| NFR-08 sesiune admin 8 h, SSO + TOTP | `auth/` |
+| NFR-08 sesiune admin 8 h, email și parolă | `auth/` |
 | UI-07 mod întunecat, RO/EN | `styles/index.css`, `i18n/`, meniul contului |
 | SYS-02 rezoluție minimă 1366×768 | layout desktop cu bară laterală fixă |
 | NFR-14 sporturi și dotări → sports/ |
@@ -73,5 +73,5 @@ openapi/        cum se regenerează tipurile
 2. **Contractul API este sursa de adevăr.** Funcțiile din machete fără rută în `openapi.yaml` au fost scoase sau înlocuite; lista este în `docs/API-CONTRACT.md`.
 3. **Actualizări live.** Aplicația utilizatorilor ascultă SSE `slot-changed` (până la 3 resurse) și reîmprospătează la 30 s; panoul de administrare folosește *polling*.
 4. **Ore.** Toate orele se afișează în fusul bazei (Europe/Chisinau), iar rezervarea trimite începutul exact al slotului primit de la server (corect și la schimbarea orei).
-5. **Server simulat.** Datele demo sunt deterministe și se resetează la reîncărcare. Codurile demo TOTP/OTP sunt `123456`.
+5. **Server simulat.** Datele demo sunt deterministe și se resetează la reîncărcare. Conturile demo au parola `parola123`.
 6. **Rute încă 501 pe server** (orar EF, evenimente, PDF, export GDPR): paginile le arată ca indisponibile.

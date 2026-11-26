@@ -10,7 +10,7 @@ One codebase runs as two processes:
 ## Requirements
 
 - Node.js 24 and PostgreSQL 18 (local install or `docker compose up -d postgres`).
-- Redis 8 for queues, OTP codes, refresh sessions and SSE fan-out across instances. Without Redis the API still serves the catalog, availability, bookings, blocks and admin routes, and `/health` reports `degraded`. Login flows, refresh tokens and the worker need Redis.
+- Redis 8 for queues, refresh sessions and SSE fan-out across instances. Without Redis the API still serves the catalog, availability, bookings, blocks and admin routes, and `/health` reports `degraded`. Login flows, refresh tokens and the worker need Redis.
 
 ## First run (local, no Docker)
 
@@ -22,13 +22,12 @@ npm run start:dev           # http://localhost:3000/api/docs
 npm run start:worker:dev    # needs Redis
 ```
 
-The seed adds the sports, resources and users from the spec's examples. Ion Popescu is the student, Maria Ionescu the teacher, Andrei Rusu the admin and Ana Rusu the external. Seeded members are linked to the first SSO login that uses the same email.
+The seed adds the sports, resources and users from the spec's examples. Ion Popescu is the student, Maria Ionescu the teacher, Andrei Rusu the admin and Ana Rusu the external. They all sign in with the password `parola123` (`EXAMPLE_PASSWORD`).
 
 ### Sign-in in development
 
-- **SSO:** `docker compose up -d keycloak` starts a realm with `student1`, `teacher1` and `admin1` (password `parola123`). Open `/api/v1/auth/sso/login`.
-- **Admin 2FA:** run `npm run admin:enroll-totp -- <admin email>`, then add the printed `otpauth://` URI to an authenticator app.
-- **Externals:** `POST /auth/external/register`. In development the SMS code is printed in the log (SMS log driver) and the email goes to Mailpit (`docker compose up -d mailpit`, http://localhost:8025).
+- **Email + password:** `POST /auth/login {"email", "password"}` for every role (admins have no second step). `POST /auth/register {"full_name", "email", "password", "role"}` creates a `student` or `teacher` (password 8–128 characters). Passwords are scrypt hashes in `users.password_hash` (`src/modules/auth/password.ts`).
+- **Disabled (commented out):** SSO with Keycloak, admin 2FA (TOTP) and the external OTP flow. See `oidc.service.ts`, `auth-flows.service.ts` and `otp.service.ts`.
 
 ## Commands
 
@@ -51,7 +50,7 @@ The seed adds the sports, resources and users from the spec's examples. Ion Pope
 ## Docker
 
 ```bash
-docker compose up -d postgres redis keycloak mailpit      # infrastructure
+docker compose up -d postgres redis mailpit               # infrastructure
 docker compose --profile app up -d --build                # + API and worker
 docker compose --profile monitoring up -d                 # Prometheus :9090, Grafana :3001, Loki, Alloy
 ```
@@ -67,7 +66,7 @@ Prometheus alerts when the p95 notification lag exceeds 2 minutes (NFR-03), when
 
 ## Implemented vs. not yet
 
-All 60 operations of the spec exist, and `npm run spec:check` verifies paths, methods and roles.
+All 56 operations of the spec exist, and `npm run spec:check` verifies paths, methods and roles.
 
 These return `501 NOT_IMPLEMENTED`, a temporary code that isn't in the spec:
 
