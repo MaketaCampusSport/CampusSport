@@ -171,7 +171,7 @@
     "step2": "Pasul 2 din 2",
     "title": "Panou de administrare",
     "codeTitle": "Cod de verificare",
-    "body": "Autentifică-te cu contul universității.",
+    "body": "Autentifică-te cu emailul și parola contului de administrator.",
     "codeBody": "Bună, {{name}}. Introdu codul din aplicația de autentificare.",
     "sso": "Autentificare cu SSO universitar",
     "ssoNote": "Administratorii folosesc și un al doilea factor (TOTP).",
@@ -182,7 +182,7 @@
     "otherAccount": "Folosește alt cont",
     "expiredTitle": "Sesiunea a expirat",
     "expiredBody": "Sesiunile de administrare durează 8 ore. Autentifică-te din nou.",
-    "demoHint": "Mod demo: alege un cont de mai jos sau folosește SSO; codul TOTP este 123456.",
+    "demoHint": "Mod demo: conturile de exemplu au parola parola123.",
     "notAdminTitle": "Cont fără drepturi de administrator",
     "notAdminBody": "Ești autentificat ca {{name}}. Intră cu un cont de administrator."
   },
@@ -195,7 +195,7 @@
     },
     "dev": {
       "title": "Autentificare de dezvoltare",
-      "body": "Doar local: intră ca un utilizator din datele de exemplu, fără SSO sau 2FA.",
+      "body": "Doar local: intră ca un utilizator din datele de exemplu, fără parolă.",
       "disabled": "Serverul nu permite autentificarea de dezvoltare (NODE_ENV=development și DEV_LOGIN=true).",
       "unreachable": "Serverul nu răspunde. Pornește-l cu „npm run dev” din rădăcina proiectului."
     },
@@ -209,7 +209,7 @@
     },
     "member": {
       "title": "Intră în CampusSport",
-      "body": "Rezervă terenuri și săli la baza sportivă a universității.",
+      "body": "Intră cu emailul și parola sau creează-ți un cont de student ori profesor.",
       "modeLabel": "Tipul contului",
       "modeMember": "Student / profesor",
       "modeExternal": "Extern",
@@ -217,7 +217,7 @@
       "ssoNote": "Folosește autentificarea unică (SSO) a universității.",
       "expiredTitle": "Sesiunea a expirat",
       "expiredBody": "Autentifică-te din nou pentru a continua.",
-      "demoHint": "Mod demo: „SSO” te conectează ca student. Codurile OTP pentru externi sunt 123456.",
+      "demoHint": "Mod demo: conturile de exemplu au parola parola123. Contul nou se păstrează până la reîncărcarea paginii.",
       "adminLink": "Ești administrator? Intră în panoul de administrare"
     },
     "external": {
@@ -234,6 +234,18 @@
       "emailCode": "Codul din email",
       "phoneCode": "Codul din SMS",
       "changeEmail": "Folosește alt email"
+    },
+    "password": {
+      "modeLabel": "Autentificare sau cont nou",
+      "signIn": "Autentificare",
+      "register": "Cont nou",
+      "email": "Email",
+      "password": "Parolă",
+      "passwordHint": "Cel puțin {{min}} caractere.",
+      "fullName": "Nume complet",
+      "role": "Rolul tău",
+      "submitSignIn": "Intră",
+      "submitRegister": "Creează contul"
     }
   }
 }

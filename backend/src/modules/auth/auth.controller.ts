@@ -1,9 +1,8 @@
-import { Body, Controller, Get, HttpCode, Post, Query, Req, Res } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post, Req, Res } from '@nestjs/common';
 import {
-  ApiAcceptedResponse,
   ApiBody,
   ApiConflictResponse,
-  ApiFoundResponse,
+  ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -16,108 +15,134 @@ import { Public } from '../../common/auth/decorators';
 import { TokenService } from '../../common/auth/token.service';
 import { AppException } from '../../common/errors/app.exception';
 import type { User } from '../../database/entities';
-import { AuthFlowsService } from './auth-flows.service';
-import {
-  ExternalLoginDto,
-  ExternalRegistrationDto,
-  ExternalVerifyDto,
-  OtpSentResponse,
-  SessionResponse,
-  SsoCallbackQueryDto,
-  SsoLoginQueryDto,
-  TwoFactorVerifyDto,
-} from './dto/auth.dto';
+import { PasswordLoginDto, PasswordRegistrationDto, SessionResponse } from './dto/auth.dto';
+import { PasswordAuthService } from './password-auth.service';
+// DISABLED with SSO / 2FA / external OTP (used by the commented-out handlers below):
+// Get, Query, ApiAcceptedResponse, ApiFoundResponse, AuthFlowsService, ExternalLoginDto, ExternalRegistrationDto,
+// ExternalVerifyDto, OtpSentResponse, SsoCallbackQueryDto, SsoLoginQueryDto, TwoFactorVerifyDto.
 import { REFRESH_COOKIE, SessionsService } from './sessions.service';
 import { UsersService } from './users.service';
 
-/** OTP and 2FA endpoints: 5 attempts per minute per caller. */
+/** Register and login: 5 attempts per minute per caller. */
 const STRICT = { default: { limit: 5, ttl: 60_000 } };
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(
-    private readonly flows: AuthFlowsService,
+    private readonly passwords: PasswordAuthService,
+    // DISABLED: private readonly flows: AuthFlowsService,
     private readonly sessions: SessionsService,
     private readonly tokens: TokenService,
     private readonly users: UsersService,
   ) {}
 
   @Public()
-  @Get('sso/login')
-  @ApiOperation({ operationId: 'ssoLogin', summary: 'Redirecționare către SSO-ul universității' })
-  @ApiFoundResponse({ description: 'Redirecționare către furnizorul de identitate.' })
-  async ssoLogin(@Query() query: SsoLoginQueryDto, @Res() res: Response): Promise<void> {
-    res.redirect(302, await this.flows.startSso(query.return_to));
-  }
-
-  @Public()
-  @Get('sso/callback')
-  @ApiOperation({ operationId: 'ssoCallback', summary: 'Revenire de la furnizorul SSO' })
-  @ApiFoundResponse({ description: 'Redirecționare către PWA; administratorii trec întâi prin 2FA.' })
-  async ssoCallback(@Query() query: SsoCallbackQueryDto, @Res() res: Response): Promise<void> {
-    const result = await this.flows.finishSso({ ...query } as Record<string, string>);
-    if (result.kind === 'member') await this.startSession(result.user, res);
-    res.redirect(302, result.redirectTo);
-  }
-
-  @Public()
   @Throttle(STRICT)
-  @Post('2fa/verify')
-  @HttpCode(200)
-  @ApiOperation({
-    operationId: 'verifyTwoFactor',
-    summary: 'Al doilea pas de autentificare pentru administratori',
-  })
-  @ApiOkResponse({ type: SessionResponse, description: 'Sesiune de administrator creată (valabilă 8 ore).' })
-  @ApiUnauthorizedResponse({ description: 'Cod greșit sau provocare expirată (`OTP_INVALID`).' })
-  @ApiTooManyRequestsResponse()
-  async verifyTwoFactor(
-    @Body() dto: TwoFactorVerifyDto,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<SessionResponse> {
-    const user = await this.flows.verifySecondFactor(dto.challenge_id, dto.code);
-    return this.startSession(user, res);
-  }
-
-  @Public()
-  @Throttle(STRICT)
-  @Post('external/register')
-  @HttpCode(202)
-  @ApiOperation({ operationId: 'registerExternal', summary: 'Înregistrare extern' })
-  @ApiAcceptedResponse({ type: OtpSentResponse, description: 'Coduri OTP trimise.' })
+  @Post('register')
+  @HttpCode(201)
+  @ApiOperation({ operationId: 'registerWithPassword', summary: 'Înregistrare cu email și parolă' })
+  @ApiCreatedResponse({ type: SessionResponse, description: 'Cont creat, sesiune deschisă.' })
   @ApiConflictResponse({ description: 'Există deja un cont cu acest email (`EMAIL_ALREADY_USED`).' })
-  registerExternal(@Body() dto: ExternalRegistrationDto): Promise<OtpSentResponse> {
-    return this.flows.registerExternal(dto);
-  }
-
-  @Public()
-  @Throttle(STRICT)
-  @Post('external/login')
-  @HttpCode(202)
-  @ApiOperation({
-    operationId: 'loginExternal',
-    summary: 'Solicitare cod OTP pentru un extern deja înregistrat',
-  })
-  @ApiAcceptedResponse({ type: OtpSentResponse })
-  loginExternal(@Body() dto: ExternalLoginDto): Promise<OtpSentResponse> {
-    return this.flows.requestExternalLogin(dto);
-  }
-
-  @Public()
-  @Throttle(STRICT)
-  @Post('external/verify')
-  @HttpCode(200)
-  @ApiOperation({ operationId: 'verifyExternal', summary: 'Verifică OTP și emite JWT' })
-  @ApiOkResponse({ type: SessionResponse })
-  @ApiUnauthorizedResponse({ description: 'Cod OTP greșit sau expirat (`OTP_INVALID`).' })
-  async verifyExternal(
-    @Body() dto: ExternalVerifyDto,
+  @ApiTooManyRequestsResponse()
+  async register(
+    @Body() dto: PasswordRegistrationDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<SessionResponse> {
-    const user = await this.flows.verifyExternal(dto);
-    return this.startSession(user, res);
+    return this.startSession(await this.passwords.register(dto), res);
   }
+
+  @Public()
+  @Throttle(STRICT)
+  @Post('login')
+  @HttpCode(200)
+  @ApiOperation({ operationId: 'loginWithPassword', summary: 'Autentificare cu email și parolă' })
+  @ApiOkResponse({ type: SessionResponse, description: 'Sesiune deschisă.' })
+  @ApiUnauthorizedResponse({ description: 'Email sau parolă greșită (`INVALID_CREDENTIALS`).' })
+  @ApiTooManyRequestsResponse()
+  async login(
+    @Body() dto: PasswordLoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<SessionResponse> {
+    return this.startSession(await this.passwords.login(dto), res);
+  }
+
+  // DISABLED: SSO, admin 2FA and the external OTP flow; sign-in is email + password (register/login above).
+  // @Public()
+  // @Get('sso/login')
+  // @ApiOperation({ operationId: 'ssoLogin', summary: 'Redirecționare către SSO-ul universității' })
+  // @ApiFoundResponse({ description: 'Redirecționare către furnizorul de identitate.' })
+  // async ssoLogin(@Query() query: SsoLoginQueryDto, @Res() res: Response): Promise<void> {
+  //   res.redirect(302, await this.flows.startSso(query.return_to));
+  // }
+  //
+  // @Public()
+  // @Get('sso/callback')
+  // @ApiOperation({ operationId: 'ssoCallback', summary: 'Revenire de la furnizorul SSO' })
+  // @ApiFoundResponse({ description: 'Redirecționare către PWA; administratorii trec întâi prin 2FA.' })
+  // async ssoCallback(@Query() query: SsoCallbackQueryDto, @Res() res: Response): Promise<void> {
+  //   const result = await this.flows.finishSso({ ...query } as Record<string, string>);
+  //   if (result.kind === 'member') await this.startSession(result.user, res);
+  //   res.redirect(302, result.redirectTo);
+  // }
+  //
+  // @Public()
+  // @Throttle(STRICT)
+  // @Post('2fa/verify')
+  // @HttpCode(200)
+  // @ApiOperation({
+  //   operationId: 'verifyTwoFactor',
+  //   summary: 'Al doilea pas de autentificare pentru administratori',
+  // })
+  // @ApiOkResponse({ type: SessionResponse, description: 'Sesiune de administrator creată (valabilă 8 ore).' })
+  // @ApiUnauthorizedResponse({ description: 'Cod greșit sau provocare expirată (`OTP_INVALID`).' })
+  // @ApiTooManyRequestsResponse()
+  // async verifyTwoFactor(
+  //   @Body() dto: TwoFactorVerifyDto,
+  //   @Res({ passthrough: true }) res: Response,
+  // ): Promise<SessionResponse> {
+  //   const user = await this.flows.verifySecondFactor(dto.challenge_id, dto.code);
+  //   return this.startSession(user, res);
+  // }
+  //
+  // @Public()
+  // @Throttle(STRICT)
+  // @Post('external/register')
+  // @HttpCode(202)
+  // @ApiOperation({ operationId: 'registerExternal', summary: 'Înregistrare extern' })
+  // @ApiAcceptedResponse({ type: OtpSentResponse, description: 'Coduri OTP trimise.' })
+  // @ApiConflictResponse({ description: 'Există deja un cont cu acest email (`EMAIL_ALREADY_USED`).' })
+  // registerExternal(@Body() dto: ExternalRegistrationDto): Promise<OtpSentResponse> {
+  //   return this.flows.registerExternal(dto);
+  // }
+  //
+  // @Public()
+  // @Throttle(STRICT)
+  // @Post('external/login')
+  // @HttpCode(202)
+  // @ApiOperation({
+  //   operationId: 'loginExternal',
+  //   summary: 'Solicitare cod OTP pentru un extern deja înregistrat',
+  // })
+  // @ApiAcceptedResponse({ type: OtpSentResponse })
+  // loginExternal(@Body() dto: ExternalLoginDto): Promise<OtpSentResponse> {
+  //   return this.flows.requestExternalLogin(dto);
+  // }
+  //
+  // @Public()
+  // @Throttle(STRICT)
+  // @Post('external/verify')
+  // @HttpCode(200)
+  // @ApiOperation({ operationId: 'verifyExternal', summary: 'Verifică OTP și emite JWT' })
+  // @ApiOkResponse({ type: SessionResponse })
+  // @ApiUnauthorizedResponse({ description: 'Cod OTP greșit sau expirat (`OTP_INVALID`).' })
+  // async verifyExternal(
+  //   @Body() dto: ExternalVerifyDto,
+  //   @Res({ passthrough: true }) res: Response,
+  // ): Promise<SessionResponse> {
+  //   const user = await this.flows.verifyExternal(dto);
+  //   return this.startSession(user, res);
+  // }
 
   /** Authenticated by the refresh cookie, not by a bearer token. */
   @Public()

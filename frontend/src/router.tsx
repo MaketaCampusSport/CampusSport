@@ -22,12 +22,13 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorPage />,
     lazy: async () => ({ Component: (await import('@/features/auth/MemberLoginPage')).default }),
   },
-  {
-    path: '/auth/2fa',
-    HydrateFallback: FullPageSpinner,
-    errorElement: <RouteErrorPage />,
-    lazy: async () => ({ Component: (await import('@/features/auth/TwoFactorPage')).default }),
-  },
+  // DEZACTIVAT (autentificare cu email și parolă): pasul 2FA al administratorilor după SSO.
+  // {
+  //   path: '/auth/2fa',
+  //   HydrateFallback: FullPageSpinner,
+  //   errorElement: <RouteErrorPage />,
+  //   lazy: async () => ({ Component: (await import('@/features/auth/TwoFactorPage')).default }),
+  // },
   {
     path: '/user',
     element: <RequireMember />,

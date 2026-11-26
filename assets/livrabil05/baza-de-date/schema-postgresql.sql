@@ -15,6 +15,7 @@ CREATE TABLE users (
     email_verified_at        timestamptz,
     phone_verified_at        timestamptz,
     totp_secret              text,
+    password_hash            text,
     calendar_token           uuid NOT NULL DEFAULT gen_random_uuid(),
     notification_preferences jsonb NOT NULL DEFAULT '{"push": true, "email": true, "sms": false, "language": "ro"}',
     last_active_at           timestamptz,
@@ -25,8 +26,9 @@ CREATE TABLE users (
     CONSTRAINT users_role_ck CHECK (role IN ('student', 'teacher', 'external', 'admin')),
     CONSTRAINT users_status_ck CHECK (status IN ('active', 'suspended')),
     CONSTRAINT users_suspended_ck CHECK (status <> 'suspended' OR suspended_until IS NOT NULL),
-    CONSTRAINT users_external_phone_ck CHECK (role <> 'external' OR phone IS NOT NULL),
-    CONSTRAINT users_sso_ck CHECK ((role = 'external') = (sso_subject IS NULL))
+    CONSTRAINT users_external_phone_ck CHECK (role <> 'external' OR phone IS NOT NULL)
+    -- Dezactivat (autentificare cu email și parolă): membrii nu mai au neapărat cont SSO.
+    -- CONSTRAINT users_sso_ck CHECK ((role = 'external') = (sso_subject IS NULL))
 );
 
 CREATE TABLE sports (

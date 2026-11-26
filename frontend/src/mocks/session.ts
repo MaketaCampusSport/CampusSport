@@ -1,7 +1,10 @@
 import type { User } from '@/api/generated';
 import { ADMIN, db } from './db';
 
-/** Conturile demo; aceleași roluri ca în datele de exemplu ale serverului. */
+/** Parola conturilor demo (aceeași ca EXAMPLE_PASSWORD din datele de exemplu ale serverului). */
+export const MOCK_PASSWORD = 'parola123';
+
+/** Conturile demo; aceleași roluri ca în datele de exemplu ale serverului. Înregistrarea din demo adaugă aici. */
 export const MOCK_USERS: User[] = [
   { id: 'u-admin-1', full_name: ADMIN.fullName, email: ADMIN.email, role: 'admin', status: 'active' },
   { id: 'u-student-1', full_name: 'Andrei Popescu', email: 'andrei.popescu@student.univ.example', role: 'student', status: 'active' },

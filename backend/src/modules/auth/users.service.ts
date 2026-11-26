@@ -9,22 +9,31 @@ import { Page, pageOf, pageOffset } from '../../common/http/pagination';
 import { APP_CONFIG } from '../../config/configuration';
 import type { AppConfig } from '../../config/configuration';
 import { User } from '../../database/entities';
-import type { Role } from '../../database/enums';
+// DISABLED with SSO: import type { Role } from '../../database/enums';
 import { AuditService } from '../audit/audit.service';
 import type { CancelledBooking } from '../jobs/queues';
 import { ListUsersQueryDto, toUserResponse, UserResponse } from './dto/user.dto';
+import { hashPassword } from './password';
 
-export interface SsoIdentity {
-  subject: string;
-  email: string;
-  fullName: string;
-  role: Exclude<Role, 'external'>;
-}
+// DISABLED: SSO and the external OTP flow are commented out; sign-in is email + password.
+// export interface SsoIdentity {
+//   subject: string;
+//   email: string;
+//   fullName: string;
+//   role: Exclude<Role, 'external'>;
+// }
+//
+// export interface NewExternal {
+//   fullName: string;
+//   email: string;
+//   phone: string;
+// }
 
-export interface NewExternal {
+export interface NewPasswordUser {
   fullName: string;
   email: string;
-  phone: string;
+  password: string;
+  role: 'student' | 'teacher';
 }
 
 export function normalizeEmail(email: string): string {
@@ -77,75 +86,111 @@ export class UsersService {
     await this.users.update({ id: userId }, { totpSecret: secret });
   }
 
-  /**
-   * Creates or updates a member after SSO (FR-01). The IdP is authoritative for name and role.
-   * A user with the same email and no SSO subject yet (e.g. seeded) is linked to this subject.
-   */
-  async upsertFromSso(identity: SsoIdentity): Promise<User> {
-    const email = normalizeEmail(identity.email);
-    let user = await this.users.findOneBy({ ssoSubject: identity.subject });
-    if (!user) {
-      const byEmail = await this.users.findOneBy({ email });
-      if (byEmail?.role === 'external') throw new AppException('EMAIL_ALREADY_USED');
-      user = byEmail;
-    }
-    if (user) {
-      await this.users.update(
-        { id: user.id },
-        {
-          ssoSubject: identity.subject,
-          email,
-          fullName: identity.fullName,
-          role: identity.role,
-          lastActiveAt: new Date(),
-        },
-      );
-      return this.getById(user.id);
-    }
-    const created = await this.users.save(
-      this.users.create({
-        ssoSubject: identity.subject,
-        email,
-        fullName: identity.fullName,
-        role: identity.role,
-        lastActiveAt: new Date(),
-      }),
-    );
-    return this.getById(created.id);
+  async getPasswordHash(userId: string): Promise<string | null> {
+    const row = await this.users
+      .createQueryBuilder('u')
+      .select('u.id')
+      .addSelect('u.passwordHash')
+      .where('u.id = :userId', { userId })
+      .getOne();
+    return row?.passwordHash ?? null;
   }
 
-  /** New or re-started external registration (FR-02). Verified accounts and members keep their email. */
-  async createOrResetExternal(input: NewExternal): Promise<User> {
+  /** Self-service registration with email + password; only `student` and `teacher` can be chosen (FR-01). */
+  async createWithPassword(input: NewPasswordUser): Promise<User> {
     const email = normalizeEmail(input.email);
-    const existing = await this.users.findOneBy({ email });
-    if (existing && (existing.role !== 'external' || existing.emailVerifiedAt)) {
-      throw new AppException('EMAIL_ALREADY_USED');
+    if (await this.users.existsBy({ email })) throw new AppException('EMAIL_ALREADY_USED');
+    try {
+      const created = await this.users.save(
+        this.users.create({
+          fullName: input.fullName.trim(),
+          email,
+          role: input.role,
+          ssoSubject: null,
+          passwordHash: await hashPassword(input.password),
+          lastActiveAt: new Date(),
+        }),
+      );
+      return this.getById(created.id);
+    } catch (err) {
+      // Two registrations with the same email at once: users_email_uq decides.
+      if ((err as { driverError?: { code?: string } }).driverError?.code === '23505') {
+        throw new AppException('EMAIL_ALREADY_USED');
+      }
+      throw err;
     }
-    if (existing) {
-      await this.users.update({ id: existing.id }, { fullName: input.fullName, phone: input.phone });
-      return this.getById(existing.id);
-    }
-    const created = await this.users.save(
-      this.users.create({
-        fullName: input.fullName,
-        email,
-        phone: input.phone,
-        role: 'external',
-        ssoSubject: null,
-      }),
-    );
-    return this.getById(created.id);
   }
 
-  async markExternalVerified(userId: string, phoneToo: boolean): Promise<void> {
-    const now = new Date();
-    await this.users.update(
-      { id: userId },
-      phoneToo
-        ? { emailVerifiedAt: now, phoneVerifiedAt: now, lastActiveAt: now }
-        : { emailVerifiedAt: now, lastActiveAt: now },
-    );
-  }
+  // DISABLED: SSO and the external OTP flow are commented out; sign-in is email + password.
+  // /**
+  //  * Creates or updates a member after SSO (FR-01). The IdP is authoritative for name and role.
+  //  * A user with the same email and no SSO subject yet (e.g. seeded) is linked to this subject.
+  //  */
+  // async upsertFromSso(identity: SsoIdentity): Promise<User> {
+  //   const email = normalizeEmail(identity.email);
+  //   let user = await this.users.findOneBy({ ssoSubject: identity.subject });
+  //   if (!user) {
+  //     const byEmail = await this.users.findOneBy({ email });
+  //     if (byEmail?.role === 'external') throw new AppException('EMAIL_ALREADY_USED');
+  //     user = byEmail;
+  //   }
+  //   if (user) {
+  //     await this.users.update(
+  //       { id: user.id },
+  //       {
+  //         ssoSubject: identity.subject,
+  //         email,
+  //         fullName: identity.fullName,
+  //         role: identity.role,
+  //         lastActiveAt: new Date(),
+  //       },
+  //     );
+  //     return this.getById(user.id);
+  //   }
+  //   const created = await this.users.save(
+  //     this.users.create({
+  //       ssoSubject: identity.subject,
+  //       email,
+  //       fullName: identity.fullName,
+  //       role: identity.role,
+  //       lastActiveAt: new Date(),
+  //     }),
+  //   );
+  //   return this.getById(created.id);
+  // }
+  //
+  // /** New or re-started external registration (FR-02). Verified accounts and members keep their email. */
+  // async createOrResetExternal(input: NewExternal): Promise<User> {
+  //   const email = normalizeEmail(input.email);
+  //   const existing = await this.users.findOneBy({ email });
+  //   if (existing && (existing.role !== 'external' || existing.emailVerifiedAt)) {
+  //     throw new AppException('EMAIL_ALREADY_USED');
+  //   }
+  //   if (existing) {
+  //     await this.users.update({ id: existing.id }, { fullName: input.fullName, phone: input.phone });
+  //     return this.getById(existing.id);
+  //   }
+  //   const created = await this.users.save(
+  //     this.users.create({
+  //       fullName: input.fullName,
+  //       email,
+  //       phone: input.phone,
+  //       role: 'external',
+  //       ssoSubject: null,
+  //     }),
+  //   );
+  //   return this.getById(created.id);
+  // }
+  //
+  // async markExternalVerified(userId: string, phoneToo: boolean): Promise<void> {
+  //   const now = new Date();
+  //   await this.users.update(
+  //     { id: userId },
+  //     phoneToo
+  //       ? { emailVerifiedAt: now, phoneVerifiedAt: now, lastActiveAt: now }
+  //       : { emailVerifiedAt: now, lastActiveAt: now },
+  //   );
+  // }
 
   async touch(userId: string): Promise<void> {
     await this.users.update({ id: userId }, { lastActiveAt: new Date() });

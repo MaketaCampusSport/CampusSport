@@ -51,6 +51,9 @@ export const STANDARD_HOURS: WeeklyHours = {
   sat: SATURDAY_HOURS,
 };
 
+/** Password of every seeded example user (email + password sign-in). Development and demo data only. */
+export const EXAMPLE_PASSWORD = 'parola123';
+
 export const EXAMPLE_USERS = {
   student: {
     id: '3c7d1e94-52af-4b08-9e61-a8f02d6b7c15',

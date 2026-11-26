@@ -8,7 +8,7 @@ describe('loadConfig', () => {
     expect(cfg.jwt.refreshTtlMemberDays).toBe(30);
     expect(cfg.jwt.refreshTtlAdminHours).toBe(8);
     expect(cfg.cookieSecure).toBe(false);
-    expect(cfg.oidc.roleMap.faculty).toBe('teacher');
+    // DISABLED with SSO: expect(cfg.oidc.roleMap.faculty).toBe('teacher');
   });
 
   it('requires secrets in production', () => {
@@ -23,11 +23,10 @@ describe('loadConfig', () => {
       JWT_ACCESS_SECRET: 'a',
       QR_HMAC_SECRET: 'b',
       PORT: '8080',
-      OIDC_ROLE_MAP: '{"staff":"admin"}',
     });
     expect(cfg.port).toBe(8080);
     expect(cfg.cookieSecure).toBe(true);
-    expect(cfg.oidc.roleMap).toEqual({ staff: 'admin' });
+    // DISABLED with SSO: expect(cfg.oidc.roleMap).toEqual({ staff: 'admin' });
   });
 
   it('builds the database URL from DB_* parts and escapes the password', () => {

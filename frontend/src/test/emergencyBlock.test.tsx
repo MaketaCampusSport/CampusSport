@@ -11,6 +11,7 @@ import { toDateKey } from '@/lib/dates';
 import { db, resetDb } from '@/mocks/db';
 import { server } from '@/mocks/node';
 import { staffCheckIn } from '@/mocks/occupancy';
+import { MOCK_PASSWORD, MOCK_USERS } from '@/mocks/session';
 import { signInAs } from './session';
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
@@ -27,10 +28,39 @@ function wrap(ui: React.ReactNode) {
 }
 
 describe('API simulat – autentificare', () => {
-  it('respinge un cod TOTP greșit', async () => {
+  it('respinge o parolă greșită', async () => {
     resetDb();
-    await expect(client.auth.verifyTwoFactor('demo', '000000')).rejects.toMatchObject({ status: 401, code: 'OTP_INVALID' });
+    await expect(client.auth.login({ email: MOCK_USERS[0].email, password: 'gresita1' })).rejects.toMatchObject({
+      status: 401,
+      code: 'INVALID_CREDENTIALS',
+    });
   });
+
+  it('intră cu parola demo și creează un cont de profesor', async () => {
+    const admin = await client.auth.login({ email: MOCK_USERS[0].email, password: MOCK_PASSWORD });
+    expect(admin.user.role).toBe('admin');
+
+    const created = await client.auth.register({
+      full_name: 'Elena Test',
+      email: 'Elena.Test@example.edu',
+      password: 'parola-noua',
+      role: 'teacher',
+    });
+    expect(created.user).toMatchObject({ email: 'elena.test@example.edu', role: 'teacher' });
+    await expect(
+      client.auth.register({ full_name: 'Elena Test', email: 'elena.test@example.edu', password: 'parola-noua', role: 'student' }),
+    ).rejects.toMatchObject({ status: 409, code: 'EMAIL_ALREADY_USED' });
+    await expect(client.auth.login({ email: 'elena.test@example.edu', password: 'parola-noua' })).resolves.toMatchObject({
+      user: { role: 'teacher' },
+    });
+    await signInAs('admin');
+  });
+
+  // DEZACTIVAT împreună cu 2FA:
+  // it('respinge un cod TOTP greșit', async () => {
+  //   resetDb();
+  //   await expect(client.auth.verifyTwoFactor('demo', '000000')).rejects.toMatchObject({ status: 401, code: 'OTP_INVALID' });
+  // });
 });
 
 describe('Blocare de urgență (FR-40/FR-41, SDD 7.3)', () => {

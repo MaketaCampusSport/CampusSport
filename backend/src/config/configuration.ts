@@ -18,21 +18,22 @@ export interface AppConfig {
     refreshTtlAdminHours: number;
   };
   qrHmacSecret: string;
-  oidc: {
-    issuer: string;
-    clientId: string;
-    clientSecret: string;
-    redirectUri: string;
-    scope: string;
-    roleClaim: string;
-    roleMap: Record<string, 'student' | 'teacher' | 'admin'>;
-    allowInsecure: boolean;
-  };
+  // DISABLED: SSO (OIDC) is commented out; sign-in is email + password.
+  // oidc: {
+  //   issuer: string;
+  //   clientId: string;
+  //   clientSecret: string;
+  //   redirectUri: string;
+  //   scope: string;
+  //   roleClaim: string;
+  //   roleMap: Record<string, 'student' | 'teacher' | 'admin'>;
+  //   allowInsecure: boolean;
+  // };
   totpIssuer: string;
   mail: { host: string; port: number; from: string };
   vapid: { publicKey: string; privateKey: string; subject: string };
   smsDriver: 'log';
-  /** Development-only `/auth/dev/*` routes that sign in as a seeded user without SSO (never in production). */
+  /** Development-only `/auth/dev/*` routes that sign in as a seeded user without a password (never in production). */
   devLogin: boolean;
 }
 
@@ -70,13 +71,14 @@ function databaseUrl(env: NodeJS.ProcessEnv): string {
   return required(env, 'DATABASE_URL', 'postgres://postgres:postgres@localhost:5432/campussport');
 }
 
-const DEFAULT_ROLE_MAP = {
-  student: 'student',
-  teacher: 'teacher',
-  faculty: 'teacher',
-  staff: 'teacher',
-  admin: 'admin',
-} as const;
+// DISABLED: SSO (OIDC) is commented out; sign-in is email + password.
+// const DEFAULT_ROLE_MAP = {
+//   student: 'student',
+//   teacher: 'teacher',
+//   faculty: 'teacher',
+//   staff: 'teacher',
+//   admin: 'admin',
+// } as const;
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   const nodeEnv = (env.NODE_ENV ?? 'development') as AppConfig['env'];
@@ -97,16 +99,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       refreshTtlAdminHours: int(env, 'REFRESH_TTL_ADMIN_HOURS', 8),
     },
     qrHmacSecret: required(env, 'QR_HMAC_SECRET', 'dev-only-qr-secret-change-me'),
-    oidc: {
-      issuer: env.OIDC_ISSUER ?? 'http://localhost:8080/realms/campussport',
-      clientId: env.OIDC_CLIENT_ID ?? 'campussport-api',
-      clientSecret: env.OIDC_CLIENT_SECRET ?? 'campussport-dev-secret',
-      redirectUri: env.OIDC_REDIRECT_URI ?? 'http://localhost:3000/api/v1/auth/sso/callback',
-      scope: env.OIDC_SCOPE ?? 'openid email profile',
-      roleClaim: env.OIDC_ROLE_CLAIM ?? 'campussport_roles',
-      roleMap: env.OIDC_ROLE_MAP ? JSON.parse(env.OIDC_ROLE_MAP) : { ...DEFAULT_ROLE_MAP },
-      allowInsecure: bool(env, 'OIDC_ALLOW_INSECURE', !isProd),
-    },
+    // DISABLED: SSO (OIDC) is commented out; sign-in is email + password.
+    // oidc: {
+    //   issuer: env.OIDC_ISSUER ?? 'http://localhost:8080/realms/campussport',
+    //   clientId: env.OIDC_CLIENT_ID ?? 'campussport-api',
+    //   clientSecret: env.OIDC_CLIENT_SECRET ?? 'campussport-dev-secret',
+    //   redirectUri: env.OIDC_REDIRECT_URI ?? 'http://localhost:3000/api/v1/auth/sso/callback',
+    //   scope: env.OIDC_SCOPE ?? 'openid email profile',
+    //   roleClaim: env.OIDC_ROLE_CLAIM ?? 'campussport_roles',
+    //   roleMap: env.OIDC_ROLE_MAP ? JSON.parse(env.OIDC_ROLE_MAP) : { ...DEFAULT_ROLE_MAP },
+    //   allowInsecure: bool(env, 'OIDC_ALLOW_INSECURE', !isProd),
+    // },
     totpIssuer: env.TOTP_ISSUER ?? 'CampusSport',
     mail: {
       host: env.SMTP_HOST ?? 'localhost',

@@ -13,15 +13,17 @@ CREATE TABLE users (
     email_verified_at        TIMESTAMP WITH TIME ZONE,
     phone_verified_at        TIMESTAMP WITH TIME ZONE,
     totp_secret              VARCHAR2(255),
+    password_hash            VARCHAR2(255),
     calendar_token           VARCHAR2(36) NOT NULL,
     notification_preferences CLOB NOT NULL,
     last_active_at           TIMESTAMP WITH TIME ZONE,
     created_at               TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-COMMENT ON TABLE users IS 'Membri (SSO), externi (OTP) si administratori';
+COMMENT ON TABLE users IS 'Studenti, profesori, externi si administratori; autentificare cu email si parola';
 COMMENT ON COLUMN users.id IS 'uuid in PostgreSQL';
-COMMENT ON COLUMN users.sso_subject IS 'NULL pentru externi';
+COMMENT ON COLUMN users.sso_subject IS 'Subiectul SSO (dezactivat); NULL pentru conturile cu parola';
+COMMENT ON COLUMN users.password_hash IS 'Hash scrypt al parolei; NULL daca contul nu are parola';
 COMMENT ON COLUMN users.totp_secret IS 'Al doilea pas pentru administratori (NFR-08), criptat';
 COMMENT ON COLUMN users.calendar_token IS 'Token pentru abonamentul iCal personal (FR-17); uuid in PostgreSQL';
 COMMENT ON COLUMN users.notification_preferences IS 'Canale si limba (FR-37); jsonb in PostgreSQL';
@@ -35,7 +37,8 @@ ALTER TABLE users ADD CONSTRAINT users_role_ck CHECK ( role IN ( 'student', 'tea
 ALTER TABLE users ADD CONSTRAINT users_status_ck CHECK ( status IN ( 'active', 'suspended' ) );
 ALTER TABLE users ADD CONSTRAINT users_suspended_ck CHECK ( status <> 'suspended' OR suspended_until IS NOT NULL );
 ALTER TABLE users ADD CONSTRAINT users_external_phone_ck CHECK ( role <> 'external' OR phone IS NOT NULL );
-ALTER TABLE users ADD CONSTRAINT users_sso_ck CHECK ( ( role = 'external' AND sso_subject IS NULL ) OR ( role <> 'external' AND sso_subject IS NOT NULL ) );
+-- Dezactivat (autentificare cu email si parola):
+-- ALTER TABLE users ADD CONSTRAINT users_sso_ck CHECK ( ( role = 'external' AND sso_subject IS NULL ) OR ( role <> 'external' AND sso_subject IS NOT NULL ) );
 
 CREATE TABLE sports (
     id                 VARCHAR2(36) NOT NULL,

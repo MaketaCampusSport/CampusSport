@@ -1,13 +1,16 @@
 import { DataSource } from 'typeorm';
-import { EXAMPLE_RESOURCES, EXAMPLE_SPORTS, EXAMPLE_USERS } from './example-data';
+import { hashPassword } from '../../modules/auth/password';
+import { EXAMPLE_PASSWORD, EXAMPLE_RESOURCES, EXAMPLE_SPORTS, EXAMPLE_USERS } from './example-data';
 
 /**
  * Idempotent development seed: sports, resources and one user per role.
- * Seeded SSO users have `sso_subject = seed:<role>`; the first real SSO login with the same email takes them over.
+ * Every seeded user signs in with EXAMPLE_PASSWORD. Re-seeding keeps a password the user has since changed.
+ * (`sso_subject = seed:<role>` is left over from the disabled SSO sign-in.)
  */
 export async function seedDevelopmentData(
   ds: DataSource,
 ): Promise<{ sports: number; resources: number; users: number }> {
+  const passwordHash = await hashPassword(EXAMPLE_PASSWORD);
   await ds.transaction(async (em) => {
     for (const s of Object.values(EXAMPLE_SPORTS)) {
       await em.query(
@@ -52,10 +55,12 @@ export async function seedDevelopmentData(
     for (const u of Object.values(EXAMPLE_USERS)) {
       const verified = u.role === 'external' ? 'now()' : 'NULL';
       await em.query(
-        `INSERT INTO users (id, full_name, email, phone, role, sso_subject, email_verified_at, phone_verified_at)
-         VALUES ($1, $2, $3, $4, $5, $6, ${verified}, ${verified})
-         ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, phone = EXCLUDED.phone`,
-        [u.id, u.full_name, u.email, u.phone, u.role, u.sso_subject],
+        `INSERT INTO users (id, full_name, email, phone, role, sso_subject, password_hash, email_verified_at,
+           phone_verified_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, ${verified}, ${verified})
+         ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, phone = EXCLUDED.phone,
+           password_hash = COALESCE(users.password_hash, EXCLUDED.password_hash)`,
+        [u.id, u.full_name, u.email, u.phone, u.role, u.sso_subject, passwordHash],
       );
     }
   });

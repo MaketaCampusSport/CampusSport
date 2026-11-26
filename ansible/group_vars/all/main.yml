@@ -13,7 +13,9 @@ campussport_deploy_key_file: ""              # local path of a read-only deploy 
 campussport_user: campussport                # owns the checkout; member of the docker group
 campussport_app_dir: /opt/campussport
 
-campussport_keycloak_enabled: true           # bundled Keycloak at https://<auth domain>
+# DISABLED: sign-in is email + password; the bundled Keycloak (https://<auth domain>) is commented out
+# in docker-compose.yml, so keep this false.
+campussport_keycloak_enabled: false
 campussport_mailpit_enabled: "{{ campussport_mode == 'demo' }}"   # catch-all SMTP (UI via SSH tunnel)
 campussport_seed_example_data: "{{ campussport_mode == 'demo' }}"
 campussport_dev_login: "{{ campussport_mode == 'demo' }}"
@@ -27,7 +29,8 @@ campussport_facility_timezone: Europe/Chisinau
 campussport_log_level: info
 
 # Administrators to enrol for TOTP (prints otpauth:// URIs). Runs only with `--tags totp`, because
-# every run replaces the secret. The admin must exist first (signed in once via SSO, or seeded).
+# every run replaces the secret. The admin must exist first (seeded).
+# DISABLED: admin 2FA is commented out in the API, so the enrolled secret is not used at sign-in.
 campussport_totp_admins: []
 
 # ── Secrets ────────────────────────────────────────────────────────────────────────────────────

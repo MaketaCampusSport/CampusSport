@@ -51,7 +51,8 @@ Nu se pot reprezenta în Data Modeler și există doar în `schema-postgresql.sq
 | Tabel | Coloane | Motiv |
 |---|---|---|
 | `users` | `email_verified_at`, `phone_verified_at` | Verificarea externilor (FR-02) |
-| `users` | `totp_secret` | 2FA pentru administratori (NFR-08) |
+| `users` | `totp_secret` | 2FA pentru administratori (NFR-08); nefolosit cât timp 2FA este dezactivat |
+| `users` | `password_hash` | Hash scrypt al parolei (autentificare cu email și parolă) |
 | `users` | `calendar_token` | Abonamentul iCal personal (FR-17) |
 | `users` | `notification_preferences` | Canale preferate (FR-37, SRS 9.3) |
 | `users` | `last_active_at` | Ștergerea conturilor externe inactive (SDD 5.3) |

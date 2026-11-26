@@ -39,9 +39,10 @@
 	}
 }
 
-# Keycloak (profile `sso`). Without it running, this host answers 502.
-{$AUTH_SITE_ADDRESS} {
-	encode zstd gzip
-	import security_headers
-	reverse_proxy keycloak:8080
-}
+# DISABLED: sign-in is email + password; SSO (Keycloak/OIDC) is commented out.
+# # Keycloak (profile `sso`). Without it running, this host answers 502.
+# {$AUTH_SITE_ADDRESS} {
+# 	encode zstd gzip
+# 	import security_headers
+# 	reverse_proxy keycloak:8080
+# }

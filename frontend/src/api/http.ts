@@ -90,7 +90,7 @@ async function toApiError(res: Response): Promise<ApiError> {
   return new ApiError(res.status, message, code, details, body);
 }
 
-/** Răspunsul `Session` (POST /auth/refresh, /auth/2fa/verify, /auth/external/verify). */
+/** Răspunsul `Session` (POST /auth/refresh, /auth/login, /auth/register). */
 export interface SessionPayload {
   access_token: string;
   token_type: 'Bearer';

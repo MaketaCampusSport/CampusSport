@@ -16,10 +16,10 @@ Pentru a vedea specificația în editorul indicat în sarcină: pe <https://edit
 
 ## Conținut
 
-60 de operații pe 55 de căi și 54 de scheme, grupate pe cele 9 module din SDD cap. 4:
+56 de operații pe 51 de căi și 54 de scheme, grupate pe cele 9 module din SDD cap. 4:
 
-- **22 de operații** sunt rutele din SDD 6.1 și 6.2.
-- **38 de operații** sunt adăugate fiindcă SRS le cere, dar SDD nu le listează. Sunt marcate cu `x-sdd-route: false`.
+- **19 operații** sunt rutele din SDD 6.1 și 6.2.
+- **37 de operații** sunt adăugate fiindcă SRS le cere, dar SDD nu le listează. Sunt marcate cu `x-sdd-route: false`.
 
 Fiecare operație are rolul minim în `x-min-role` și cerințele acoperite în `x-srs`.
 
@@ -30,7 +30,7 @@ Fiecare operație are rolul minim în `x-min-role` și cerințele acoperite în 
 3. **Blocare peste altă blocare.** `no_overlap` ar respinge o urgență peste o oră EF, iar SDD 7.3 anulează doar rezervări. Conform SRS 9.1, API-ul înlătură nivelul inferior (`superseded_blocks_count`) și răspunde cu `409` la același nivel sau la unul superior.
 4. **Câmpuri peste SDD 5.1.** `external_access_windows` (FR-04), `participants_count` (FR-18) și `sport_id` opțional la rezervare, pentru cota per sport (FR-25).
 5. **`GET /availability?sport=`.** Extinde ruta din SDD, care primește doar `resource`, ca fluxul „sport → slot → confirmare” să rămână la 3 pași (FR-11).
-6. **2FA în aplicație.** `POST /auth/2fa/verify` presupune că al doilea pas este în CampusSport. Dacă furnizorul SSO îl face singur, ruta dispare.
+6. **Email și parolă în loc de SSO.** Autentificarea folosește `POST /auth/register` și `POST /auth/login`, cu parola păstrată ca hash scrypt în `users.password_hash`. La înregistrare se alege rolul `student` sau `teacher`. SSO (OIDC), OTP pentru externi și 2FA pentru administratori (`/auth/sso/*`, `/auth/external/*`, `/auth/2fa/verify`) sunt dezactivate: rutele sunt comentate în `openapi.yaml`, iar constrângerea `users_sso_ck` în schemă.
 
 Rămân deschise întrebările din SRS 9.7: furnizorul SSO, cota per sport, taxa pentru externi și bugetul de SMS. Domeniile din `servers` sunt orientative.
 
@@ -53,8 +53,8 @@ FR-16, FR-31, FR-33, FR-34, FR-36 și NFR-03 sunt realizate în principal de wor
 
 | Cerință | Operații |
 |---|---|
-| FR-01 | `GET /auth/sso/login`, `GET /auth/sso/callback`, `GET /me` |
-| FR-02 | `POST /auth/external/register`, `POST /auth/external/login`, `POST /auth/external/verify` |
+| FR-01 | `POST /auth/register`, `POST /auth/login`, `GET /me` |
+| FR-02 | `POST /auth/register` (fluxul OTP pentru externi este dezactivat) |
 | FR-03 | `POST /bookings`, `GET /bookings/{id}`, `POST /bookings/{id}/check-in` |
 | FR-04 | `GET /resources`, `POST /admin/resources`, `PATCH /admin/resources/{id}` |
 | FR-05 | `GET /admin/users`, `POST /admin/users/{id}/suspend`, `POST /admin/users/{id}/reactivate` |
@@ -102,7 +102,7 @@ FR-16, FR-31, FR-33, FR-34, FR-36 și NFR-03 sunt realizate în principal de wor
 | NFR-01 | `GET /availability`, `POST /bookings` |
 | NFR-03 | `POST /admin/blocks`, `GET /admin/blocks/{id}/delivery` |
 | NFR-04 | `POST /bookings` |
-| NFR-08 | `GET /auth/sso/callback`, `POST /auth/2fa/verify`, `POST /auth/refresh`, `POST /auth/logout` |
+| NFR-08 | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout` |
 | NFR-09 | `GET /bookings/{id}`, `DELETE /bookings/{id}`, `POST /bookings/{id}/check-in` |
-| NFR-11 | `POST /auth/external/register`, `DELETE /me`, `GET /me/export` |
+| NFR-11 | `DELETE /me`, `GET /me/export` |
 | NFR-14 | `POST /admin/sports`, `PUT /admin/sports/{id}`, `POST /admin/resources` |

@@ -170,7 +170,7 @@
     "step2": "Step 2 of 2",
     "title": "Admin panel",
     "codeTitle": "Verification code",
-    "body": "Sign in with your university account.",
+    "body": "Sign in with the email and password of an administrator account.",
     "codeBody": "Hello, {{name}}. Enter the code from your authenticator app.",
     "sso": "Sign in with university SSO",
     "ssoNote": "Administrators also use a second factor (TOTP).",
@@ -181,7 +181,7 @@
     "otherAccount": "Use another account",
     "expiredTitle": "Your session expired",
     "expiredBody": "Admin sessions last 8 hours. Please sign in again.",
-    "demoHint": "Demo mode: pick an account below or use SSO; the TOTP code is 123456.",
+    "demoHint": "Demo mode: the example accounts use the password parola123.",
     "notAdminTitle": "Account without admin rights",
     "notAdminBody": "You are signed in as {{name}}. Sign in with an administrator account."
   },
@@ -194,7 +194,7 @@
     },
     "dev": {
       "title": "Development sign-in",
-      "body": "Local only: sign in as a seeded user, without SSO or 2FA.",
+      "body": "Local only: sign in as a seeded user, without a password.",
       "disabled": "The server does not allow development sign-in (NODE_ENV=development and DEV_LOGIN=true).",
       "unreachable": "The server is not answering. Start it with “npm run dev” from the project root."
     },
@@ -208,7 +208,7 @@
     },
     "member": {
       "title": "Sign in to CampusSport",
-      "body": "Book courts and halls at the university sports facility.",
+      "body": "Sign in with your email and password, or create a student or teacher account.",
       "modeLabel": "Account type",
       "modeMember": "Student / teacher",
       "modeExternal": "External",
@@ -216,7 +216,7 @@
       "ssoNote": "Uses the university single sign-on (SSO).",
       "expiredTitle": "Session expired",
       "expiredBody": "Sign in again to continue.",
-      "demoHint": "Demo mode: “SSO” signs you in as a student. OTP codes for externals are 123456.",
+      "demoHint": "Demo mode: the example accounts use the password parola123. A new account lasts until the page reloads.",
       "adminLink": "Administrator? Open the admin panel"
     },
     "external": {
@@ -233,6 +233,18 @@
       "emailCode": "Code from email",
       "phoneCode": "Code from SMS",
       "changeEmail": "Use another email"
+    },
+    "password": {
+      "modeLabel": "Sign in or create an account",
+      "signIn": "Sign in",
+      "register": "Create account",
+      "email": "Email",
+      "password": "Password",
+      "passwordHint": "At least {{min}} characters.",
+      "fullName": "Full name",
+      "role": "Your role",
+      "submitSignIn": "Sign in",
+      "submitRegister": "Create account"
     }
   }
 }

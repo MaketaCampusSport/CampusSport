@@ -1,15 +1,17 @@
-import { Info, ShieldCheck } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { USE_MOCKS } from '@/api/config';
+import type { Session } from '@/api/generated';
 import { Logo } from '@/app/layout/Logo';
 import { FullPageSpinner } from '@/app/RouteFallbacks';
 import { useEnsureSession } from '@/auth/guards';
 import { isAdmin, useSession } from '@/auth/sessionStore';
 import { Banner } from '@/components/ui/feedback';
-import { Button } from '@/components/ui/Button';
-import { DevLoginPanel } from '@/features/auth/DevLoginPanel';
-import { safeReturnTo, startSso } from '@/features/auth/sso';
+import { PasswordLoginForm } from '@/features/auth/PasswordForms';
+import { safeReturnTo } from '@/features/auth/sso';
+// DEZACTIVAT împreună cu SSO și 2FA: ShieldCheck (lucide-react), Button, startSso.
+// DEZACTIVAT: DevLoginPanel ('@/features/auth/DevLoginPanel') pentru lista conturilor de exemplu.
 
 interface LocationState {
   from?: string;
@@ -17,8 +19,8 @@ interface LocationState {
 }
 
 /**
- * Autentificare administratori (SRS FR-01, NFR-08): pasul 1 = SSO universitar, pasul 2 = cod TOTP.
- * Pasul 2 are loc pe /auth/2fa, unde serverul trimite administratorii după SSO.
+ * Autentificare administratori (SRS FR-01) cu email și parolă, fără al doilea pas.
+ * DEZACTIVAT: SSO universitar + cod TOTP pe /auth/2fa (NFR-08).
  */
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -32,6 +34,11 @@ export default function LoginPage() {
   if (!ready) return <FullPageSpinner />;
   if (isAdmin(user)) return <Navigate to={from} replace />;
 
+  // Un cont fără drepturi rămâne aici și vede mesajul „notAdmin” de mai jos.
+  const done = (session: Session) => {
+    if (isAdmin(session.user)) navigate(from, { replace: true });
+  };
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-navy px-6 py-12">
       <div className="mb-8">
@@ -39,8 +46,7 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full max-w-[480px] rounded-4xl bg-surface p-10 shadow-pop">
-        <p className="eyebrow text-brand-text">{t('login.step1')}</p>
-        <h1 className="heading mt-2 text-3xl leading-tight">{t('login.title')}</h1>
+        <h1 className="heading text-3xl leading-tight">{t('login.title')}</h1>
         <p className="mt-2 text-[15px] text-muted">{t('login.body')}</p>
 
         {expired && (
@@ -54,6 +60,9 @@ export default function LoginPage() {
           </Banner>
         )}
 
+        <PasswordLoginForm onSignedIn={done} />
+
+        {/* DEZACTIVAT (autentificare cu email și parolă): SSO universitar, apoi codul TOTP pe /auth/2fa.
         <div className="mt-8 space-y-4">
           <Button
             variant="accent"
@@ -66,8 +75,11 @@ export default function LoginPage() {
           </Button>
           <p className="text-center text-xs text-muted">{t('login.ssoNote')}</p>
         </div>
+        */}
 
+        {/* DEZACTIVAT: lista conturilor de exemplu (autentificare de dezvoltare fără parolă).
         <DevLoginPanel only="admin" onSignedIn={() => navigate(from, { replace: true })} />
+        */}
 
         {USE_MOCKS && (
           <div className="mt-8 flex gap-3 rounded-2xl bg-brand-soft p-4 text-sm text-brand-text">

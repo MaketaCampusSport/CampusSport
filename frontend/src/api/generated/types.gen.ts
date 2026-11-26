@@ -16,7 +16,7 @@ export type Error = {
     };
 };
 
-export type ErrorCode = 'BAD_REQUEST' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'VALIDATION_FAILED' | 'RATE_LIMITED' | 'OTP_INVALID' | 'EMAIL_ALREADY_USED' | 'ACCOUNT_SUSPENDED' | 'EXTERNAL_ACCESS_DENIED' | 'SLOT_TAKEN' | 'SLOT_BLOCKED' | 'QUOTA_EXHAUSTED' | 'ACTIVE_LIMIT_REACHED' | 'WINDOW_EXCEEDED' | 'OUTSIDE_OPENING_HOURS' | 'INVALID_SLOT' | 'RESOURCE_INACTIVE' | 'BOOKING_NOT_CANCELLABLE' | 'BOOKING_NOT_ACTIVE' | 'ALREADY_CHECKED_IN' | 'QR_INVALID' | 'CHECKIN_WINDOW_CLOSED' | 'ALREADY_ON_WAITLIST' | 'OFFER_TAKEN' | 'OFFER_EXPIRED' | 'BLOCK_CONFLICT' | 'CONFLICTS_NEED_CONFIRMATION' | 'SCHEDULE_FILE_INVALID';
+export type ErrorCode = 'BAD_REQUEST' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'VALIDATION_FAILED' | 'RATE_LIMITED' | 'INVALID_CREDENTIALS' | 'OTP_INVALID' | 'EMAIL_ALREADY_USED' | 'ACCOUNT_SUSPENDED' | 'EXTERNAL_ACCESS_DENIED' | 'SLOT_TAKEN' | 'SLOT_BLOCKED' | 'QUOTA_EXHAUSTED' | 'ACTIVE_LIMIT_REACHED' | 'WINDOW_EXCEEDED' | 'OUTSIDE_OPENING_HOURS' | 'INVALID_SLOT' | 'RESOURCE_INACTIVE' | 'BOOKING_NOT_CANCELLABLE' | 'BOOKING_NOT_ACTIVE' | 'ALREADY_CHECKED_IN' | 'QR_INVALID' | 'CHECKIN_WINDOW_CLOSED' | 'ALREADY_ON_WAITLIST' | 'OFFER_TAKEN' | 'OFFER_EXPIRED' | 'BLOCK_CONFLICT' | 'CONFLICTS_NEED_CONFIRMATION' | 'SCHEDULE_FILE_INVALID';
 
 export type SlotConflictError = Error & {
     waitlist_offer: SlotReference;
@@ -68,20 +68,19 @@ export type Session = {
     user: User;
 };
 
-export type ExternalRegistration = {
+export type PasswordRegistration = {
     full_name: string;
     email: string;
+    password: string;
     /**
-     * Format E.164.
+     * Rolul ales la înregistrare; `external` și `admin` nu se pot alege.
      */
-    phone: string;
+    role: 'student' | 'teacher';
 };
 
-export type OtpSent = {
-    /**
-     * Valabilitatea codului, în secunde.
-     */
-    expires_in: number;
+export type PasswordLogin = {
+    email: string;
+    password: string;
 };
 
 export type Sport = {
@@ -701,77 +700,14 @@ export type Page = number;
 
 export type PageSize = number;
 
-export type SsoLoginData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Ruta din PWA la care se revine după autentificare.
-         */
-        return_to?: string;
-    };
-    url: '/auth/sso/login';
-};
-
-export type SsoCallbackData = {
-    body?: never;
-    path?: never;
-    query: {
-        code: string;
-        state: string;
-    };
-    url: '/auth/sso/callback';
-};
-
-export type SsoCallbackErrors = {
-    /**
-     * Cerere incorectă (`BAD_REQUEST`).
-     */
-    400: Error;
-};
-
-export type SsoCallbackError = SsoCallbackErrors[keyof SsoCallbackErrors];
-
-export type VerifyTwoFactorData = {
-    body: {
-        challenge_id: string;
-        code: string;
-    };
+export type RegisterWithPasswordData = {
+    body: PasswordRegistration;
     path?: never;
     query?: never;
-    url: '/auth/2fa/verify';
+    url: '/auth/register';
 };
 
-export type VerifyTwoFactorErrors = {
-    /**
-     * Lipsește autentificarea sau a expirat (`UNAUTHENTICATED`).
-     */
-    401: Error;
-    /**
-     * Prea multe cereri (`RATE_LIMITED`).
-     */
-    429: Error;
-};
-
-export type VerifyTwoFactorError = VerifyTwoFactorErrors[keyof VerifyTwoFactorErrors];
-
-export type VerifyTwoFactorResponses = {
-    /**
-     * Sesiune de administrator creată (valabilă 8 ore).
-     */
-    200: Session;
-};
-
-export type VerifyTwoFactorResponse = VerifyTwoFactorResponses[keyof VerifyTwoFactorResponses];
-
-export type RegisterExternalData = {
-    body: ExternalRegistration;
-    path?: never;
-    query?: never;
-    url: '/auth/external/register';
-};
-
-export type RegisterExternalErrors = {
+export type RegisterWithPasswordErrors = {
     /**
      * Există deja un cont cu acest email (`EMAIL_ALREADY_USED`).
      */
@@ -786,61 +722,27 @@ export type RegisterExternalErrors = {
     429: Error;
 };
 
-export type RegisterExternalError = RegisterExternalErrors[keyof RegisterExternalErrors];
+export type RegisterWithPasswordError = RegisterWithPasswordErrors[keyof RegisterWithPasswordErrors];
 
-export type RegisterExternalResponses = {
+export type RegisterWithPasswordResponses = {
     /**
-     * Coduri OTP trimise.
+     * Cont creat, sesiune deschisă.
      */
-    202: OtpSent;
+    201: Session;
 };
 
-export type RegisterExternalResponse = RegisterExternalResponses[keyof RegisterExternalResponses];
+export type RegisterWithPasswordResponse = RegisterWithPasswordResponses[keyof RegisterWithPasswordResponses];
 
-export type LoginExternalData = {
-    body: {
-        email: string;
-    };
+export type LoginWithPasswordData = {
+    body: PasswordLogin;
     path?: never;
     query?: never;
-    url: '/auth/external/login';
+    url: '/auth/login';
 };
 
-export type LoginExternalErrors = {
+export type LoginWithPasswordErrors = {
     /**
-     * Prea multe cereri (`RATE_LIMITED`).
-     */
-    429: Error;
-};
-
-export type LoginExternalError = LoginExternalErrors[keyof LoginExternalErrors];
-
-export type LoginExternalResponses = {
-    /**
-     * Dacă există contul, s-a trimis un cod OTP pe email.
-     */
-    202: OtpSent;
-};
-
-export type LoginExternalResponse = LoginExternalResponses[keyof LoginExternalResponses];
-
-export type VerifyExternalData = {
-    body: {
-        email: string;
-        email_code: string;
-        /**
-         * Obligatoriu doar la prima verificare a contului.
-         */
-        phone_code?: string;
-    };
-    path?: never;
-    query?: never;
-    url: '/auth/external/verify';
-};
-
-export type VerifyExternalErrors = {
-    /**
-     * Cod OTP greșit sau expirat (`OTP_INVALID`).
+     * Email sau parolă greșită (`INVALID_CREDENTIALS`).
      */
     401: Error;
     /**
@@ -849,16 +751,16 @@ export type VerifyExternalErrors = {
     429: Error;
 };
 
-export type VerifyExternalError = VerifyExternalErrors[keyof VerifyExternalErrors];
+export type LoginWithPasswordError = LoginWithPasswordErrors[keyof LoginWithPasswordErrors];
 
-export type VerifyExternalResponses = {
+export type LoginWithPasswordResponses = {
     /**
-     * Cont verificat, sesiune creată.
+     * Sesiune deschisă.
      */
     200: Session;
 };
 
-export type VerifyExternalResponse = VerifyExternalResponses[keyof VerifyExternalResponses];
+export type LoginWithPasswordResponse = LoginWithPasswordResponses[keyof LoginWithPasswordResponses];
 
 export type RefreshSessionData = {
     body?: never;

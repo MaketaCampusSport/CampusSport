@@ -19,7 +19,6 @@ import type {
   Dashboard,
   DeliveryStatus,
   EventCreate,
-  ExternalRegistration,
   GetAvailabilityData,
   GetMonthlyReportData,
   ListAuditLogData,
@@ -34,7 +33,8 @@ import type {
   ListUsersResponses,
   MonthlyReport,
   NotificationPreferences,
-  OtpSent,
+  PasswordLogin,
+  PasswordRegistration,
   Quota,
   Resource,
   ResourceInput,
@@ -71,14 +71,19 @@ const enc = encodeURIComponent;
 
 export const client = {
   auth: {
-    /** GET /auth/sso/login: navigare completă (302 către SSO); revenirea e la `return_to` sau la /auth/2fa. */
-    ssoLoginUrl: (returnTo: string) => `${API_BASE}/auth/sso/login?return_to=${enc(returnTo)}`,
-    verifyTwoFactor: (challengeId: string, code: string) =>
-      http.post<Session>('/auth/2fa/verify', { challenge_id: challengeId, code }),
-    registerExternal: (input: ExternalRegistration) => http.post<OtpSent>('/auth/external/register', input),
-    loginExternal: (email: string) => http.post<OtpSent>('/auth/external/login', { email }),
-    verifyExternal: (input: { email: string; email_code: string; phone_code?: string }) =>
-      http.post<Session>('/auth/external/verify', input),
+    /** POST /auth/register: cont nou de student sau profesor; răspunsul deschide direct sesiunea. */
+    register: (input: PasswordRegistration) => http.post<Session>('/auth/register', input),
+    /** POST /auth/login: email și parolă, pentru toate rolurile (inclusiv administratori). */
+    login: (input: PasswordLogin) => http.post<Session>('/auth/login', input),
+    // DEZACTIVAT (autentificare cu email și parolă): SSO, 2FA pentru administratori și OTP pentru externi.
+    // /** GET /auth/sso/login: navigare completă (302 către SSO); revenirea e la `return_to` sau la /auth/2fa. */
+    // ssoLoginUrl: (returnTo: string) => `${API_BASE}/auth/sso/login?return_to=${enc(returnTo)}`,
+    // verifyTwoFactor: (challengeId: string, code: string) =>
+    //   http.post<Session>('/auth/2fa/verify', { challenge_id: challengeId, code }),
+    // registerExternal: (input: ExternalRegistration) => http.post<OtpSent>('/auth/external/register', input),
+    // loginExternal: (email: string) => http.post<OtpSent>('/auth/external/login', { email }),
+    // verifyExternal: (input: { email: string; email_code: string; phone_code?: string }) =>
+    //   http.post<Session>('/auth/external/verify', input),
     logout: () => http.post<void>('/auth/logout'),
     devUsers: () => http.get<DevLoginUser[]>('/auth/dev/users'),
     devLogin: (email: string) => http.post<Session>('/auth/dev/login', { email }),

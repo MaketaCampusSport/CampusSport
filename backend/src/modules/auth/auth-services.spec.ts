@@ -1,65 +1,145 @@
 import { generateSync } from 'otplib';
-import { AppException } from '../../common/errors/app.exception';
 import { MemoryKvStore } from '../../common/kv/kv-store';
 import { userEntity } from '../../testing/fixtures';
 import { TEST_CONFIG } from '../../testing/test-app';
-import { AuthFlowsService, safeReturnTo } from './auth-flows.service';
-import { mapRole } from './oidc.service';
-import { OTP_MAX_ATTEMPTS, OtpService } from './otp.service';
+import { dummyPasswordHash, hashPassword, verifyPassword } from './password';
+import { PasswordAuthService } from './password-auth.service';
 import { SessionsService } from './sessions.service';
 import { TotpService } from './totp.service';
+// DISABLED with SSO / 2FA / external OTP (used by the commented-out tests below):
+// import { AppException } from '../../common/errors/app.exception';
+// import { AuthFlowsService, safeReturnTo } from './auth-flows.service';
+// import { mapRole } from './oidc.service';
+// import { OTP_MAX_ATTEMPTS, OtpService } from './otp.service';
 
-describe('mapRole', () => {
-  const map = TEST_CONFIG.oidc.roleMap;
-  it('maps claim values and picks the highest role', () => {
-    expect(mapRole(['student'], map)).toBe('student');
-    expect(mapRole(['faculty'], map)).toBe('teacher');
-    expect(mapRole(['student', 'admin'], map)).toBe('admin');
-    expect(mapRole(['Faculty'], map)).toBe('teacher');
+// DISABLED: SSO, admin 2FA and the external OTP flow; sign-in is email + password.
+// describe('mapRole', () => {
+//   const map = TEST_CONFIG.oidc.roleMap;
+//   it('maps claim values and picks the highest role', () => {
+//     expect(mapRole(['student'], map)).toBe('student');
+//     expect(mapRole(['faculty'], map)).toBe('teacher');
+//     expect(mapRole(['student', 'admin'], map)).toBe('admin');
+//     expect(mapRole(['Faculty'], map)).toBe('teacher');
+//   });
+//   it('returns null when nothing maps', () => {
+//     expect(mapRole([], map)).toBeNull();
+//     expect(mapRole(['alum'], map)).toBeNull();
+//   });
+// });
+//
+// describe('safeReturnTo', () => {
+//   it('keeps PWA paths and rejects open redirects', () => {
+//     expect(safeReturnTo('/start')).toBe('/start');
+//     expect(safeReturnTo('/bookings/123?tab=qr')).toBe('/bookings/123?tab=qr');
+//     expect(safeReturnTo(undefined)).toBe('/start');
+//     expect(safeReturnTo('https://evil.example')).toBe('/start');
+//     expect(safeReturnTo('//evil.example')).toBe('/start');
+//     expect(safeReturnTo('/\\evil.example')).toBe('/start');
+//   });
+// });
+//
+// describe('OtpService', () => {
+//   const otp = new OtpService(new MemoryKvStore());
+//   const email = 'ana.rusu@example.com';
+//
+//   it('issues 6-digit codes that verify once consumed', async () => {
+//     const code = await otp.issue('email', email);
+//     expect(code).toMatch(/^\d{6}$/);
+//     expect(await otp.verify('email', email, code)).toBe(true);
+//     await otp.consume('email', email);
+//     expect(await otp.verify('email', email, code)).toBe(false);
+//   });
+//
+//   it('rejects wrong and malformed codes', async () => {
+//     const code = await otp.issue('phone', email);
+//     const wrong = code === '000000' ? '000001' : '000000';
+//     expect(await otp.verify('phone', email, wrong)).toBe(false);
+//     expect(await otp.verify('phone', email, 'abc')).toBe(false);
+//     expect(await otp.verify('phone', email, undefined)).toBe(false);
+//     expect(await otp.verify('phone', email, code)).toBe(true);
+//   });
+//
+//   it(`discards the code after ${OTP_MAX_ATTEMPTS} wrong attempts`, async () => {
+//     const code = await otp.issue('email', 'x@example.com');
+//     const wrong = code === '000000' ? '000001' : '000000';
+//     for (let i = 0; i < OTP_MAX_ATTEMPTS; i++) await otp.verify('email', 'x@example.com', wrong);
+//     expect(await otp.verify('email', 'x@example.com', code)).toBe(false);
+//   });
+// });
+
+describe('password hashing', () => {
+  it('verifies the right password only, with a random salt per hash', async () => {
+    const a = await hashPassword('parola123');
+    const b = await hashPassword('parola123');
+    expect(a).toMatch(/^scrypt\$\d+\$\d+\$\d+\$[A-Za-z0-9+/=]+\$[A-Za-z0-9+/=]+$/);
+    expect(a).not.toBe(b);
+    expect(await verifyPassword('parola123', a)).toBe(true);
+    expect(await verifyPassword('parola124', a)).toBe(false);
+    expect(await verifyPassword('', a)).toBe(false);
   });
-  it('returns null when nothing maps', () => {
-    expect(mapRole([], map)).toBeNull();
-    expect(mapRole(['alum'], map)).toBeNull();
+
+  it('never matches a malformed hash', async () => {
+    expect(await verifyPassword('x', 'plain-text')).toBe(false);
+    expect(await verifyPassword('x', 'scrypt$abc$8$1$c2FsdA==$aGFzaA==')).toBe(false);
+    expect(await verifyPassword('x', 'scrypt$16384$8$1$c2FsdA==$dG9vLXNob3J0')).toBe(false);
   });
 });
 
-describe('safeReturnTo', () => {
-  it('keeps PWA paths and rejects open redirects', () => {
-    expect(safeReturnTo('/start')).toBe('/start');
-    expect(safeReturnTo('/bookings/123?tab=qr')).toBe('/bookings/123?tab=qr');
-    expect(safeReturnTo(undefined)).toBe('/start');
-    expect(safeReturnTo('https://evil.example')).toBe('/start');
-    expect(safeReturnTo('//evil.example')).toBe('/start');
-    expect(safeReturnTo('/\\evil.example')).toBe('/start');
+describe('PasswordAuthService', () => {
+  const users = {
+    findByEmail: jest.fn(),
+    getPasswordHash: jest.fn(),
+    touch: jest.fn(),
+    createWithPassword: jest.fn(),
+  };
+  const auth = new PasswordAuthService(users as never);
+  let hash: string;
+  beforeAll(async () => {
+    hash = await hashPassword('parola123');
+    await dummyPasswordHash();
   });
-});
+  beforeEach(() => jest.clearAllMocks());
 
-describe('OtpService', () => {
-  const otp = new OtpService(new MemoryKvStore());
-  const email = 'ana.rusu@example.com';
-
-  it('issues 6-digit codes that verify once consumed', async () => {
-    const code = await otp.issue('email', email);
-    expect(code).toMatch(/^\d{6}$/);
-    expect(await otp.verify('email', email, code)).toBe(true);
-    await otp.consume('email', email);
-    expect(await otp.verify('email', email, code)).toBe(false);
-  });
-
-  it('rejects wrong and malformed codes', async () => {
-    const code = await otp.issue('phone', email);
-    const wrong = code === '000000' ? '000001' : '000000';
-    expect(await otp.verify('phone', email, wrong)).toBe(false);
-    expect(await otp.verify('phone', email, 'abc')).toBe(false);
-    expect(await otp.verify('phone', email, undefined)).toBe(false);
-    expect(await otp.verify('phone', email, code)).toBe(true);
+  it('logs in with the right password and records activity', async () => {
+    const admin = userEntity('admin');
+    users.findByEmail.mockResolvedValue(admin);
+    users.getPasswordHash.mockResolvedValue(hash);
+    await expect(auth.login({ email: admin.email, password: 'parola123' })).resolves.toBe(admin);
+    expect(users.touch).toHaveBeenCalledWith(admin.id);
   });
 
-  it(`discards the code after ${OTP_MAX_ATTEMPTS} wrong attempts`, async () => {
-    const code = await otp.issue('email', 'x@example.com');
-    const wrong = code === '000000' ? '000001' : '000000';
-    for (let i = 0; i < OTP_MAX_ATTEMPTS; i++) await otp.verify('email', 'x@example.com', wrong);
-    expect(await otp.verify('email', 'x@example.com', code)).toBe(false);
+  it('wrong password, unknown email and accounts without a password give the same error', async () => {
+    users.findByEmail.mockResolvedValue(userEntity('student'));
+    users.getPasswordHash.mockResolvedValue(hash);
+    await expect(auth.login({ email: 'x@example.edu', password: 'wrong-pass' })).rejects.toMatchObject({
+      code: 'INVALID_CREDENTIALS',
+    });
+    users.findByEmail.mockResolvedValue(null);
+    await expect(auth.login({ email: 'nobody@example.edu', password: 'parola123' })).rejects.toMatchObject({
+      code: 'INVALID_CREDENTIALS',
+    });
+    users.findByEmail.mockResolvedValue(userEntity('external'));
+    users.getPasswordHash.mockResolvedValue(null);
+    await expect(auth.login({ email: 'ana.rusu@example.com', password: 'parola123' })).rejects.toMatchObject({
+      code: 'INVALID_CREDENTIALS',
+    });
+    expect(users.touch).not.toHaveBeenCalled();
+  });
+
+  it('registers with the chosen role', async () => {
+    users.createWithPassword.mockResolvedValue(userEntity('teacher'));
+    await auth.register({
+      full_name: 'Maria Ionescu',
+      email: 'm@example.edu',
+      password: 'parola123',
+      role: 'teacher',
+    });
+    expect(users.createWithPassword).toHaveBeenCalledWith({
+      fullName: 'Maria Ionescu',
+      email: 'm@example.edu',
+      password: 'parola123',
+      role: 'teacher',
+    });
   });
 });
 
@@ -145,133 +225,134 @@ describe('SessionsService', () => {
   });
 });
 
-describe('AuthFlowsService', () => {
-  const kv = new MemoryKvStore();
-  const otp = new OtpService(kv);
-  const totp = new TotpService(TEST_CONFIG);
-  const oidc = { authorizationRequest: jest.fn(), exchange: jest.fn() };
-  const users = {
-    upsertFromSso: jest.fn(),
-    getTotpSecret: jest.fn(),
-    getById: jest.fn(),
-    findByEmail: jest.fn(),
-    createOrResetExternal: jest.fn(),
-    markExternalVerified: jest.fn(),
-  };
-  const mail = { send: jest.fn().mockResolvedValue(undefined) };
-  const sms = { send: jest.fn().mockResolvedValue(undefined) };
-  const flows = new AuthFlowsService(
-    oidc as never,
-    users as never,
-    otp,
-    totp,
-    mail as never,
-    sms as never,
-    kv,
-    TEST_CONFIG,
-  );
-  beforeEach(() => jest.clearAllMocks());
-
-  async function login(roleValues: string[]) {
-    oidc.authorizationRequest.mockResolvedValue({
-      url: 'https://idp/auth',
-      state: `s-${roleValues.join()}`,
-      codeVerifier: 'v',
-    });
-    await flows.startSso('/start');
-    oidc.exchange.mockResolvedValue({ subject: 'kc-1', email: 'x@example.edu', fullName: 'X', roleValues });
-    return flows.finishSso({ code: 'c', state: `s-${roleValues.join()}` });
-  }
-
-  it('SSO member login returns the user and the PWA target', async () => {
-    users.upsertFromSso.mockResolvedValue(userEntity('student'));
-    const result = await login(['student']);
-    expect(result).toEqual({
-      kind: 'member',
-      user: userEntity('student'),
-      redirectTo: 'http://localhost:5173/start',
-    });
-    expect(users.upsertFromSso).toHaveBeenCalledWith({
-      subject: 'kc-1',
-      email: 'x@example.edu',
-      fullName: 'X',
-      role: 'student',
-    });
-  });
-
-  it('SSO state is single-use', async () => {
-    users.upsertFromSso.mockResolvedValue(userEntity('student'));
-    await login(['student']);
-    await expect(flows.finishSso({ code: 'c', state: 's-student' })).rejects.toMatchObject({
-      code: 'BAD_REQUEST',
-    });
-  });
-
-  it('SSO without a mapped role -> FORBIDDEN', async () => {
-    await expect(login(['alum'])).rejects.toMatchObject({ code: 'FORBIDDEN' });
-  });
-
-  it('admin login requires TOTP; the challenge verifies once', async () => {
-    const secret = totp.generateSecret();
-    users.upsertFromSso.mockResolvedValue(userEntity('admin'));
-    users.getTotpSecret.mockResolvedValue(secret);
-    users.getById.mockResolvedValue(userEntity('admin'));
-    const result = await login(['admin']);
-    expect(result.kind).toBe('second-factor');
-    const challengeId = new URL(result.redirectTo).searchParams.get('challenge_id')!;
-
-    await expect(flows.verifySecondFactor(challengeId, '000000')).rejects.toBeInstanceOf(AppException);
-    await expect(flows.verifySecondFactor(challengeId, generateSync({ secret }))).resolves.toMatchObject({
-      role: 'admin',
-    });
-    await expect(flows.verifySecondFactor(challengeId, generateSync({ secret }))).rejects.toMatchObject({
-      code: 'OTP_INVALID',
-    });
-  });
-
-  it('admin without TOTP enrolment is sent back with an error', async () => {
-    users.upsertFromSso.mockResolvedValue(userEntity('admin'));
-    users.getTotpSecret.mockResolvedValue(null);
-    const result = await login(['admin']);
-    expect(result.redirectTo).toContain('error=totp_not_enrolled');
-  });
-
-  it('external registration sends an email code and an SMS code', async () => {
-    users.createOrResetExternal.mockResolvedValue(
-      userEntity('external', { emailVerifiedAt: null, phoneVerifiedAt: null }),
-    );
-    await expect(
-      flows.registerExternal({ full_name: 'Ana Rusu', email: 'ana.rusu@example.com', phone: '+37360000001' }),
-    ).resolves.toEqual({ expires_in: 600 });
-    expect(mail.send).toHaveBeenCalledWith(expect.objectContaining({ to: 'ana.rusu@example.com' }));
-    expect(sms.send).toHaveBeenCalledWith(expect.objectContaining({ to: '+37360000001' }));
-  });
-
-  it('first verification needs both codes; later logins only the email code', async () => {
-    const unverified = userEntity('external', { emailVerifiedAt: null, phoneVerifiedAt: null });
-    users.findByEmail.mockResolvedValue(unverified);
-    users.getById.mockResolvedValue(userEntity('external'));
-    const emailCode = await otp.issue('email', unverified.email);
-    const phoneCode = await otp.issue('phone', unverified.email);
-    await expect(
-      flows.verifyExternal({ email: unverified.email, email_code: emailCode }),
-    ).rejects.toMatchObject({ code: 'OTP_INVALID' });
-    await expect(
-      flows.verifyExternal({ email: unverified.email, email_code: emailCode, phone_code: phoneCode }),
-    ).resolves.toMatchObject({ role: 'external' });
-    expect(users.markExternalVerified).toHaveBeenCalledWith(unverified.id, true);
-
-    users.findByEmail.mockResolvedValue(userEntity('external'));
-    const again = await otp.issue('email', unverified.email);
-    await expect(flows.verifyExternal({ email: unverified.email, email_code: again })).resolves.toBeDefined();
-    expect(users.markExternalVerified).toHaveBeenLastCalledWith(unverified.id, false);
-  });
-
-  it('external login does not reveal unknown emails', async () => {
-    users.findByEmail.mockResolvedValue(null);
-    await expect(flows.requestExternalLogin({ email: 'nobody@example.com' })).resolves.toEqual({
-      expires_in: 600,
-    });
-    expect(mail.send).not.toHaveBeenCalled();
-  });
-});
+// DISABLED: SSO, admin 2FA and the external OTP flow; sign-in is email + password.
+// describe('AuthFlowsService', () => {
+//   const kv = new MemoryKvStore();
+//   const otp = new OtpService(kv);
+//   const totp = new TotpService(TEST_CONFIG);
+//   const oidc = { authorizationRequest: jest.fn(), exchange: jest.fn() };
+//   const users = {
+//     upsertFromSso: jest.fn(),
+//     getTotpSecret: jest.fn(),
+//     getById: jest.fn(),
+//     findByEmail: jest.fn(),
+//     createOrResetExternal: jest.fn(),
+//     markExternalVerified: jest.fn(),
+//   };
+//   const mail = { send: jest.fn().mockResolvedValue(undefined) };
+//   const sms = { send: jest.fn().mockResolvedValue(undefined) };
+//   const flows = new AuthFlowsService(
+//     oidc as never,
+//     users as never,
+//     otp,
+//     totp,
+//     mail as never,
+//     sms as never,
+//     kv,
+//     TEST_CONFIG,
+//   );
+//   beforeEach(() => jest.clearAllMocks());
+//
+//   async function login(roleValues: string[]) {
+//     oidc.authorizationRequest.mockResolvedValue({
+//       url: 'https://idp/auth',
+//       state: `s-${roleValues.join()}`,
+//       codeVerifier: 'v',
+//     });
+//     await flows.startSso('/start');
+//     oidc.exchange.mockResolvedValue({ subject: 'kc-1', email: 'x@example.edu', fullName: 'X', roleValues });
+//     return flows.finishSso({ code: 'c', state: `s-${roleValues.join()}` });
+//   }
+//
+//   it('SSO member login returns the user and the PWA target', async () => {
+//     users.upsertFromSso.mockResolvedValue(userEntity('student'));
+//     const result = await login(['student']);
+//     expect(result).toEqual({
+//       kind: 'member',
+//       user: userEntity('student'),
+//       redirectTo: 'http://localhost:5173/start',
+//     });
+//     expect(users.upsertFromSso).toHaveBeenCalledWith({
+//       subject: 'kc-1',
+//       email: 'x@example.edu',
+//       fullName: 'X',
+//       role: 'student',
+//     });
+//   });
+//
+//   it('SSO state is single-use', async () => {
+//     users.upsertFromSso.mockResolvedValue(userEntity('student'));
+//     await login(['student']);
+//     await expect(flows.finishSso({ code: 'c', state: 's-student' })).rejects.toMatchObject({
+//       code: 'BAD_REQUEST',
+//     });
+//   });
+//
+//   it('SSO without a mapped role -> FORBIDDEN', async () => {
+//     await expect(login(['alum'])).rejects.toMatchObject({ code: 'FORBIDDEN' });
+//   });
+//
+//   it('admin login requires TOTP; the challenge verifies once', async () => {
+//     const secret = totp.generateSecret();
+//     users.upsertFromSso.mockResolvedValue(userEntity('admin'));
+//     users.getTotpSecret.mockResolvedValue(secret);
+//     users.getById.mockResolvedValue(userEntity('admin'));
+//     const result = await login(['admin']);
+//     expect(result.kind).toBe('second-factor');
+//     const challengeId = new URL(result.redirectTo).searchParams.get('challenge_id')!;
+//
+//     await expect(flows.verifySecondFactor(challengeId, '000000')).rejects.toBeInstanceOf(AppException);
+//     await expect(flows.verifySecondFactor(challengeId, generateSync({ secret }))).resolves.toMatchObject({
+//       role: 'admin',
+//     });
+//     await expect(flows.verifySecondFactor(challengeId, generateSync({ secret }))).rejects.toMatchObject({
+//       code: 'OTP_INVALID',
+//     });
+//   });
+//
+//   it('admin without TOTP enrolment is sent back with an error', async () => {
+//     users.upsertFromSso.mockResolvedValue(userEntity('admin'));
+//     users.getTotpSecret.mockResolvedValue(null);
+//     const result = await login(['admin']);
+//     expect(result.redirectTo).toContain('error=totp_not_enrolled');
+//   });
+//
+//   it('external registration sends an email code and an SMS code', async () => {
+//     users.createOrResetExternal.mockResolvedValue(
+//       userEntity('external', { emailVerifiedAt: null, phoneVerifiedAt: null }),
+//     );
+//     await expect(
+//       flows.registerExternal({ full_name: 'Ana Rusu', email: 'ana.rusu@example.com', phone: '+37360000001' }),
+//     ).resolves.toEqual({ expires_in: 600 });
+//     expect(mail.send).toHaveBeenCalledWith(expect.objectContaining({ to: 'ana.rusu@example.com' }));
+//     expect(sms.send).toHaveBeenCalledWith(expect.objectContaining({ to: '+37360000001' }));
+//   });
+//
+//   it('first verification needs both codes; later logins only the email code', async () => {
+//     const unverified = userEntity('external', { emailVerifiedAt: null, phoneVerifiedAt: null });
+//     users.findByEmail.mockResolvedValue(unverified);
+//     users.getById.mockResolvedValue(userEntity('external'));
+//     const emailCode = await otp.issue('email', unverified.email);
+//     const phoneCode = await otp.issue('phone', unverified.email);
+//     await expect(
+//       flows.verifyExternal({ email: unverified.email, email_code: emailCode }),
+//     ).rejects.toMatchObject({ code: 'OTP_INVALID' });
+//     await expect(
+//       flows.verifyExternal({ email: unverified.email, email_code: emailCode, phone_code: phoneCode }),
+//     ).resolves.toMatchObject({ role: 'external' });
+//     expect(users.markExternalVerified).toHaveBeenCalledWith(unverified.id, true);
+//
+//     users.findByEmail.mockResolvedValue(userEntity('external'));
+//     const again = await otp.issue('email', unverified.email);
+//     await expect(flows.verifyExternal({ email: unverified.email, email_code: again })).resolves.toBeDefined();
+//     expect(users.markExternalVerified).toHaveBeenLastCalledWith(unverified.id, false);
+//   });
+//
+//   it('external login does not reveal unknown emails', async () => {
+//     users.findByEmail.mockResolvedValue(null);
+//     await expect(flows.requestExternalLogin({ email: 'nobody@example.com' })).resolves.toEqual({
+//       expires_in: 600,
+//     });
+//     expect(mail.send).not.toHaveBeenCalled();
+//   });
+// });

@@ -1,5 +1,10 @@
 import { DateTime } from 'luxon';
-import { EXAMPLE_RESOURCES, EXAMPLE_SPORTS, EXAMPLE_USERS } from '../src/database/seeds/example-data';
+import {
+  EXAMPLE_PASSWORD,
+  EXAMPLE_RESOURCES,
+  EXAMPLE_SPORTS,
+  EXAMPLE_USERS,
+} from '../src/database/seeds/example-data';
 import { DEFAULT_RULES } from '../src/modules/settings/settings.service';
 import { WaitlistService } from '../src/modules/waitlist/waitlist.service';
 import { createE2eApp, E2eContext } from './e2e-setup';
@@ -60,6 +65,57 @@ describe('CampusSport API (e2e, real PostgreSQL)', () => {
     expect(sports.body).toHaveLength(4);
     const tennis = await t.http().get(`/api/v1/resources?sport=${EXAMPLE_SPORTS.tennis.id}`).expect(200);
     expect(tennis.body.map((r: { name: string }) => r.name)).toEqual(['Teren tenis 1']);
+  });
+
+  it('email + password: register, duplicate email, login, wrong password, seeded admin', async () => {
+    const email = `e2e.register.${Date.now()}@example.edu`;
+    const registered = await t
+      .http()
+      .post('/api/v1/auth/register')
+      .send({
+        full_name: 'Elena Test',
+        email: email.toUpperCase(),
+        password: 'parola-e2e-1',
+        role: 'teacher',
+      })
+      .expect(201);
+    expect(registered.body.user).toMatchObject({ email, role: 'teacher', status: 'active' });
+    const stored = await t.db.query(`SELECT password_hash, sso_subject FROM users WHERE email = $1`, [email]);
+    expect(stored.rows[0].password_hash).toMatch(/^scrypt\$/);
+    expect(stored.rows[0].sso_subject).toBeNull();
+
+    const again = await t
+      .http()
+      .post('/api/v1/auth/register')
+      .send({ full_name: 'Elena Test', email, password: 'parola-e2e-1', role: 'student' })
+      .expect(409);
+    expect(again.body.code).toBe('EMAIL_ALREADY_USED');
+
+    const login = await t
+      .http()
+      .post('/api/v1/auth/login')
+      .send({ email, password: 'parola-e2e-1' })
+      .expect(200);
+    const me = await t
+      .http()
+      .get('/api/v1/me')
+      .set('Authorization', `Bearer ${login.body.access_token}`)
+      .expect(200);
+    expect(me.body).toMatchObject({ email, role: 'teacher' });
+
+    const wrong = await t
+      .http()
+      .post('/api/v1/auth/login')
+      .send({ email, password: 'nope-nope' })
+      .expect(401);
+    expect(wrong.body.code).toBe('INVALID_CREDENTIALS');
+
+    const seeded = await t
+      .http()
+      .post('/api/v1/auth/login')
+      .send({ email: U.admin.email, password: EXAMPLE_PASSWORD })
+      .expect(200);
+    expect(seeded.body.user.role).toBe('admin');
   });
 
   it('booking lifecycle: create, conflict, grid, quota, cancel with refund', async () => {

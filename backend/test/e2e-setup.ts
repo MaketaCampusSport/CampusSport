@@ -96,6 +96,7 @@ export async function createE2eApp(): Promise<E2eContext> {
       jobs.push({ queue, name, data });
       return { id: String(jobs.length) };
     },
+    on: () => undefined, // JobsService attaches an 'error' listener
     close: async () => undefined,
   });
   let builder = Test.createTestingModule({ imports: [AppModule] })

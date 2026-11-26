@@ -6,7 +6,8 @@
 #
 # Order on every `up`: postgres + redis healthy → migrate (one-shot) → seed (one-shot, only if
 # SEED_EXAMPLE_DATA=true) → api + worker → web (Caddy: the PWA, /api proxy, automatic HTTPS).
-# Optional profiles (COMPOSE_PROFILES in .env): `sso` = Keycloak, `mail` = Mailpit.
+# Optional profiles (COMPOSE_PROFILES in .env): `mail` = Mailpit. (`sso` = Keycloak is commented out:
+# sign-in is email + password stored in the database.)
 # For day-to-day development use `npm run dev` instead; backend/docker-compose.yml has the dev infrastructure.
 name: campussport-stack
 
@@ -28,11 +29,12 @@ x-backend: &backend
     COOKIE_SECURE: ${COOKIE_SECURE:-false}
     DEV_LOGIN: ${DEV_LOGIN:-false}
     SEED_ALLOW_PRODUCTION: ${SEED_EXAMPLE_DATA:-false}
-    OIDC_ISSUER: ${PUBLIC_SCHEME:-http}://${AUTH_DOMAIN:-auth.localhost}/realms/campussport
-    OIDC_CLIENT_ID: campussport-api
-    OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?set OIDC_CLIENT_SECRET in .env}
-    OIDC_REDIRECT_URI: ${PUBLIC_SCHEME:-http}://${DOMAIN:-localhost}/api/v1/auth/sso/callback
-    OIDC_ALLOW_INSECURE: ${OIDC_ALLOW_INSECURE:-false}
+    # DISABLED: sign-in is email + password; SSO (Keycloak/OIDC) is commented out.
+    # OIDC_ISSUER: ${PUBLIC_SCHEME:-http}://${AUTH_DOMAIN:-auth.localhost}/realms/campussport
+    # OIDC_CLIENT_ID: campussport-api
+    # OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?set OIDC_CLIENT_SECRET in .env}
+    # OIDC_REDIRECT_URI: ${PUBLIC_SCHEME:-http}://${DOMAIN:-localhost}/api/v1/auth/sso/callback
+    # OIDC_ALLOW_INSECURE: ${OIDC_ALLOW_INSECURE:-false}
     TOTP_ISSUER: ${TOTP_ISSUER:-CampusSport}
     SMTP_HOST: ${SMTP_HOST:-mailpit}
     SMTP_PORT: ${SMTP_PORT:-1025}
@@ -49,7 +51,8 @@ services:
       POSTGRES_USER: campussport
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: campussport
-      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
+      # DISABLED: sign-in is email + password; SSO (Keycloak/OIDC) is commented out.
+      # KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
@@ -116,7 +119,8 @@ services:
     restart: unless-stopped
     environment:
       SITE_ADDRESS: ${PUBLIC_SCHEME:-http}://${DOMAIN:-localhost}
-      AUTH_SITE_ADDRESS: ${PUBLIC_SCHEME:-http}://${AUTH_DOMAIN:-auth.localhost}
+      # DISABLED: sign-in is email + password; SSO (Keycloak/OIDC) is commented out.
+      # AUTH_SITE_ADDRESS: ${PUBLIC_SCHEME:-http}://${AUTH_DOMAIN:-auth.localhost}
       ACME_EMAIL: ${ACME_EMAIL:-admin@localhost}
     ports:
       - "80:80"
@@ -126,39 +130,41 @@ services:
       - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-    networks:
-      default:
-        # The API reaches Keycloak through Caddy at the same public URL the browser uses,
-        # so the token issuer matches OIDC_ISSUER both locally (auth.localhost) and on the VPS.
-        aliases: ["${AUTH_DOMAIN:-auth.localhost}"]
+    # DISABLED: sign-in is email + password; SSO (Keycloak/OIDC) is commented out.
+    # networks:
+    #   default:
+    #     # The API reaches Keycloak through Caddy at the same public URL the browser uses,
+    #     # so the token issuer matches OIDC_ISSUER both locally (auth.localhost) and on the VPS.
+    #     aliases: ["${AUTH_DOMAIN:-auth.localhost}"]
     depends_on:
       api: { condition: service_healthy }
 
-  keycloak:
-    profiles: [sso]
-    image: quay.io/keycloak/keycloak:26.4
-    restart: unless-stopped
-    command: ["start", "--import-realm"]
-    environment:
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
-      KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
-      KC_HOSTNAME: ${PUBLIC_SCHEME:-http}://${AUTH_DOMAIN:-auth.localhost}
-      KC_HTTP_ENABLED: "true"
-      KC_PROXY_HEADERS: xforwarded
-      KC_HEALTH_ENABLED: "true"
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD in .env}
-      # Placeholders substituted into the realm file on first import.
-      PUBLIC_URL: ${PUBLIC_SCHEME:-http}://${DOMAIN:-localhost}
-      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?set OIDC_CLIENT_SECRET in .env}
-      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-parola123}
-    volumes:
-      # demo = realm + test users student1/teacher1/admin1; production = realm only (create users in the console).
-      - ./docker/keycloak/${KEYCLOAK_REALM:-demo}:/opt/keycloak/data/import:ro
-    depends_on:
-      postgres: { condition: service_healthy }
+  # DISABLED: sign-in is email + password; SSO (Keycloak/OIDC) is commented out.
+  # keycloak:
+  #   profiles: [sso]
+  #   image: quay.io/keycloak/keycloak:26.4
+  #   restart: unless-stopped
+  #   command: ["start", "--import-realm"]
+  #   environment:
+  #     KC_DB: postgres
+  #     KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+  #     KC_DB_USERNAME: keycloak
+  #     KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
+  #     KC_HOSTNAME: ${PUBLIC_SCHEME:-http}://${AUTH_DOMAIN:-auth.localhost}
+  #     KC_HTTP_ENABLED: "true"
+  #     KC_PROXY_HEADERS: xforwarded
+  #     KC_HEALTH_ENABLED: "true"
+  #     KC_BOOTSTRAP_ADMIN_USERNAME: admin
+  #     KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD in .env}
+  #     # Placeholders substituted into the realm file on first import.
+  #     PUBLIC_URL: ${PUBLIC_SCHEME:-http}://${DOMAIN:-localhost}
+  #     OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?set OIDC_CLIENT_SECRET in .env}
+  #     DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD:-parola123}
+  #   volumes:
+  #     # demo = realm + test users student1/teacher1/admin1; production = realm only (create users in the console).
+  #     - ./docker/keycloak/${KEYCLOAK_REALM:-demo}:/opt/keycloak/data/import:ro
+  #   depends_on:
+  #     postgres: { condition: service_healthy }
 
   mailpit:
     profiles: [mail]

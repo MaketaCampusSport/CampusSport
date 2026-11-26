@@ -11,6 +11,7 @@ export const ERROR_CODES = [
   'NOT_FOUND',
   'VALIDATION_FAILED',
   'RATE_LIMITED',
+  'INVALID_CREDENTIALS',
   'OTP_INVALID',
   'EMAIL_ALREADY_USED',
   'ACCOUNT_SUSPENDED',
@@ -50,6 +51,11 @@ interface ErrorDefinition {
 export const ERRORS: Record<ErrorCode, ErrorDefinition> = {
   BAD_REQUEST: { status: 400, ro: 'Cererea nu este corectă.', en: 'The request is not valid.' },
   UNAUTHENTICATED: { status: 401, ro: 'Te rugăm să te autentifici din nou.', en: 'Please sign in again.' },
+  INVALID_CREDENTIALS: {
+    status: 401,
+    ro: 'Emailul sau parola nu sunt corecte.',
+    en: 'The email or password is not correct.',
+  },
   OTP_INVALID: {
     status: 401,
     ro: 'Codul este greșit sau a expirat.',

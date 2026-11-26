@@ -18,7 +18,7 @@ info:
     | HTTP | Coduri |
     |---|---|
     | 400 | `BAD_REQUEST` |
-    | 401 | `UNAUTHENTICATED`, `OTP_INVALID` |
+    | 401 | `UNAUTHENTICATED`, `INVALID_CREDENTIALS`, `OTP_INVALID` |
     | 403 | `FORBIDDEN`, `ACCOUNT_SUSPENDED` |
     | 404 | `NOT_FOUND` |
     | 409 | `SLOT_TAKEN`, `SLOT_BLOCKED`, `EMAIL_ALREADY_USED`, `BOOKING_NOT_CANCELLABLE`, `BOOKING_NOT_ACTIVE`, `ALREADY_CHECKED_IN`, `ALREADY_ON_WAITLIST`, `OFFER_TAKEN`, `BLOCK_CONFLICT`, `CONFLICTS_NEED_CONFIRMATION` |
@@ -27,9 +27,8 @@ info:
     | 429 | `RATE_LIMITED` |
 
     ## Autentificare
-    - **Membri (student, profesor, admin):** SSO prin OpenID Connect, Authorization Code + PKCE (SDD 6.3).
-    - **Externi:** cont verificat prin cod OTP pe email și telefon, fără parolă.
-    - **Administratori:** în plus, autentificare în doi pași (NFR-08).
+    - **Toate rolurile:** email și parolă păstrate în baza de date (hash scrypt). Înregistrarea publică creează conturi de student sau profesor; rolurile `external` și `admin` se atribuie altfel (date inițiale, administrare).
+    - **Dezactivat:** SSO prin OpenID Connect (SDD 6.3), OTP pentru externi și 2FA pentru administratori (NFR-08). Rutele sunt comentate în acest fișier.
     - **Sesiune:** JWT de acces valabil 15 minute, trimis ca `Authorization: Bearer`. Tokenul de reîmprospătare stă în cookie `HttpOnly`, `Secure`, `SameSite=Strict` și este valabil 30 de zile pe telefon, respectiv 8 ore pentru administratori (SDD 8.1).
 
     ## Roluri
@@ -54,7 +53,7 @@ servers:
     description: Dezvoltare locală
 tags:
   - name: Auth
-    description: Login SSO, înregistrare externi cu OTP, sesiuni, cont, suspendare (FR-01, FR-02, FR-05, NFR-11).
+    description: Înregistrare și login cu email și parolă, sesiuni, cont, suspendare (FR-01, FR-02, FR-05, NFR-11).
   - name: Catalog
     description: Sporturi, resurse, dotări, program de funcționare, filtrare după sport (FR-04, FR-06 – FR-08, FR-39).
   - name: Disponibilitate
@@ -74,76 +73,14 @@ tags:
 security:
   - bearerAuth: []
 paths:
-  /auth/sso/login:
-    get:
-      tags: [Auth]
-      operationId: ssoLogin
-      summary: Redirecționare către SSO-ul universității
-      description: Pornește fluxul OpenID Connect Authorization Code + PKCE. Starea și `code_verifier` sunt păstrate de server.
-      x-min-role: public
-      x-srs: [FR-01]
-      security: []
-      parameters:
-        - name: return_to
-          in: query
-          description: Ruta din PWA la care se revine după autentificare.
-          schema:
-            type: string
-            example: /start
-      responses:
-        '302':
-          description: Redirecționare către furnizorul de identitate.
-          headers:
-            Location:
-              description: URL-ul de autorizare al furnizorului SSO.
-              schema:
-                type: string
-                format: uri
-  /auth/sso/callback:
-    get:
-      tags: [Auth]
-      operationId: ssoCallback
-      summary: Revenire de la furnizorul SSO
-      description: |
-        Schimbă codul de autorizare pe token-uri, citește rolul dintr-un claim (ex. `eduPersonAffiliation`) și creează sau actualizează utilizatorul.
-        Membrii primesc cookie-ul de reîmprospătare și sunt trimiși în PWA, unde clientul apelează `POST /auth/refresh`.
-        Administratorii sunt trimiși mai întâi la pasul 2FA, cu un `challenge_id` în URL.
-      x-min-role: public
-      x-srs: [FR-01, NFR-08]
-      x-sdd-route: false
-      security: []
-      parameters:
-        - name: code
-          in: query
-          required: true
-          schema:
-            type: string
-        - name: state
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        '302':
-          description: Redirecționare către PWA.
-          headers:
-            Location:
-              schema:
-                type: string
-                format: uri
-            Set-Cookie:
-              description: Cookie-ul `refresh_token`; lipsește pentru administratori până la finalizarea 2FA.
-              schema:
-                type: string
-        '400':
-          $ref: '#/components/responses/BadRequest'
-  /auth/2fa/verify:
+  /auth/register:
     post:
       tags: [Auth]
-      operationId: verifyTwoFactor
-      summary: Al doilea pas de autentificare pentru administratori
+      operationId: registerWithPassword
+      summary: Înregistrare cu email și parolă
+      description: Creează un cont activ de student sau profesor și deschide sesiunea. Parola se păstrează doar ca hash (scrypt).
       x-min-role: public
-      x-srs: [NFR-08]
+      x-srs: [FR-01, FR-02]
       x-sdd-route: false
       security: []
       requestBody:
@@ -151,18 +88,10 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [challenge_id, code]
-              properties:
-                challenge_id:
-                  type: string
-                  format: uuid
-                code:
-                  type: string
-                  example: '482913'
+              $ref: '#/components/schemas/PasswordRegistration'
       responses:
-        '200':
-          description: Sesiune de administrator creată (valabilă 8 ore).
+        '201':
+          description: Cont creat, sesiune deschisă.
           headers:
             Set-Cookie:
               description: Cookie-ul `refresh_token`.
@@ -172,32 +101,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Session'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-  /auth/external/register:
-    post:
-      tags: [Auth]
-      operationId: registerExternal
-      summary: Înregistrare extern
-      description: Creează un cont neverificat și trimite coduri OTP pe email și telefon.
-      x-min-role: public
-      x-srs: [FR-02, NFR-11]
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ExternalRegistration'
-      responses:
-        '202':
-          description: Coduri OTP trimise.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OtpSent'
         '409':
           description: Există deja un cont cu acest email (`EMAIL_ALREADY_USED`).
           content:
@@ -208,14 +111,14 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         '429':
           $ref: '#/components/responses/TooManyRequests'
-  /auth/external/login:
+  /auth/login:
     post:
       tags: [Auth]
-      operationId: loginExternal
-      summary: Solicitare cod OTP pentru un extern deja înregistrat
-      description: Răspunde la fel și dacă emailul nu există, ca să nu dezvăluie ce conturi sunt înregistrate.
+      operationId: loginWithPassword
+      summary: Autentificare cu email și parolă
+      description: Pentru toate rolurile, inclusiv administratorii. Același răspuns pentru email necunoscut și parolă greșită. Un cont suspendat se poate autentifica, dar nu poate rezerva (`ACCOUNT_SUSPENDED` la rezervare).
       x-min-role: public
-      x-srs: [FR-02]
+      x-srs: [FR-01, NFR-08]
       x-sdd-route: false
       security: []
       requestBody:
@@ -223,53 +126,10 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [email]
-              properties:
-                email:
-                  type: string
-                  format: email
-                  example: ana.rusu@example.com
-      responses:
-        '202':
-          description: Dacă există contul, s-a trimis un cod OTP pe email.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OtpSent'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-  /auth/external/verify:
-    post:
-      tags: [Auth]
-      operationId: verifyExternal
-      summary: Verifică OTP și emite JWT
-      description: La înregistrare sunt obligatorii ambele coduri; la o autentificare ulterioară este suficient `email_code`.
-      x-min-role: public
-      x-srs: [FR-02]
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, email_code]
-              properties:
-                email:
-                  type: string
-                  format: email
-                  example: ana.rusu@example.com
-                email_code:
-                  type: string
-                  example: '583021'
-                phone_code:
-                  type: string
-                  description: Obligatoriu doar la prima verificare a contului.
-                  example: '190274'
+              $ref: '#/components/schemas/PasswordLogin'
       responses:
         '200':
-          description: Cont verificat, sesiune creată.
+          description: Sesiune deschisă.
           headers:
             Set-Cookie:
               description: Cookie-ul `refresh_token`.
@@ -280,13 +140,228 @@ paths:
               schema:
                 $ref: '#/components/schemas/Session'
         '401':
-          description: Cod OTP greșit sau expirat (`OTP_INVALID`).
+          description: Email sau parolă greșită (`INVALID_CREDENTIALS`).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '429':
           $ref: '#/components/responses/TooManyRequests'
+  # Dezactivat (autentificare cu email și parolă): SSO (OIDC), 2FA pentru administratori și OTP pentru externi.
+  # Pentru reactivare: decomentați blocul, readăugați rutele în AuthController și regenerați openapi.json.
+#   /auth/sso/login:
+#     get:
+#       tags: [Auth]
+#       operationId: ssoLogin
+#       summary: Redirecționare către SSO-ul universității
+#       description: Pornește fluxul OpenID Connect Authorization Code + PKCE. Starea și `code_verifier` sunt păstrate de server.
+#       x-min-role: public
+#       x-srs: [FR-01]
+#       security: []
+#       parameters:
+#         - name: return_to
+#           in: query
+#           description: Ruta din PWA la care se revine după autentificare.
+#           schema:
+#             type: string
+#             example: /start
+#       responses:
+#         '302':
+#           description: Redirecționare către furnizorul de identitate.
+#           headers:
+#             Location:
+#               description: URL-ul de autorizare al furnizorului SSO.
+#               schema:
+#                 type: string
+#                 format: uri
+#   /auth/sso/callback:
+#     get:
+#       tags: [Auth]
+#       operationId: ssoCallback
+#       summary: Revenire de la furnizorul SSO
+#       description: |
+#         Schimbă codul de autorizare pe token-uri, citește rolul dintr-un claim (ex. `eduPersonAffiliation`) și creează sau actualizează utilizatorul.
+#         Membrii primesc cookie-ul de reîmprospătare și sunt trimiși în PWA, unde clientul apelează `POST /auth/refresh`.
+#         Administratorii sunt trimiși mai întâi la pasul 2FA, cu un `challenge_id` în URL.
+#       x-min-role: public
+#       x-srs: [FR-01, NFR-08]
+#       x-sdd-route: false
+#       security: []
+#       parameters:
+#         - name: code
+#           in: query
+#           required: true
+#           schema:
+#             type: string
+#         - name: state
+#           in: query
+#           required: true
+#           schema:
+#             type: string
+#       responses:
+#         '302':
+#           description: Redirecționare către PWA.
+#           headers:
+#             Location:
+#               schema:
+#                 type: string
+#                 format: uri
+#             Set-Cookie:
+#               description: Cookie-ul `refresh_token`; lipsește pentru administratori până la finalizarea 2FA.
+#               schema:
+#                 type: string
+#         '400':
+#           $ref: '#/components/responses/BadRequest'
+#   /auth/2fa/verify:
+#     post:
+#       tags: [Auth]
+#       operationId: verifyTwoFactor
+#       summary: Al doilea pas de autentificare pentru administratori
+#       x-min-role: public
+#       x-srs: [NFR-08]
+#       x-sdd-route: false
+#       security: []
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               type: object
+#               required: [challenge_id, code]
+#               properties:
+#                 challenge_id:
+#                   type: string
+#                   format: uuid
+#                 code:
+#                   type: string
+#                   example: '482913'
+#       responses:
+#         '200':
+#           description: Sesiune de administrator creată (valabilă 8 ore).
+#           headers:
+#             Set-Cookie:
+#               description: Cookie-ul `refresh_token`.
+#               schema:
+#                 type: string
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Session'
+#         '401':
+#           $ref: '#/components/responses/Unauthorized'
+#         '429':
+#           $ref: '#/components/responses/TooManyRequests'
+#   /auth/external/register:
+#     post:
+#       tags: [Auth]
+#       operationId: registerExternal
+#       summary: Înregistrare extern
+#       description: Creează un cont neverificat și trimite coduri OTP pe email și telefon.
+#       x-min-role: public
+#       x-srs: [FR-02, NFR-11]
+#       security: []
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               $ref: '#/components/schemas/ExternalRegistration'
+#       responses:
+#         '202':
+#           description: Coduri OTP trimise.
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/OtpSent'
+#         '409':
+#           description: Există deja un cont cu acest email (`EMAIL_ALREADY_USED`).
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         '422':
+#           $ref: '#/components/responses/UnprocessableEntity'
+#         '429':
+#           $ref: '#/components/responses/TooManyRequests'
+#   /auth/external/login:
+#     post:
+#       tags: [Auth]
+#       operationId: loginExternal
+#       summary: Solicitare cod OTP pentru un extern deja înregistrat
+#       description: Răspunde la fel și dacă emailul nu există, ca să nu dezvăluie ce conturi sunt înregistrate.
+#       x-min-role: public
+#       x-srs: [FR-02]
+#       x-sdd-route: false
+#       security: []
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               type: object
+#               required: [email]
+#               properties:
+#                 email:
+#                   type: string
+#                   format: email
+#                   example: ana.rusu@example.com
+#       responses:
+#         '202':
+#           description: Dacă există contul, s-a trimis un cod OTP pe email.
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/OtpSent'
+#         '429':
+#           $ref: '#/components/responses/TooManyRequests'
+#   /auth/external/verify:
+#     post:
+#       tags: [Auth]
+#       operationId: verifyExternal
+#       summary: Verifică OTP și emite JWT
+#       description: La înregistrare sunt obligatorii ambele coduri; la o autentificare ulterioară este suficient `email_code`.
+#       x-min-role: public
+#       x-srs: [FR-02]
+#       security: []
+#       requestBody:
+#         required: true
+#         content:
+#           application/json:
+#             schema:
+#               type: object
+#               required: [email, email_code]
+#               properties:
+#                 email:
+#                   type: string
+#                   format: email
+#                   example: ana.rusu@example.com
+#                 email_code:
+#                   type: string
+#                   example: '583021'
+#                 phone_code:
+#                   type: string
+#                   description: Obligatoriu doar la prima verificare a contului.
+#                   example: '190274'
+#       responses:
+#         '200':
+#           description: Cont verificat, sesiune creată.
+#           headers:
+#             Set-Cookie:
+#               description: Cookie-ul `refresh_token`.
+#               schema:
+#                 type: string
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Session'
+#         '401':
+#           description: Cod OTP greșit sau expirat (`OTP_INVALID`).
+#           content:
+#             application/json:
+#               schema:
+#                 $ref: '#/components/schemas/Error'
+#         '429':
+#           $ref: '#/components/responses/TooManyRequests'
   /auth/refresh:
     post:
       tags: [Auth]
@@ -2034,6 +2109,7 @@ components:
         - NOT_FOUND
         - VALIDATION_FAILED
         - RATE_LIMITED
+        - INVALID_CREDENTIALS
         - OTP_INVALID
         - EMAIL_ALREADY_USED
         - ACCOUNT_SUSPENDED
@@ -2161,31 +2237,66 @@ components:
           example: 900
         user:
           $ref: '#/components/schemas/User'
-    ExternalRegistration:
+    PasswordRegistration:
       type: object
-      required: [full_name, email, phone]
+      required: [full_name, email, password, role]
       properties:
         full_name:
           type: string
           maxLength: 120
-          example: Ana Rusu
+          example: Ion Popescu
         email:
           type: string
           format: email
-          example: ana.rusu@example.com
-        phone:
+          example: ion.popescu@student.example.edu
+        password:
           type: string
-          pattern: '^\+[1-9]\d{7,14}$'
-          description: Format E.164.
-          example: '+37360000001'
-    OtpSent:
+          format: password
+          minLength: 8
+          maxLength: 128
+          example: parola123
+        role:
+          type: string
+          description: Rolul ales la înregistrare; `external` și `admin` nu se pot alege.
+          enum: [student, teacher]
+    PasswordLogin:
       type: object
-      required: [expires_in]
+      required: [email, password]
       properties:
-        expires_in:
-          type: integer
-          description: Valabilitatea codului, în secunde.
-          example: 600
+        email:
+          type: string
+          format: email
+          example: ion.popescu@student.example.edu
+        password:
+          type: string
+          format: password
+          example: parola123
+    # Dezactivat (autentificare cu email și parolă): schemele fluxului OTP pentru externi.
+#     ExternalRegistration:
+#       type: object
+#       required: [full_name, email, phone]
+#       properties:
+#         full_name:
+#           type: string
+#           maxLength: 120
+#           example: Ana Rusu
+#         email:
+#           type: string
+#           format: email
+#           example: ana.rusu@example.com
+#         phone:
+#           type: string
+#           pattern: '^\+[1-9]\d{7,14}$'
+#           description: Format E.164.
+#           example: '+37360000001'
+#     OtpSent:
+#       type: object
+#       required: [expires_in]
+#       properties:
+#         expires_in:
+#           type: integer
+#           description: Valabilitatea codului, în secunde.
+#           example: 600
     Sport:
       allOf:
         - type: object

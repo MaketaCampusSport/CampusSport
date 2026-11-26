@@ -3,7 +3,7 @@
   "info": {
     "title": "CampusSport API",
     "version": "1.0.0",
-    "description": "API REST JSON pentru **CampusSport**, sistemul de programare a bazei sportive universitare.\nImplementează interfața descrisă în SDD cap. 6 și cerințele din SRS cap. 8.\n\n## Convenții\n- **Versionare:** toate rutele sunt sub `/api/v1` (SDD 6).\n- **Transport:** HTTPS cu TLS 1.2+ (NFR-08, SRS 8.3.4).\n- **Timp:** intervalele se transmit ca `start` / `end` în ISO 8601 cu fus orar; în baza de date sunt un singur `tstzrange` (`period`). Parametrii de tip `date` se interpretează în fusul orar al bazei sportive.\n- **Denumiri:** câmpurile JSON folosesc `snake_case`, ca în tabelele din SDD 5.1.\n- **Erori:** orice eroare are un `code` stabil și mesaje pentru utilizator în română și engleză (SDD 6.1).\n- **Limitare de cereri:** de exemplu 10 rezervări/minut per utilizator; la depășire se răspunde cu `429` (SDD 8.1).\n\n## Coduri de eroare\n| HTTP | Coduri |\n|---|---|\n| 400 | `BAD_REQUEST` |\n| 401 | `UNAUTHENTICATED`, `OTP_INVALID` |\n| 403 | `FORBIDDEN`, `ACCOUNT_SUSPENDED` |\n| 404 | `NOT_FOUND` |\n| 409 | `SLOT_TAKEN`, `SLOT_BLOCKED`, `EMAIL_ALREADY_USED`, `BOOKING_NOT_CANCELLABLE`, `BOOKING_NOT_ACTIVE`, `ALREADY_CHECKED_IN`, `ALREADY_ON_WAITLIST`, `OFFER_TAKEN`, `BLOCK_CONFLICT`, `CONFLICTS_NEED_CONFIRMATION` |\n| 410 | `OFFER_EXPIRED` |\n| 422 | `VALIDATION_FAILED`, `QUOTA_EXHAUSTED`, `ACTIVE_LIMIT_REACHED`, `WINDOW_EXCEEDED`, `EXTERNAL_ACCESS_DENIED`, `OUTSIDE_OPENING_HOURS`, `INVALID_SLOT`, `RESOURCE_INACTIVE`, `QR_INVALID`, `CHECKIN_WINDOW_CLOSED`, `SCHEDULE_FILE_INVALID` |\n| 429 | `RATE_LIMITED` |\n\n## Autentificare\n- **Membri (student, profesor, admin):** SSO prin OpenID Connect, Authorization Code + PKCE (SDD 6.3).\n- **Externi:** cont verificat prin cod OTP pe email și telefon, fără parolă.\n- **Administratori:** în plus, autentificare în doi pași (NFR-08).\n- **Sesiune:** JWT de acces valabil 15 minute, trimis ca `Authorization: Bearer`. Tokenul de reîmprospătare stă în cookie `HttpOnly`, `Secure`, `SameSite=Strict` și este valabil 30 de zile pe telefon, respectiv 8 ore pentru administratori (SDD 8.1).\n\n## Roluri\n| Valoare | Semnificație | Prioritate (SRS 3.3) |\n|---|---|---|\n| `teacher` | Cadru didactic | 1 |\n| `student` | Student | 2 |\n| `external` | Persoană externă | 3 |\n| `admin` | Administrator al bazei sportive | – |\n\nFiecare operație indică rolul minim în `x-min-role` și cerințele SRS acoperite în `x-srs`.\n`x-sdd-route: false` marchează rutele care nu sunt în lista „rute principale” din SDD 6.1, dar sunt necesare pentru cerințele SRS.\n",
+    "description": "API REST JSON pentru **CampusSport**, sistemul de programare a bazei sportive universitare.\nImplementează interfața descrisă în SDD cap. 6 și cerințele din SRS cap. 8.\n\n## Convenții\n- **Versionare:** toate rutele sunt sub `/api/v1` (SDD 6).\n- **Transport:** HTTPS cu TLS 1.2+ (NFR-08, SRS 8.3.4).\n- **Timp:** intervalele se transmit ca `start` / `end` în ISO 8601 cu fus orar; în baza de date sunt un singur `tstzrange` (`period`). Parametrii de tip `date` se interpretează în fusul orar al bazei sportive.\n- **Denumiri:** câmpurile JSON folosesc `snake_case`, ca în tabelele din SDD 5.1.\n- **Erori:** orice eroare are un `code` stabil și mesaje pentru utilizator în română și engleză (SDD 6.1).\n- **Limitare de cereri:** de exemplu 10 rezervări/minut per utilizator; la depășire se răspunde cu `429` (SDD 8.1).\n\n## Coduri de eroare\n| HTTP | Coduri |\n|---|---|\n| 400 | `BAD_REQUEST` |\n| 401 | `UNAUTHENTICATED`, `INVALID_CREDENTIALS`, `OTP_INVALID` |\n| 403 | `FORBIDDEN`, `ACCOUNT_SUSPENDED` |\n| 404 | `NOT_FOUND` |\n| 409 | `SLOT_TAKEN`, `SLOT_BLOCKED`, `EMAIL_ALREADY_USED`, `BOOKING_NOT_CANCELLABLE`, `BOOKING_NOT_ACTIVE`, `ALREADY_CHECKED_IN`, `ALREADY_ON_WAITLIST`, `OFFER_TAKEN`, `BLOCK_CONFLICT`, `CONFLICTS_NEED_CONFIRMATION` |\n| 410 | `OFFER_EXPIRED` |\n| 422 | `VALIDATION_FAILED`, `QUOTA_EXHAUSTED`, `ACTIVE_LIMIT_REACHED`, `WINDOW_EXCEEDED`, `EXTERNAL_ACCESS_DENIED`, `OUTSIDE_OPENING_HOURS`, `INVALID_SLOT`, `RESOURCE_INACTIVE`, `QR_INVALID`, `CHECKIN_WINDOW_CLOSED`, `SCHEDULE_FILE_INVALID` |\n| 429 | `RATE_LIMITED` |\n\n## Autentificare\n- **Toate rolurile:** email și parolă păstrate în baza de date (hash scrypt). Înregistrarea publică creează conturi de student sau profesor; rolurile `external` și `admin` se atribuie altfel (date inițiale, administrare).\n- **Dezactivat:** SSO prin OpenID Connect (SDD 6.3), OTP pentru externi și 2FA pentru administratori (NFR-08). Rutele sunt comentate în acest fișier.\n- **Sesiune:** JWT de acces valabil 15 minute, trimis ca `Authorization: Bearer`. Tokenul de reîmprospătare stă în cookie `HttpOnly`, `Secure`, `SameSite=Strict` și este valabil 30 de zile pe telefon, respectiv 8 ore pentru administratori (SDD 8.1).\n\n## Roluri\n| Valoare | Semnificație | Prioritate (SRS 3.3) |\n|---|---|---|\n| `teacher` | Cadru didactic | 1 |\n| `student` | Student | 2 |\n| `external` | Persoană externă | 3 |\n| `admin` | Administrator al bazei sportive | – |\n\nFiecare operație indică rolul minim în `x-min-role` și cerințele SRS acoperite în `x-srs`.\n`x-sdd-route: false` marchează rutele care nu sunt în lista „rute principale” din SDD 6.1, dar sunt necesare pentru cerințele SRS.\n",
     "x-documents": [
       "MA-Software Requirements Specifications - Sistem de programare a bazei sportive universitare",
       "MA-Software Design Descriptions - Sistem de programare a bazei sportive universitare"
@@ -26,7 +26,7 @@
   "tags": [
     {
       "name": "Auth",
-      "description": "Login SSO, înregistrare externi cu OTP, sesiuni, cont, suspendare (FR-01, FR-02, FR-05, NFR-11)."
+      "description": "Înregistrare și login cu email și parolă, sesiuni, cont, suspendare (FR-01, FR-02, FR-05, NFR-11)."
     },
     {
       "name": "Catalog",
@@ -67,113 +67,18 @@
     }
   ],
   "paths": {
-    "/auth/sso/login": {
-      "get": {
-        "tags": [
-          "Auth"
-        ],
-        "operationId": "ssoLogin",
-        "summary": "Redirecționare către SSO-ul universității",
-        "description": "Pornește fluxul OpenID Connect Authorization Code + PKCE. Starea și `code_verifier` sunt păstrate de server.",
-        "x-min-role": "public",
-        "x-srs": [
-          "FR-01"
-        ],
-        "security": [],
-        "parameters": [
-          {
-            "name": "return_to",
-            "in": "query",
-            "description": "Ruta din PWA la care se revine după autentificare.",
-            "schema": {
-              "type": "string",
-              "example": "/start"
-            }
-          }
-        ],
-        "responses": {
-          "302": {
-            "description": "Redirecționare către furnizorul de identitate.",
-            "headers": {
-              "Location": {
-                "description": "URL-ul de autorizare al furnizorului SSO.",
-                "schema": {
-                  "type": "string",
-                  "format": "uri"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/auth/sso/callback": {
-      "get": {
-        "tags": [
-          "Auth"
-        ],
-        "operationId": "ssoCallback",
-        "summary": "Revenire de la furnizorul SSO",
-        "description": "Schimbă codul de autorizare pe token-uri, citește rolul dintr-un claim (ex. `eduPersonAffiliation`) și creează sau actualizează utilizatorul.\nMembrii primesc cookie-ul de reîmprospătare și sunt trimiși în PWA, unde clientul apelează `POST /auth/refresh`.\nAdministratorii sunt trimiși mai întâi la pasul 2FA, cu un `challenge_id` în URL.\n",
-        "x-min-role": "public",
-        "x-srs": [
-          "FR-01",
-          "NFR-08"
-        ],
-        "x-sdd-route": false,
-        "security": [],
-        "parameters": [
-          {
-            "name": "code",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "state",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "302": {
-            "description": "Redirecționare către PWA.",
-            "headers": {
-              "Location": {
-                "schema": {
-                  "type": "string",
-                  "format": "uri"
-                }
-              },
-              "Set-Cookie": {
-                "description": "Cookie-ul `refresh_token`; lipsește pentru administratori până la finalizarea 2FA.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          }
-        }
-      }
-    },
-    "/auth/2fa/verify": {
+    "/auth/register": {
       "post": {
         "tags": [
           "Auth"
         ],
-        "operationId": "verifyTwoFactor",
-        "summary": "Al doilea pas de autentificare pentru administratori",
+        "operationId": "registerWithPassword",
+        "summary": "Înregistrare cu email și parolă",
+        "description": "Creează un cont activ de student sau profesor și deschide sesiunea. Parola se păstrează doar ca hash (scrypt).",
         "x-min-role": "public",
         "x-srs": [
-          "NFR-08"
+          "FR-01",
+          "FR-02"
         ],
         "x-sdd-route": false,
         "security": [],
@@ -182,28 +87,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "challenge_id",
-                  "code"
-                ],
-                "properties": {
-                  "challenge_id": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "code": {
-                    "type": "string",
-                    "example": "482913"
-                  }
-                }
+                "$ref": "#/components/schemas/PasswordRegistration"
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "Sesiune de administrator creată (valabilă 8 ore).",
+          "201": {
+            "description": "Cont creat, sesiune deschisă.",
             "headers": {
               "Set-Cookie": {
                 "description": "Cookie-ul `refresh_token`.",
@@ -216,50 +107,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Session"
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          }
-        }
-      }
-    },
-    "/auth/external/register": {
-      "post": {
-        "tags": [
-          "Auth"
-        ],
-        "operationId": "registerExternal",
-        "summary": "Înregistrare extern",
-        "description": "Creează un cont neverificat și trimite coduri OTP pe email și telefon.",
-        "x-min-role": "public",
-        "x-srs": [
-          "FR-02",
-          "NFR-11"
-        ],
-        "security": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ExternalRegistration"
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": "Coduri OTP trimise.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OtpSent"
                 }
               }
             }
@@ -283,17 +130,18 @@
         }
       }
     },
-    "/auth/external/login": {
+    "/auth/login": {
       "post": {
         "tags": [
           "Auth"
         ],
-        "operationId": "loginExternal",
-        "summary": "Solicitare cod OTP pentru un extern deja înregistrat",
-        "description": "Răspunde la fel și dacă emailul nu există, ca să nu dezvăluie ce conturi sunt înregistrate.",
+        "operationId": "loginWithPassword",
+        "summary": "Autentificare cu email și parolă",
+        "description": "Pentru toate rolurile, inclusiv administratorii. Același răspuns pentru email necunoscut și parolă greșită. Un cont suspendat se poate autentifica, dar nu poate rezerva (`ACCOUNT_SUSPENDED` la rezervare).",
         "x-min-role": "public",
         "x-srs": [
-          "FR-02"
+          "FR-01",
+          "NFR-08"
         ],
         "x-sdd-route": false,
         "security": [],
@@ -302,84 +150,14 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": [
-                  "email"
-                ],
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "format": "email",
-                    "example": "ana.rusu@example.com"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": "Dacă există contul, s-a trimis un cod OTP pe email.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OtpSent"
-                }
-              }
-            }
-          },
-          "429": {
-            "$ref": "#/components/responses/TooManyRequests"
-          }
-        }
-      }
-    },
-    "/auth/external/verify": {
-      "post": {
-        "tags": [
-          "Auth"
-        ],
-        "operationId": "verifyExternal",
-        "summary": "Verifică OTP și emite JWT",
-        "description": "La înregistrare sunt obligatorii ambele coduri; la o autentificare ulterioară este suficient `email_code`.",
-        "x-min-role": "public",
-        "x-srs": [
-          "FR-02"
-        ],
-        "security": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "email",
-                  "email_code"
-                ],
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "format": "email",
-                    "example": "ana.rusu@example.com"
-                  },
-                  "email_code": {
-                    "type": "string",
-                    "example": "583021"
-                  },
-                  "phone_code": {
-                    "type": "string",
-                    "description": "Obligatoriu doar la prima verificare a contului.",
-                    "example": "190274"
-                  }
-                }
+                "$ref": "#/components/schemas/PasswordLogin"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Cont verificat, sesiune creată.",
+            "description": "Sesiune deschisă.",
             "headers": {
               "Set-Cookie": {
                 "description": "Cookie-ul `refresh_token`.",
@@ -397,7 +175,7 @@
             }
           },
           "401": {
-            "description": "Cod OTP greșit sau expirat (`OTP_INVALID`).",
+            "description": "Email sau parolă greșită (`INVALID_CREDENTIALS`).",
             "content": {
               "application/json": {
                 "schema": {
@@ -3385,6 +3163,7 @@
           "NOT_FOUND",
           "VALIDATION_FAILED",
           "RATE_LIMITED",
+          "INVALID_CREDENTIALS",
           "OTP_INVALID",
           "EMAIL_ALREADY_USED",
           "ACCOUNT_SUSPENDED",
@@ -3595,42 +3374,58 @@
           }
         }
       },
-      "ExternalRegistration": {
+      "PasswordRegistration": {
         "type": "object",
         "required": [
           "full_name",
           "email",
-          "phone"
+          "password",
+          "role"
         ],
         "properties": {
           "full_name": {
             "type": "string",
             "maxLength": 120,
-            "example": "Ana Rusu"
+            "example": "Ion Popescu"
           },
           "email": {
             "type": "string",
             "format": "email",
-            "example": "ana.rusu@example.com"
+            "example": "ion.popescu@student.example.edu"
           },
-          "phone": {
+          "password": {
             "type": "string",
-            "pattern": "^\\+[1-9]\\d{7,14}$",
-            "description": "Format E.164.",
-            "example": "+37360000001"
+            "format": "password",
+            "minLength": 8,
+            "maxLength": 128,
+            "example": "parola123"
+          },
+          "role": {
+            "type": "string",
+            "description": "Rolul ales la înregistrare; `external` și `admin` nu se pot alege.",
+            "enum": [
+              "student",
+              "teacher"
+            ]
           }
         }
       },
-      "OtpSent": {
+      "PasswordLogin": {
         "type": "object",
         "required": [
-          "expires_in"
+          "email",
+          "password"
         ],
         "properties": {
-          "expires_in": {
-            "type": "integer",
-            "description": "Valabilitatea codului, în secunde.",
-            "example": 600
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ion.popescu@student.example.edu"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "parola123"
           }
         }
       },

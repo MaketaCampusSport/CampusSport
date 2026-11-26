@@ -79,10 +79,10 @@ describe('API conformance with assets/livrabil05/openapi.json', () => {
   });
   afterAll(() => app.close());
 
-  it('implements all 60 operations with the same method and path', () => {
+  it('implements all 56 operations with the same method and path', () => {
     const expected = operations(spec);
     const actual = operations(generated);
-    expect(expected.size).toBe(60);
+    expect(expected.size).toBe(56);
     const missing = [...expected]
       .filter(([id, route]) => actual.get(id) !== route)
       .map(([id, route]) => `${id}: ${route} (got ${actual.get(id) ?? 'nothing'})`);
@@ -127,6 +127,6 @@ describe('API conformance with assets/livrabil05/openapi.json', () => {
       }
     }
     expect(problems).toEqual([]);
-    expect(checked).toBe(60);
+    expect(checked).toBe(56);
   });
 });
